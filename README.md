@@ -1,0 +1,183 @@
+# Aria Operations plugin for Grafana
+
+Grafana atasource plugin for reading metrics from VMware Aria Operations (formerely vRealize Operations). This is a full-featured datasource capable of accessing any metric in Aria Operations
+either through a simple list picker or a rich query language
+
+## Quick Start
+
+1. Unzip the zip file in your plugin directory (as configured)
+2. Restart the Grafana backend
+3. Create a data source with the Aria Operations plugin.
+4. Fill in user, password and an optional authentication source. If you are using self-signed certs, you may want to check the "Skip TLS Verify" box. Keep in mind that this is unsafe in a non-trusted environment.
+
+## Features
+
+- Access to entire Aria Operations data model, including data from third party plugins, custom collectors and super metrics.
+- Real time access to metrics
+- Easy installation
+- Easy mode: Pick resource type, instance and metrics
+- Advanced mode: Full-featured questy language including name matching, regexp matching, conditional filtering on metrics and properties, tag-based filtering, health and status based filtering and more.
+- Advanced query editing with syntax highlighting and autocomplete.
+
+## Easy mode
+
+![Easy mode](images/easymode.png)
+
+The "Easy Mode" allows you to pick metrics from an adapter type, resource type and instance. Simply start by selecting the adapter type (e.g. vCenter for vSphere metrics) and the resource kind (e.g. Virtual Machine). Then select the resource instance. You can type a partial name to narrow down the list. Finally pick the metric you are interested in.
+
+## Advanced Mode
+
+In Advanded Mode, metrics are accessed through a simple but powerful query language. To activate the advanced mode, just check the "Advanced Mode" checkbox. Provided that you have made a valid metric selection using the drop-down lists, the plugin will compose a query that corresponds to the selection made. This is useful to get a template for a query.
+
+### Query Language
+
+#### The basics
+
+The query language is based on the "filter chain pattern", which is essentially a list of filters that are applied to the data. The basic syntax of a query looks like this:
+
+`resource(<resource type>).<filter-1>[.<filter-2>...<filter-n>].metrics(<metric list>)[.<aggregation]`
+
+For example, to get the `cpu|demandmhz` metric from a virtual machine names "myvm", you would enter the following query:
+
+`resource(VMWARE:VirtualMachine).name("myvm").metrics(cpu|demandmhz)`
+
+This first selects all object the resource kind "VMWARE:VirtualMachine", filters it down to a VM with the name "myvm" and finally extracts the "cpu|demandmhz" metric.
+
+#### Filter stacking
+
+As mentioned above, any combination of filters can be stacked to create arbitrarily complex queries. This is an example of a more complex query:
+
+```
+resource(VMWARE:VirtualMachine).
+    regex("prod-.*").
+    whereMetric(cpu|demandmhz > 10).
+    whereHealth(RED).
+    whereProperties(contains(summary|guestFullName, "Linux")).
+    metric(cpu|demandmhz)
+```
+
+In this example, we first get all the Virtual Machines that have a name starting with "prod-", then we select only those with a current CPU demand greater than 10 MHz, then only those whose health status is "RED" and finally the VMs that have a guest name containing the string "Linux". You may view this as a stream of data passing through a series of filters successively narrowing down the number of Virtual Machines for which metrics are obtained.
+
+#### Filter types
+
+| name            | parameters                                           | description                                                                                                           |
+| --------------- | ---------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| all             | N/A                                                  | Returns all resources without any filtering. Use with caution, as the number of returned resources may be very large! |
+| id              | An internal UUID                                     | Returns zero or one resources with the provided internal UUID                                                         |
+| name            | A resource nane                                      | Returns zero or one resource with an exact match of the parameter against a resource name                             |
+| regex           | A regular expression                                 | Returns all resources with names that matches the provided regular expression                                         |
+| whereHealth     | A list of health statuses (RED, GREEN, YELLOW, GRAY) | Returns all resources that match any of the health statuses provided                                                  |
+| whereState      | A list of resource states                            | Returns all resources with the provided states                                                                        |
+| whereStatus     | A list of resource statuses                          | Returns all resources with the provided statuses                                                                      |
+| whereProperties | A conditional expression (see below)                 | Returns all resources with properties that match the conditional expression                                           |
+| whereMetrics    | A conditional expression (see below)                 | Returns all resources with metrics that match the conditional expression                                              |
+
+### Conditional expressions
+
+The `whereProperties` and `whereMetrics` filters support complex conditional expressions based on comparison operators or built-in functions.
+
+#### Comparisons
+
+Conditional expressions may contain comparisons in the form <metric or property> <comparison operator> <numeric or string literal>, such as `cpu|utilization > 10` or `confg|os|name = "Ubuntu"`.
+
+Valid comparison operators are as follows
+| Operator | Description |
+| - | - |
+| = | Equals |
+| != | Does not equal |
+| > | Greater than (only valid for numbers) |
+| >= | Greater than or equal (only valid for numbers) |
+| < | Less than (only valid for numbers) |
+| <>= | Less than or equal (only valid for numbers) |
+
+#### Built-in functions
+
+In addition to the comparison operators, the query language supports built-in functions for more advanced comparisons.
+
+| Name        | Parameters                    | Descrption                                                                        |
+| ----------- | ----------------------------- | --------------------------------------------------------------------------------- |
+| exists      | Metric or property name       | Return true if the metric or property exists                                      |
+| empty       | Metric or property name       | Return true if the metric or property exists but lacks a value                    |
+| like        | Property name, literal string | TODO                                                                              |
+| in          | Property name, literal string | TODO                                                                              |
+| contains    | Property name, literal string | Returns true if the property value contains the literal string                    |
+| starts_with | Property name, literal string | Returns true if the property value starts with the literal string                 |
+| ends_with   | Property name, literal string | Returns true if the property value ends with the literal string                   |
+| regex       | Property name, literal string | Returns true if the property value matches the regexp given in the literal string |
+
+#### Boolean Operators
+
+Multiple conditions can be stringed together using boolean operator `and`, `or` and `not`.
+
+Limitations:
+
+- `and` and `or` cannot be mixed in a conditional expression.
+- `not` can only be used in front of functions.
+
+### Aggregation
+
+When a query returns multiple time series, they can be aggregated into sums, averages, standard deviations etc. This can be done either across the entire dataset to
+generate a single timeseries, or by grouping resources by properties. For example, if you want calculate a single average across all hosts, you would use the
+`avg` keyword without any parameters.
+
+```
+resource(VMWWARE:HostSystem).all().metric(cpu|demand).avg()
+```
+
+If you wanted the same average, but grouped by cluster, you would pass the `summary|parentCluster` to the `avg` function.
+
+```
+resource(VMWWARE:HostSystem).all().metric(cpu|demand).avg(summary|parentCluster)
+```
+
+#### Calculation details
+
+Aggregations are applied per timestamp. Data is first grouped into timeslots, then grouped by any properties specified and the aggregation is applied on each resulting group.
+
+#### Available aggregations
+
+The following aggregations are currently available.
+| Name | Description |
+| - | - |
+| avg | Average of all values in a group |
+| count | Number of values present in a group |
+| sum | Sum of all values in a group |
+| min | The minimum of all values in a group |
+| max | The maximum of all values in a group |
+| stddev | Standard deviaton across all values in a group |
+| variance | Variance across all values in a group |
+
+### Example queries
+
+Get CPU demand for all hosts
+
+```
+resource(VMWARE:HostSystem).all().metrics(cpu|demandmhz)
+```
+
+Get CPU demand and memory demand from virtual machines with a CPU demand of more than 20 MHz and memory demand > 1,000,000kB
+
+```
+resource(VMWARE:VirtualMachine).
+    whereMetric(cpu|demandmhz > 20 and mem|host_demand > 1000000).
+    metrics(cpu|demandmhz, mem|hostdemand)
+```
+
+Get CPU demand for all virtual machines where the name starts with "prod-", the parent cluster is "cluster1" and the full guest name does not contain the string "Linux"
+
+```
+resource(VMWARE:VirtualMachine).
+    regex("prod-.*").
+    whereProperties(summary|parentCluster = "cluster1" and not contains(summary|fullGuestName, "Linux").
+    metrics(cpu|demandmhz)
+```
+
+### Autocompletion
+
+![Autocompletion](images/autocomplete.png)
+
+Since the data model of Aria Operations is fairly large and complex, context sensitive autocomplete greatly improves the usability of the query editor. The autocomplete is context sensitive, so, for example when you are typing inside a metric-based filter, it will suggest names of metrics for the resource type you are working on.
+
+Autocomplete can be triggered either by simply typing the first few characters or it can be forced by pressing Ctrl-Space.
+
+Known issues: The first time data is fetched from the server, the autocomplete may time out. To fix this, press Ctrl-Space to reload the list.
