@@ -82,8 +82,12 @@ export class Accumulator {
     if (this.count < 2) {
       return 0;
     }
-    const avg = this.getAverage();
-    return this.sumOfSquares / this.count - avg * avg;
+
+    // Math.sqrt((this.sumsq - this.sum*this.sum/this.n)/(this.n-1)
+    return (
+      (this.sumOfSquares - (this.sum * this.sum) / this.count) /
+      (this.count - 1)
+    );
   }
 
   getStandardDeviation(): number {
@@ -113,7 +117,6 @@ export class Stats {
 
   add(timestamps: number[], values: number[], properties: Map<string, string>) {
     const key = JSON.stringify(Array.from(properties?.entries() || {}));
-    console.log('Key', key);
     for (const idx in timestamps) {
       const ts = timestamps[idx];
       const value = values[idx];

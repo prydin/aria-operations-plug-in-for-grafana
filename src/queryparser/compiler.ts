@@ -31,7 +31,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 import {
-  MyQuery,
+  AriaOpsQuery,
   ResourceRequest,
   KeyValue,
   FilterSpec,
@@ -48,17 +48,18 @@ export const makeFilter = (args: any): FilterSpec => {
   };
 
   for (let p of args) {
-    if (p.conjuctive) {
+    if (p.conjunctive) {
       if (
         spec.conjunctionOperator &&
-        p.conjuctive.toUpperCase() !== spec.conjunctionOperator
+        p.conjunctive.toUpperCase() !== spec.conjunctionOperator
       ) {
+        console.log(spec.conjunctionOperator);
         throw (
-          'All terms must have the same conjuctive operator (and/or). Offending operator: ' +
-          p.conjuctive
+          'All terms must have the same conjunctive operator (and/or). Offending operator: ' +
+          p.conjunctive
         );
       }
-      spec.conjunctionOperator = p.conjuctive.toUpperCase();
+      spec.conjunctionOperator = p.conjunctive.toUpperCase();
     }
     const c: Condition = {
       operator: p.name,
@@ -72,15 +73,15 @@ export const makeFilter = (args: any): FilterSpec => {
         c.stringValue = v as string;
       }
     }
-    if (!spec.conjunctionOperator) {
-      spec.conjunctionOperator = 'AND';
-    }
     spec.conditions.push(c);
+  }
+  if (!spec.conjunctionOperator) {
+    spec.conjunctionOperator = 'AND';
   }
   return spec;
 };
 
-export const compileQuery = (query: MyQuery): CompiledQuery => {
+export const compileQuery = (query: AriaOpsQuery): CompiledQuery => {
   const resourceQuery: ResourceRequest = {
     adapterKind: [],
     regex: [],
@@ -142,7 +143,6 @@ export const compileQuery = (query: MyQuery): CompiledQuery => {
 
     // Handle instance filters by calling the resolver functions
     const seenBefore = new Set<string>();
-    console.log(pq.instances);
     for (let predicate of pq.instances) {
       if (seenBefore.has(predicate)) {
         throw (
@@ -150,7 +150,6 @@ export const compileQuery = (query: MyQuery): CompiledQuery => {
         );
       }
       seenBefore.add(predicate);
-      console.log('Pred: ' + JSON.stringify(predicate));
       resolvers[predicate.type as string](predicate.arg);
     }
 
@@ -177,7 +176,7 @@ export const compileQuery = (query: MyQuery): CompiledQuery => {
   }
 };
 
-export const buildTextQuery = (query: MyQuery): string => {
+export const buildTextQuery = (query: AriaOpsQuery): string => {
   let s = '';
   if (query.adapterKind && query.resourceKind) {
     s += 'resource(' + query.adapterKind + ':' + query.resourceKind + ')';

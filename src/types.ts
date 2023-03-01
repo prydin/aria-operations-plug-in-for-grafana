@@ -43,7 +43,7 @@ export interface MySecureJsonData {
   password: string;
 }
 
-export interface MyQuery extends DataQuery {
+export interface AriaOpsQuery extends DataQuery {
   adapterKind?: string;
   resourceKind?: string;
   resourceId?: string;
@@ -57,7 +57,7 @@ export const defaultOptions: Partial<AriaOpsOptions> = {
   authSource: 'Local Users',
 };
 
-export const defaultQuery: Partial<MyQuery> = {
+export const defaultQuery: Partial<AriaOpsQuery> = {
   resourceName: '',
   resourceKind: '',
   adapterKind: '',

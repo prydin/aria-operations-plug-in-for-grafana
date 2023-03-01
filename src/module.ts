@@ -34,11 +34,11 @@ import { DataSourcePlugin } from '@grafana/data';
 import { AriaOpsDataSource } from './datasource';
 import { ConfigEditor } from './components/ConfigEditor';
 import { QueryEditor } from './components/QueryEditor';
-import { MyQuery, AriaOpsOptions } from './types';
+import { AriaOpsQuery, AriaOpsOptions } from './types';
 
 export const plugin = new DataSourcePlugin<
   AriaOpsDataSource,
-  MyQuery,
+  AriaOpsQuery,
   AriaOpsOptions
 >(AriaOpsDataSource)
   .setConfigEditor(ConfigEditor)

@@ -41,17 +41,17 @@ import {
 import { QueryEditorProps, SelectableValue } from '@grafana/data';
 import { EditorRow, EditorRows } from '@grafana/experimental';
 import { AriaOpsDataSource } from '../datasource';
-import { AriaOpsOptions, MyQuery } from '../types';
+import { AriaOpsOptions, AriaOpsQuery } from '../types';
 import { mapToSelectable } from 'utils';
 import { monacoHighlighter } from 'queryparser/monaco/highlight';
-import { buildTextQuery } from 'queryparser/processor';
+import { buildTextQuery } from 'queryparser/compiler';
 import { AriaOpsCompletionItemProvider } from 'queryparser/monaco/completion';
 import { debounce } from 'lodash';
 import { LANG_ID } from 'queryparser/constants';
 
 const { FormField } = LegacyForms;
 
-type Props = QueryEditorProps<AriaOpsDataSource, MyQuery, AriaOpsOptions>;
+type Props = QueryEditorProps<AriaOpsDataSource, AriaOpsQuery, AriaOpsOptions>;
 
 type State = {
   adapterKinds: Array<SelectableValue<string>>;

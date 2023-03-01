@@ -47,14 +47,14 @@ import { catchError } from 'rxjs/operators';
 import _, { defaults } from 'lodash';
 
 import {
-  MyQuery,
+  AriaOpsQuery,
   AriaOpsOptions,
   defaultQuery,
   ResourceRequest,
   AggregationSpec,
 } from './types';
 import { lastValueFrom } from 'rxjs';
-import { compileQuery } from 'queryparser/processor';
+import { compileQuery } from 'queryparser/compiler';
 import { Stats } from 'aggregator';
 
 type Resolver = { (token: string): void };
@@ -65,7 +65,10 @@ type AuthWaiter = {
   reject: Rejecter;
 };
 
-export class AriaOpsDataSource extends DataSourceApi<MyQuery, AriaOpsOptions> {
+export class AriaOpsDataSource extends DataSourceApi<
+  AriaOpsQuery,
+  AriaOpsOptions
+> {
   authWaiters: AuthWaiter[] = [];
   token?: string;
   url?: string;
@@ -83,7 +86,6 @@ export class AriaOpsDataSource extends DataSourceApi<MyQuery, AriaOpsOptions> {
     data: any,
     useToken: boolean
   ): Promise<FetchResponse<any>> {
-    // console.log(method + ' ' + path + ' ' + JSON.stringify(data));
     let token = useToken ? await this.getToken() : '';
     return lastValueFrom(
       getBackendSrv()
@@ -321,7 +323,9 @@ export class AriaOpsDataSource extends DataSourceApi<MyQuery, AriaOpsOptions> {
     });
   }
 
-  async query(options: DataQueryRequest<MyQuery>): Promise<DataQueryResponse> {
+  async query(
+    options: DataQueryRequest<AriaOpsQuery>
+  ): Promise<DataQueryResponse> {
     const { range, maxDataPoints } = options;
     const from = range!.from.valueOf();
     const to = range!.to.valueOf();
