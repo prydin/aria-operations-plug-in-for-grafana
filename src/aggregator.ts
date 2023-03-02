@@ -46,20 +46,23 @@ const statProducers: KeyValue = {
 export class Accumulator {
   sum = 0;
   count = 0;
-  sumOfSquares = 0;
   max: number = Number.MIN_VALUE;
   min: number = Number.MAX_VALUE;
+  vAcc = 0;
+  avg = 0;
 
   aaddDataPoint(value: number) {
     this.sum += value;
-    this.count += 1;
-    this.sumOfSquares += value * value;
+    this.count++;
     this.max = Math.max(this.max, value);
     this.min = Math.min(this.min, value);
+    const avg = this.sum / this.count;
+    this.vAcc += (value - this.avg) * (value - avg);
+    this.avg = avg;
   }
 
   getAverage(): number {
-    return this.sum !== 0 ? this.sum / this.count : 0;
+    return this.avg;
   }
 
   getCount(): number {
@@ -79,15 +82,7 @@ export class Accumulator {
   }
 
   getVariance(): number {
-    if (this.count < 2) {
-      return 0;
-    }
-
-    // Math.sqrt((this.sumsq - this.sum*this.sum/this.n)/(this.n-1)
-    return (
-      (this.sumOfSquares - (this.sum * this.sum) / this.count) /
-      (this.count - 1)
-    );
+    return this.count > 1 ? this.vAcc / (this.count - 1) : 0;
   }
 
   getStandardDeviation(): number {
