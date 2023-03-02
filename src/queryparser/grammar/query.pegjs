@@ -63,7 +63,7 @@ TermNode = _ conjunctive: ("and" / "or") _ term: Term { return { ...term, conjun
 Term = Function / InfixExpression
 Function = UnaryFunction / BinaryFunction
 UnaryFunction = name: UnaryFunctionName  LP arg: Identifier RP { return { name: name.toUpperCase(), arg: [ arg ] } }
-BinaryFunction = name: BinaryFunctionName LP  arg0: Identifier Comma arg1: LiteralString RP { return { name: name.toUpperCase(), arg: [ arg0, arg1 ] } }
+BinaryFunction = name: BinaryFunctionName LP  arg0: Identifier Comma arg1: LiteralValue RP { return { name: name.toUpperCase(), arg: [ arg0, arg1 ] } }
 InfixExpression = left: Identifier _ operator: Operator _ right: LiteralValue { return { name: operator, arg: [ left, right ] }}
 LiteralValue = LiteralString / Number
 
@@ -87,14 +87,10 @@ OpGT_EQ = ">="{ return "GT_EQ" }
 
 UnaryFunctionName = 
     ("not exists" /
-	  "empty" / 
-    "exists" / 
-    "not empty") { return text().replace(" ", "_").toUpperCase()}
+    "exists" ) { return text().replace(" ", "_").toUpperCase()}
 
 BinaryFunctionName = 
     ("like" /
-	  "in" /
-    "not in" / 
     "contains" / 
     "starts_with" / 
     "ends_with" / 

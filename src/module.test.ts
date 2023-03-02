@@ -127,7 +127,7 @@ const negatedWherePropertiesQueryResult: CompiledQuery = {
     resourceState: [],
     resourceStatus: [],
     propertyConditions: {
-      conditions: [{ key: 'foo', operator: 'NOT_EMPTY' }],
+      conditions: [{ key: 'foo', operator: 'NOT_EXISTS' }],
       conjunctionOperator: 'AND',
     },
   },
@@ -273,7 +273,7 @@ describe('Query parser', () => {
 
   test('Negated whereProperties()', () => {
     const q = testCompile(
-      'resource(VMWARE:VirtualMachine).whereProperties(not empty(foo)).metrics(cpu|demandmhz)'
+      'resource(VMWARE:VirtualMachine).whereProperties(not exists(foo)).metrics(cpu|demandmhz)'
     );
     expect(q).toStrictEqual(negatedWherePropertiesQueryResult);
   });

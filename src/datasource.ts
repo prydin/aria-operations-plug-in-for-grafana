@@ -65,6 +65,26 @@ type AuthWaiter = {
   reject: Rejecter;
 };
 
+class AriaOpsError extends Error {
+  static buildMessage(apiResponse: FetchResponse<any>): string {
+    console.log(apiResponse);
+    const content = apiResponse.data;
+    let message = content.message;
+    console.log(message);
+    if (content.validationFailures) {
+      message += ' Details: ';
+      for (const v of content.validationFailures) {
+        message += v.failureMessage + '. ';
+      }
+    }
+
+    return message;
+  }
+  constructor(apiResponse: FetchResponse<any>) {
+    super(AriaOpsError.buildMessage(apiResponse));
+  }
+}
+
 export class AriaOpsDataSource extends DataSourceApi<
   AriaOpsQuery,
   AriaOpsOptions
@@ -102,7 +122,7 @@ export class AriaOpsDataSource extends DataSourceApi<
         .pipe(
           catchError((err) => {
             if (err.data?.message) {
-              throw err.data.message;
+              throw new AriaOpsError(err);
             }
             throw err.status + ': ' + err.statusText;
           })
@@ -346,9 +366,7 @@ export class AriaOpsDataSource extends DataSourceApi<
       }
 
       const compiled = compileQuery(query);
-      console.log('Compiled: ' + JSON.stringify(compiled));
       const resources = await this.getResourcesWithRq(compiled.resourceQuery);
-
       let chunk = await this.getMetrics(
         query.refId,
         resources,
