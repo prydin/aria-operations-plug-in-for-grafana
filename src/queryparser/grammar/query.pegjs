@@ -62,7 +62,7 @@ FilterConditions = first: Term _ theRest: TermNode* { return [ first, ...theRest
 TermNode = _ conjunctive: ("and" / "or") _ term: Term { return { ...term, conjunctive } }
 Term = Function / InfixExpression
 Function = UnaryFunction / BinaryFunction
-UnaryFunction = name: UnaryFunctionName  LP arg: LiteralValue RP { return { name: name.toUpperCase(), arg: [ arg ] } }
+UnaryFunction = name: UnaryFunctionName  LP arg: Identifier RP { return { name: name.toUpperCase(), arg: [ arg ] } }
 BinaryFunction = name: BinaryFunctionName LP  arg0: Identifier Comma arg1: LiteralString RP { return { name: name.toUpperCase(), arg: [ arg0, arg1 ] } }
 InfixExpression = left: Identifier _ operator: Operator _ right: LiteralValue { return { name: operator, arg: [ left, right ] }}
 LiteralValue = LiteralString / Number
@@ -86,14 +86,14 @@ OpLT_EQ = "<=" { return "LT_EQ" }
 OpGT_EQ = ">="{ return "GT_EQ" }
 
 UnaryFunctionName = 
-    "not exists" /
-	"empty" / 
+    ("not exists" /
+	  "empty" / 
     "exists" / 
-    "not empty"
+    "not empty") { return text().replace(" ", "_").toUpperCase()}
 
 BinaryFunctionName = 
-    "like" /
-	"in" /
+    ("like" /
+	  "in" /
     "not in" / 
     "contains" / 
     "starts_with" / 
@@ -102,7 +102,7 @@ BinaryFunctionName =
     "not ends_with" / 
     "not contains" / 
     "regex" / 
-    "not regex" 
+    "not regex") { return text().replace(" ", "_").toUpperCase()}
     
 StateFilter = type: "whereState" LP arg: IdentifierList RP { return { type, arg }}
 StatusFilter = type: "whereStatus" LP arg: IdentifierList RP { return { type, arg }}

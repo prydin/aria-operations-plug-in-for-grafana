@@ -172,6 +172,10 @@ resource(VMWARE:VirtualMachine).
     metrics(cpu|demandmhz)
 ```
 
+### Known issues
+
+Certain combinations of operators are not supported by Aria Operations and you might see an error message saying `Invalid request... #1 violations found`. If this happens, try to rewrite your query a different way.
+
 ### Autocompletion
 
 ![Autocompletion](images/autocomplete.png)

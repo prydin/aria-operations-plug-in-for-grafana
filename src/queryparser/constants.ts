@@ -48,6 +48,7 @@ export const KEYWORDS = [
   'contains',
   'not',
   'exists',
+  'empty',
   'starts_with',
   'ends_with',
   'whereHealth',

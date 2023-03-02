@@ -116,6 +116,25 @@ const simpleWherePropertiesQueryResult: CompiledQuery = {
   aggregation: null as any,
 };
 
+const negatedWherePropertiesQueryResult: CompiledQuery = {
+  resourceQuery: {
+    adapterKind: ['VMWARE'],
+    name: [],
+    regex: [],
+    resourceHealth: [],
+    resourceId: [],
+    resourceKind: ['VirtualMachine'],
+    resourceState: [],
+    resourceStatus: [],
+    propertyConditions: {
+      conditions: [{ key: 'foo', operator: 'NOT_EMPTY' }],
+      conjunctionOperator: 'AND',
+    },
+  },
+  metrics: ['cpu|demandmhz'],
+  aggregation: null as any,
+};
+
 const simpleWhereMetricsQueryResult: CompiledQuery = {
   resourceQuery: {
     adapterKind: ['VMWARE'],
@@ -250,6 +269,13 @@ describe('Query parser', () => {
       'resource(VMWARE:VirtualMachine).whereProperties(foo = "bar" and bar = "foo").metrics(cpu|demandmhz)'
     );
     expect(q).toStrictEqual(simpleWherePropertiesQueryResult);
+  });
+
+  test('Negated whereProperties()', () => {
+    const q = testCompile(
+      'resource(VMWARE:VirtualMachine).whereProperties(not empty(foo)).metrics(cpu|demandmhz)'
+    );
+    expect(q).toStrictEqual(negatedWherePropertiesQueryResult);
   });
 
   test('Illegal whereProperties()', () => {
