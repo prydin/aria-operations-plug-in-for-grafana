@@ -257,7 +257,7 @@ export class QueryEditor extends PureComponent<Props, State> {
               height={200}
               onMount={this.onMonacoMount}
               language="aria-operations"
-              options={{ readOnly: !advancedMode }}
+              options={{ readOnly: !advancedMode, minimap: { enabled: false } }}
             />
           </EditorRow>
         </EditorRows>
