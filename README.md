@@ -1,6 +1,6 @@
 # Aria Operations plugin for Grafana
 
-Grafana atasource plugin for reading metrics from VMware Aria Operations (formerely vRealize Operations). This is a full-featured datasource capable of accessing any metric in Aria Operations
+Grafana atasource plugin for reading metrics from VMware Aria Operations (formerly vRealize Operations). This is a full-featured datasource capable of accessing any metric in Aria Operations
 either through a simple list picker or a rich query language
 
 ## Quick Start
@@ -64,8 +64,8 @@ In this example, we first get all the Virtual Machines that have a name starting
 | --------------- | ---------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
 | all             | N/A                                                  | Returns all resources without any filtering. Use with caution, as the number of returned resources may be very large! |
 | id              | An internal UUID                                     | Returns zero or one resources with the provided internal UUID                                                         |
-| name            | A resource nane                                      | Returns zero or one resource with an exact match of the parameter against a resource name                             |
-| regex           | A regular expression                                 | Returns all resources with names that matches the provided regular expression                                         |
+| name            | A resource name                                      | Returns zero or one resource with an exact match of the parameter against a resource name                             |
+| regex           | A regular expression                                 | Returns all resources with names that match the provided regular expression                                         |
 | whereHealth     | A list of health statuses (RED, GREEN, YELLOW, GRAY) | Returns all resources that match any of the health statuses provided                                                  |
 | whereState      | A list of resource states                            | Returns all resources with the provided states                                                                        |
 | whereStatus     | A list of resource statuses                          | Returns all resources with the provided statuses                                                                      |
