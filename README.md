@@ -1,6 +1,6 @@
 # Aria Operations plugin for Grafana
 
-Grafana atasource plugin for reading metrics from VMware Aria Operations (formerly vRealize Operations). This is a full-featured datasource capable of accessing any metric in Aria Operations
+Grafana datasource plugin for reading metrics from VMware Aria Operations (formerly vRealize Operations). This is a full-featured datasource capable of accessing any metric in Aria Operations
 either through a simple list picker or a rich query language
 
 ## Quick Start
