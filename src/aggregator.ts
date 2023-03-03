@@ -103,7 +103,10 @@ export class Bucket {
   }
 
   getResults(): Map<number, Accumulator> {
-    return this.accumulators;
+    // If datapoints are missing in some time series, it's possible that some
+    // values are inserted out of order. To prevent strange graph artifacts,
+    // we sort the accumulators according to the timestamps before returning them.
+    return new Map([...this.accumulators.entries()].sort());
   }
 }
 
@@ -151,7 +154,7 @@ export class Stats {
           { name: 'Value', type: FieldType.number, labels },
         ],
       });
-      for (const [timestamp, data] of bucket.accumulators) {
+      for (const [timestamp, data] of bucket.getResults()) {
         frame.add({ Time: timestamp, Value: produce(data) });
       }
       frames.push(frame);
