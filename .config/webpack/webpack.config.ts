@@ -93,7 +93,7 @@ const config = async (env): Promise<Configuration> => ({
       },
       {
         test: /\.css$/,
-        use: ["style-loader", "css-loader"]
+        use: ['style-loader', 'css-loader'],
       },
       {
         exclude: /(node_modules)/,
@@ -140,7 +140,11 @@ const config = async (env): Promise<Configuration> => ({
       patterns: [
         // If src/README.md exists use it; otherwise the root README
         // To `compiler.options.output`
-        { from: hasReadme() ? 'README.md' : '../README.md', to: '.', force: true },
+        {
+          from: hasReadme() ? 'README.md' : '../README.md',
+          to: '.',
+          force: true,
+        },
         { from: 'plugin.json', to: '.' },
         { from: '../LICENSE', to: '.' },
         { from: '../CHANGELOG.md', to: '.', force: true },
@@ -149,6 +153,7 @@ const config = async (env): Promise<Configuration> => ({
         { from: '**/*.png', to: '.', noErrorOnMissing: true }, // Optional
         { from: '**/*.html', to: '.', noErrorOnMissing: true }, // Optional
         { from: 'img/**/*', to: '.', noErrorOnMissing: true }, // Optional
+        { from: '../img/**/*', to: '.', noErrorOnMissing: true }, // Optional
         { from: 'libs/**/*', to: '.', noErrorOnMissing: true }, // Optional
         { from: 'static/**/*', to: '.', noErrorOnMissing: true }, // Optional
       ],

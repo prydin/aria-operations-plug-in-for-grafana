@@ -21,8 +21,6 @@ either through a simple list picker or a rich query language
 
 ## Easy mode
 
-![Easy mode](images/easymode.png)
-
 The "Easy Mode" allows you to pick metrics from an adapter type, resource type and instance. Simply start by selecting the adapter type (e.g. vCenter for vSphere metrics) and the resource kind (e.g. Virtual Machine). Then select the resource instance. You can type a partial name to narrow down the list. Finally pick the metric you are interested in.
 
 ## Advanced Mode
@@ -65,7 +63,7 @@ In this example, we first get all the Virtual Machines that have a name starting
 | all             | N/A                                                  | Returns all resources without any filtering. Use with caution, as the number of returned resources may be very large! |
 | id              | An internal UUID                                     | Returns zero or one resources with the provided internal UUID                                                         |
 | name            | A resource name                                      | Returns zero or one resource with an exact match of the parameter against a resource name                             |
-| regex           | A regular expression                                 | Returns all resources with names that match the provided regular expression                                         |
+| regex           | A regular expression                                 | Returns all resources with names that match the provided regular expression                                           |
 | whereHealth     | A list of health statuses (RED, GREEN, YELLOW, GRAY) | Returns all resources that match any of the health statuses provided                                                  |
 | whereState      | A list of resource states                            | Returns all resources with the provided states                                                                        |
 | whereStatus     | A list of resource statuses                          | Returns all resources with the provided statuses                                                                      |
@@ -177,8 +175,6 @@ resource(VMWARE:VirtualMachine).
 Certain combinations of operators are not supported by Aria Operations and you might see an error message saying `Invalid request... #1 violations found`. If this happens, try to rewrite your query a different way.
 
 ### Autocompletion
-
-![Autocompletion](images/autocomplete.png)
 
 Since the data model of Aria Operations is fairly large and complex, context sensitive autocomplete greatly improves the usability of the query editor. The autocomplete is context sensitive, so, for example when you are typing inside a metric-based filter, it will suggest names of metrics for the resource type you are working on.
 
