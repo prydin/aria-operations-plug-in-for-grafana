@@ -2,12 +2,12 @@
   "$schema": "https://raw.githubusercontent.com/grafana/grafana/master/docs/sources/developers/plugins/plugin.schema.json",
   "type": "datasource",
   "name": "Aria Operations",
-  "id": "pontusrydin-ariaoperations-datasource",
+  "id": "vmware-ariaoperations-datasource",
   "metrics": true,
   "info": {
     "description": "Plugin for running queries against VMmware aria operations",
     "author": {
-      "name": "VMmware"
+      "name": "Pontus Rydin"
     },
     "keywords": ["datasource"],
     "logos": {

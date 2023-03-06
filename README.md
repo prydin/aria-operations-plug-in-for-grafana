@@ -3,6 +3,16 @@
 Grafana datasource plugin for reading metrics from VMware Aria Operations (formerly vRealize Operations). This is a full-featured datasource capable of accessing any metric in Aria Operations
 either through a simple list picker or a rich query language
 
+## Important Notice
+
+This is currently an unsigned plugin that has not been reviewed or endorsed by Grafana. You may still use it, but you need to do one of the following:
+
+1. Allow Grafana to bypass the signature check for this plugin. You can do that by adding the following line in your configuration file under the `[plugins]` section:
+   `allow_loading_unsigned_plugins=vmware-ariaoperations-datasource`. This is generally not recommended and you're doing this at you own risk.
+2. Create a private signature as described here: https://grafana.com/docs/grafana/latest/developers/plugins/sign-a-plugin/
+
+Unfortunately, this plugin is currently not compatible with Grafana Cloud.
+
 ## Quick Start
 
 1. Unzip the zip file in your plugin directory (as configured)
