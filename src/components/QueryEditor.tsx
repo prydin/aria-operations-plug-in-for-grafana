@@ -37,6 +37,7 @@ import {
   ReactMonacoEditor,
   Select,
   monacoTypes,
+  InputActionMeta,
 } from '@grafana/ui';
 import { QueryEditorProps, SelectableValue } from '@grafana/data';
 import { EditorRow, EditorRows } from '@grafana/experimental';
@@ -100,6 +101,13 @@ export class QueryEditor extends PureComponent<Props, State> {
     });
   };
 
+  onResourceInputChange = (value: string, actionMeta: InputActionMeta) => {
+    const { query } = this.props;
+    if (query.adapterKind && query.resourceKind) {
+      this.loadResourceOptions(query.adapterKind, query.resourceKind, value);
+    }
+  };
+
   onAdapterKindChange = (
     event: SelectableValue<string>,
     actionMeta: ActionMeta
@@ -139,9 +147,13 @@ export class QueryEditor extends PureComponent<Props, State> {
     onChange({ ...query, advancedMode: event.target.checked, queryText: qt });
   };
 
-  loadResourceOptions(adapterKind: string, resourceKind: string) {
+  loadResourceOptions(
+    adapterKind: string,
+    resourceKind: string,
+    name?: string
+  ) {
     this.props.datasource
-      .getResources(adapterKind, resourceKind)
+      .getResources(adapterKind, resourceKind, name)
       .then((kinds) => {
         this.setState({ resources: mapToSelectable(kinds) });
       });
@@ -232,6 +244,7 @@ export class QueryEditor extends PureComponent<Props, State> {
               onChange={this.onResourceIdChange}
               value={resourceId}
               options={this.state.resources}
+              onInputChange={debounce(this.onResourceInputChange, 300)}
             />
             <Select
               width={30}

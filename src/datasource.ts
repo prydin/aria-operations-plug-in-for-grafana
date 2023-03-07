@@ -107,6 +107,7 @@ export class AriaOpsDataSource extends DataSourceApi<
     useToken: boolean
   ): Promise<FetchResponse<any>> {
     let token = useToken ? await this.getToken() : '';
+    console.log(method, path, data);
     return lastValueFrom(
       getBackendSrv()
         .fetch<any>({
@@ -140,11 +141,13 @@ export class AriaOpsDataSource extends DataSourceApi<
 
   async getResources(
     adapterKind: string,
-    resourceKind: string
+    resourceKind: string,
+    name?: string
   ): Promise<Map<string, string>> {
     return this.getResourcesWithRq({
       adapterKind: [adapterKind],
       resourceKind: [resourceKind],
+      name: name ? [name] : undefined,
     });
   }
 
