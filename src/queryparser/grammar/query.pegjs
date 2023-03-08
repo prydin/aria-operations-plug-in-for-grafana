@@ -90,8 +90,7 @@ UnaryFunctionName =
     "exists" ) { return text().replace(" ", "_").toUpperCase()}
 
 BinaryFunctionName = 
-    ("like" /
-    "contains" / 
+    ("contains" / 
     "starts_with" / 
     "ends_with" / 
     "not starts_with" / 
