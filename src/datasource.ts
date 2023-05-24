@@ -107,7 +107,6 @@ export class AriaOpsDataSource extends DataSourceApi<
     useToken: boolean
   ): Promise<FetchResponse<any>> {
     let token = useToken ? await this.getToken() : '';
-    console.log(method, path, data);
     return lastValueFrom(
       getBackendSrv()
         .fetch<any>({

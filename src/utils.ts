@@ -30,9 +30,13 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-import { SelectableValue } from '@grafana/data';
+import {
+  FieldType,
+  Labels,
+  MutableDataFrame,
+  SelectableValue,
+} from '@grafana/data';
 import { FetchResponse, getBackendSrv } from '@grafana/runtime';
-import { catchError, lastValueFrom } from 'rxjs';
 
 export const mapToSelectable = (
   map: Map<string, string>
@@ -44,27 +48,17 @@ export const mapToSelectable = (
   return s;
 };
 
-export const httpRequest = async (
-  method: string,
-  url: string,
-  data: any,
-  useToken: boolean
-): Promise<FetchResponse<any>> => {
-  return lastValueFrom(
-    getBackendSrv()
-      .fetch<any>({
-        method: method,
-        url: url,
-        data: data,
-        headers: {
-          Accept: 'application/json',
-          'Content-Type': 'application/json',
-        },
-      })
-      .pipe(
-        catchError((err) => {
-          throw err;
-        })
-      )
-  );
+export const makeDataFrame = (
+  refId?: string,
+  key?: string,
+  labels?: Labels
+) => {
+  return new MutableDataFrame({
+    refId: refId,
+    name: key,
+    fields: [
+      { name: 'Time', type: FieldType.time },
+      { name: 'Value', type: FieldType.number, labels: labels },
+    ],
+  });
 };

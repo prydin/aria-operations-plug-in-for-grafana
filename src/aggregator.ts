@@ -51,7 +51,7 @@ export class Accumulator {
   vAcc = 0;
   avg = 0;
 
-  aaddDataPoint(value: number) {
+  addDataPoint(value: number) {
     this.sum += value;
     this.count++;
     this.max = Math.max(this.max, value);
@@ -99,7 +99,7 @@ export class Bucket {
       accumulator = new Accumulator();
       this.accumulators.set(timestamp, accumulator);
     }
-    accumulator.aaddDataPoint(value);
+    accumulator.addDataPoint(value);
   }
 
   getResults(): Map<number, Accumulator> {

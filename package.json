@@ -1,5 +1,5 @@
 {
-  "name": "pontusrydin-ariaoperations-datasource",
+  "name": "vmware-ariaoperations-datasource",
   "version": "1.0.0",
   "description": "Plugin for running queries against v mware aria operations",
   "scripts": {

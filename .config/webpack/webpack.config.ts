@@ -153,7 +153,6 @@ const config = async (env): Promise<Configuration> => ({
         { from: '**/*.png', to: '.', noErrorOnMissing: true }, // Optional
         { from: '**/*.html', to: '.', noErrorOnMissing: true }, // Optional
         { from: 'img/**/*', to: '.', noErrorOnMissing: true }, // Optional
-        { from: '../img/**/*', to: '.', noErrorOnMissing: true }, // Optional
         { from: 'libs/**/*', to: '.', noErrorOnMissing: true }, // Optional
         { from: 'static/**/*', to: '.', noErrorOnMissing: true }, // Optional
       ],
