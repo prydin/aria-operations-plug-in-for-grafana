@@ -32,6 +32,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import { DataFrame, FieldType, Labels, MutableDataFrame } from '@grafana/data';
 import { AggregationSpec, KeyValue } from 'types';
+const TDigest = require('tdigest').TDigest;
 
 const statProducers: KeyValue = {
   avg: (acc: Accumulator) => acc.getAverage(),
@@ -41,6 +42,7 @@ const statProducers: KeyValue = {
   sum: (acc: Accumulator) => acc.getSum(),
   count: (acc: Accumulator) => acc.getCount(),
   variance: (acc: Accumulator) => acc.getVariance(),
+  percentile: (acc: Accumulator) => acc.getPercentile(),
 };
 
 export class Accumulator {
@@ -50,6 +52,17 @@ export class Accumulator {
   min: number = Number.MAX_VALUE;
   vAcc = 0;
   avg = 0;
+  wantDigest = false;
+  digest: any;
+  percentile? = 0.0;
+
+  constructor(wantPercentile: boolean, percentile?: number) {
+    this.wantDigest = wantPercentile;
+    if (wantPercentile) {
+      this.digest = new TDigest();
+    }
+    this.percentile = percentile;
+  }
 
   aaddDataPoint(value: number) {
     this.sum += value;
@@ -59,6 +72,9 @@ export class Accumulator {
     const avg = this.sum / this.count;
     this.vAcc += (value - this.avg) * (value - avg);
     this.avg = avg;
+    if (this.wantDigest) {
+      this.digest.push(value);
+    }
   }
 
   getAverage(): number {
@@ -88,15 +104,27 @@ export class Accumulator {
   getStandardDeviation(): number {
     return Math.sqrt(this.getVariance());
   }
+
+  getPercentile(): number {
+    this.digest.compress();
+    return this.digest.percentile(this.percentile! / 100);
+  }
 }
 
 export class Bucket {
   accumulators: Map<number, Accumulator> = new Map();
+  wantPercentile = false;
+  percentile: number | undefined = 0.0;
+
+  constructor(wantPercentile: boolean, percentile: number) {
+    this.percentile = percentile;
+    this.wantPercentile = wantPercentile;
+  }
 
   addDataPoint(timestamp: number, value: number) {
     let accumulator = this.accumulators.get(timestamp);
     if (!accumulator) {
-      accumulator = new Accumulator();
+      accumulator = new Accumulator(this.wantPercentile, this.percentile);
       this.accumulators.set(timestamp, accumulator);
     }
     accumulator.aaddDataPoint(value);
@@ -111,6 +139,15 @@ export class Bucket {
 }
 
 export class Stats {
+  wantPercentile = false;
+  percentile = 0.0;
+  constructor(aggregation: AggregationSpec) {
+    console.log(aggregation);
+    if (aggregation.type === 'percentile') {
+      this.wantPercentile = true;
+      this.percentile = aggregation.parameter ? aggregation.parameter : 0.0;
+    }
+  }
   buckets: Map<string, Bucket> = new Map();
 
   add(timestamps: number[], values: number[], properties: Map<string, string>) {
@@ -120,7 +157,7 @@ export class Stats {
       const value = values[idx];
       let slot = this.buckets.get(key);
       if (!slot) {
-        slot = new Bucket();
+        slot = new Bucket(this.wantPercentile, this.percentile);
         this.buckets.set(key, slot);
       }
       slot.addDataPoint(ts, value);

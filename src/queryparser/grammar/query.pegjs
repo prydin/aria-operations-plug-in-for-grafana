@@ -67,8 +67,9 @@ BinaryFunction = name: BinaryFunctionName LP  arg0: Identifier Comma arg1: Liter
 InfixExpression = left: Identifier _ operator: Operator _ right: LiteralValue { return { name: operator, arg: [ left, right ] }}
 LiteralValue = LiteralString / Number
 
-Aggregation = Dot type: AggregationOp LP properties: IdentifierList? RP { return { type, properties}}
-AggregationOp = 
+Aggregation = TwoParamAggregation / OneParamAggregation
+OneParamAggregation = Dot type: OneParamAggregationOp LP properties: IdentifierList? RP { return { type, properties } }
+OneParamAggregationOp = 
     "avg" /
     "min" /
     "max" /
@@ -76,6 +77,9 @@ AggregationOp =
     "count" /
     "variance" /
     "stddev"
+TwoParamAggregation = Dot type: TwoParamAggregationOp LP parameter: Number properties: (Comma identifiers: IdentifierList {return identifiers})? RP { return { type, parameter, properties } }
+TwoParamAggregationOp = 
+    "percentile"
 
 Operator = OpEQ / OpNE / OpLT / OpGT / OpLT_EQ / OpGT_EQ
 OpEQ = "=" { return "EQ" }

@@ -99,6 +99,7 @@ export interface ResourceRequest {
 
 export interface AggregationSpec {
   type: string;
+  parameter?: number;
   properties: string[];
 }
 

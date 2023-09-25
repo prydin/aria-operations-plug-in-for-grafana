@@ -60,4 +60,5 @@ export const KEYWORDS = [
   'max',
   'count',
   'variance',
+  'percentile',
 ];

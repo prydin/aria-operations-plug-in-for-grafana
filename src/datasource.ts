@@ -67,10 +67,8 @@ type AuthWaiter = {
 
 class AriaOpsError extends Error {
   static buildMessage(apiResponse: FetchResponse<any>): string {
-    console.log(apiResponse);
     const content = apiResponse.data;
     let message = content.message;
-    console.log(message);
     if (content.validationFailures) {
       message += ' Details: ';
       for (const v of content.validationFailures) {
@@ -270,9 +268,7 @@ export class AriaOpsDataSource extends DataSourceApi<
     maxPoints: number,
     aggregation: AggregationSpec | undefined
   ): Promise<DataFrame[]> {
-    console.log('Time range: ' + new Date(begin) + '-' + new Date(end));
     let interval = Math.max((end - begin) / (maxPoints * 60000), 5);
-    console.log('Interval: ' + interval);
     let payload = {
       resourceId: [...resources.keys()],
       statKey: metrics,
@@ -291,7 +287,7 @@ export class AriaOpsDataSource extends DataSourceApi<
           aggregation.properties
         );
       }
-      const stats = new Stats();
+      const stats = new Stats(aggregation);
       for (let r of resp.data.values) {
         for (let envelope of r['stat-list'].stat) {
           const pm = propertyMap.get(r.resourceId) || new Map();
@@ -312,7 +308,6 @@ export class AriaOpsDataSource extends DataSourceApi<
     let payload: Object = {
       username: jsonData.username,
     };
-    console.log(jsonData, payload);
     let url =
       jsonData.authSource && jsonData.authSource !== 'Local Users'
         ? 'auth/token/acquire-withsource'
@@ -320,7 +315,6 @@ export class AriaOpsDataSource extends DataSourceApi<
     try {
       let response = await this.request('POST', url, payload, false);
       this.token = response.data.token;
-      console.log('Successfully reauthenticated');
       setTimeout(() => {
         this.authenticate(jsonData);
       }, AriaOpsDataSource.EXPIRATION_TIME);

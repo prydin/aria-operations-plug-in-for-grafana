@@ -235,6 +235,7 @@ const aggregationResultTemplate: CompiledQuery = {
 
 const simpleAggregationSpec: AggregationSpec = {
   type: 'avg',
+  parameter: 50.0,
   properties: [],
 };
 
@@ -368,10 +369,10 @@ describe('Query parser', () => {
 describe('Aggregations', () => {
   for (const agg in aggregations) {
     test(aggregations[agg], () => {
-      const s = new Stats();
+      simpleAggregationSpec.type = aggregations[agg];
+      const s = new Stats(simpleAggregationSpec);
       for (let i = 0; i < 10; ++i) {
         s.add(fill(Array(data.length), i), data, new Map());
-        simpleAggregationSpec.type = aggregations[agg];
         for (const frame of s.toFrames('dummy', simpleAggregationSpec)) {
           expect(frame.fields[1].values.get(0)).toBe(aggResults[agg]);
         }
@@ -387,10 +388,10 @@ describe('Sliced aggregations', () => {
   ]);
   for (const agg in aggregations) {
     test(aggregations[agg], () => {
-      const s = new Stats();
+      simpleAggregationSpec.type = aggregations[agg];
+      const s = new Stats(simpleAggregationSpec);
       for (let i = 0; i < 10; ++i) {
         s.add(fill(Array(data.length), i), data, key);
-        simpleAggregationSpec.type = aggregations[agg];
         for (const frame of s.toFrames('dummy', simpleAggregationSpec)) {
           const f = frame.fields[1];
           expect(f.labels!['foo']).toBe('bar');
@@ -400,4 +401,13 @@ describe('Sliced aggregations', () => {
       }
     });
   }
+});
+
+describe('Simple percentile', () => {
+  const q = testCompile(
+    `resource(VMWARE:VirtualMachine).all().metrics(cpu|demandmhz).percentile(90, foo, bar)`
+  );
+  expect(q.aggregation?.type).toBe('percentile');
+  expect(q.aggregation?.parameter).toBe(90);
+  expect(q.aggregation?.properties).toStrictEqual(['foo', 'bar']);
 });
