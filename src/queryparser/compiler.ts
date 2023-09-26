@@ -38,6 +38,7 @@ import {
   Condition,
   CompiledQuery,
   AggregationSpec,
+  SlidingWindowSpec,
 } from '../types';
 
 let parser = require('./parser');
@@ -156,9 +157,10 @@ export const compileQuery = (query: AriaOpsQuery): CompiledQuery => {
     }
     const metrics = pq.metrics;
 
-    // Handle aggregations
+    // Handle aggregations and sliding windows
     const aggregation: AggregationSpec = pq.aggregation;
-    return { resourceQuery, metrics, aggregation };
+    const slidingWindow: SlidingWindowSpec = pq.slidingWindow;
+    return { resourceQuery, metrics, aggregation, slidingWindow };
   } else {
     if (!query.resourceId) {
       throw 'No resource specified';

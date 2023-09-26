@@ -289,12 +289,6 @@ export class SlidingMedian extends SlidingAccumulator {
   }
 
   protected _getValue(timestamp: number): number {
-    console.log(
-      this.maxHeap.size,
-      this.minHeap.size,
-      this.minHeap.top(),
-      this.maxHeap.top()
-    );
     if (this.maxHeap.size == 0) {
       return NaN;
     }

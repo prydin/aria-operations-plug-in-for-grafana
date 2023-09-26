@@ -42,7 +42,7 @@ import {
   SlidingSum,
   SortedBag,
 } from 'sliding';
-import { AggregationSpec, CompiledQuery } from 'types';
+import { AggregationSpec, CompiledQuery, SlidingWindowSpec } from 'types';
 
 const aggregations = [
   'avg',
@@ -52,6 +52,16 @@ const aggregations = [
   'min',
   'variance',
   'stddev',
+];
+
+const slidingWindows = [
+  'mavg',
+  'msum',
+  'mmax',
+  'mmin',
+  'mmedian',
+  'mstddev',
+  'mvariance',
 ];
 
 const data = [1, 2, 3, 4, 5, 6, 7, 8, 9];
@@ -71,6 +81,7 @@ const simpleAllQueryResult: CompiledQuery = {
   },
   metrics: ['cpu|demandmhz'],
   aggregation: null as any,
+  slidingWindow: null as any,
 };
 
 const simpleNameQueryResult: CompiledQuery = {
@@ -86,6 +97,7 @@ const simpleNameQueryResult: CompiledQuery = {
   },
   metrics: ['cpu|demandmhz'],
   aggregation: null as any,
+  slidingWindow: null as any,
 };
 
 const simpleRegexQueryResult: CompiledQuery = {
@@ -101,6 +113,7 @@ const simpleRegexQueryResult: CompiledQuery = {
   },
   metrics: ['cpu|demandmhz'],
   aggregation: null as any,
+  slidingWindow: null as any,
 };
 
 const simpleWherePropertiesQueryResult: CompiledQuery = {
@@ -123,6 +136,7 @@ const simpleWherePropertiesQueryResult: CompiledQuery = {
   },
   metrics: ['cpu|demandmhz'],
   aggregation: null as any,
+  slidingWindow: null as any,
 };
 
 const negatedWherePropertiesQueryResult: CompiledQuery = {
@@ -142,6 +156,7 @@ const negatedWherePropertiesQueryResult: CompiledQuery = {
   },
   metrics: ['cpu|demandmhz'],
   aggregation: null as any,
+  slidingWindow: null as any,
 };
 
 const simpleWhereMetricsQueryResult: CompiledQuery = {
@@ -164,6 +179,7 @@ const simpleWhereMetricsQueryResult: CompiledQuery = {
   },
   metrics: ['cpu|demandmhz'],
   aggregation: null as any,
+  slidingWindow: null as any,
 };
 
 const simpleWhereHealthQueryResult: CompiledQuery = {
@@ -179,6 +195,7 @@ const simpleWhereHealthQueryResult: CompiledQuery = {
   },
   metrics: ['cpu|demandmhz'],
   aggregation: null as any,
+  slidingWindow: null as any,
 };
 
 const simpleWhereStateQueryResult: CompiledQuery = {
@@ -194,6 +211,7 @@ const simpleWhereStateQueryResult: CompiledQuery = {
   },
   metrics: ['cpu|demandmhz'],
   aggregation: null as any,
+  slidingWindow: null as any,
 };
 
 const simpleWhereStatusQueryResult: CompiledQuery = {
@@ -209,6 +227,7 @@ const simpleWhereStatusQueryResult: CompiledQuery = {
   },
   metrics: ['cpu|demandmhz'],
   aggregation: null as any,
+  slidingWindow: null as any,
 };
 
 const simpleWhereTagsQueryResult: CompiledQuery = {
@@ -225,6 +244,7 @@ const simpleWhereTagsQueryResult: CompiledQuery = {
   },
   metrics: ['cpu|demandmhz'],
   aggregation: null as any,
+  slidingWindow: null as any,
 };
 
 const aggregationResultTemplate: CompiledQuery = {
@@ -240,6 +260,28 @@ const aggregationResultTemplate: CompiledQuery = {
   },
   metrics: ['cpu|demandmhz'],
   aggregation: null as any,
+  slidingWindow: null as any,
+};
+
+const simpleSlidingWindowSpec: SlidingWindowSpec = {
+  type: 'mavg',
+  duration: 0,
+};
+
+const slidingWindowResultTemplate: CompiledQuery = {
+  resourceQuery: {
+    adapterKind: ['VMWARE'],
+    name: [],
+    regex: [],
+    resourceHealth: [],
+    resourceId: [],
+    resourceKind: ['VirtualMachine'],
+    resourceState: [],
+    resourceStatus: [],
+  },
+  metrics: ['cpu|demandmhz'],
+  aggregation: null as any,
+  slidingWindow: simpleSlidingWindowSpec,
 };
 
 const simpleAggregationSpec: AggregationSpec = {
@@ -358,6 +400,29 @@ describe('Query parser', () => {
         properties: null as any,
       };
       expect(q).toStrictEqual(aggregationResultTemplate);
+    }
+  });
+
+  test('Simple sliding window', () => {
+    for (const timeunit of [
+      ['s', 1],
+      ['m', 60],
+      ['h', 3600],
+      ['d', 86400],
+      ['w', 7 * 86400],
+      ['y', 365 * 86400],
+    ]) {
+      for (const sw of slidingWindows) {
+        console.log(sw);
+        const q = testCompile(
+          `resource(VMWARE:VirtualMachine).all().metrics(cpu|demandmhz).${sw}(7${timeunit[0]})`
+        );
+        slidingWindowResultTemplate.slidingWindow = {
+          type: sw,
+          duration: 7 * (timeunit[1] as number),
+        };
+        expect(q).toStrictEqual(slidingWindowResultTemplate);
+      }
     }
   });
 
