@@ -31,16 +31,16 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 import { Stats } from 'aggregator';
-import exp from 'constants';
 import { fill } from 'lodash';
 import { compileQuery } from 'queryparser/compiler';
 import {
   SlidingAverage,
   SlidingMax,
+  SlidingMedian,
   SlidingMin,
   SlidingStdDev,
   SlidingSum,
-  SlidingVariance,
+  SortedBag,
 } from 'sliding';
 import { AggregationSpec, CompiledQuery } from 'types';
 
@@ -423,7 +423,7 @@ describe('Simple percentile', () => {
   });
 });
 
-function seqSum(x) {
+function seqSum(x: number) {
   return (x * (x + 1)) / 2;
 }
 
@@ -527,6 +527,48 @@ describe('Sliding functions', () => {
       } else {
         expect(acc.getValue(i * resolution)).toBeCloseTo(
           stddev[stddev.length - 1],
+          6
+        );
+      }
+    }
+  });
+
+  const sequence = [3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 5, 9];
+
+  test('SortedBag', () => {
+    const bag = new SortedBag(false);
+    sequence.forEach((x) => bag.push(x));
+    expect(bag.size).toBe(sequence.length);
+    sequence.sort();
+    sequence.forEach((x) => {
+      expect(bag.pop()).toBe(x);
+    });
+    expect(bag.size).toBe(0);
+  });
+
+  test('SortedBag descending', () => {
+    const bag = new SortedBag(true);
+    sequence.forEach((x) => bag.push(x));
+    expect(bag.size).toBe(sequence.length);
+    sequence.sort().reverse();
+    sequence.forEach((x: number) => {
+      expect(bag.pop()).toBe(x);
+    });
+    expect(bag.size).toBe(0);
+  });
+
+  test('SlidingMedian', () => {
+    const interval = 10;
+    const resolution = 1;
+    const n = interval / resolution;
+    const acc = new SlidingMedian(interval, resolution);
+    for (let i = 0; i < n * 2; ++i) {
+      acc.push(i * resolution, i);
+      if (i < n) {
+        expect(acc.getValue(i * resolution)).toBeCloseTo(i / 2, 6);
+      } else {
+        expect(acc.getValue(i * resolution)).toBeCloseTo(
+          (2 * i - n + 1) / 2,
           6
         );
       }

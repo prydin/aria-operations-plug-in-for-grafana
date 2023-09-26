@@ -1,3 +1,4 @@
+import { AvlTree } from '@datastructures-js/binary-search-tree';
 import { MaxHeap, MinHeap } from '@datastructures-js/heap';
 
 interface Sample {
@@ -194,5 +195,112 @@ export class SlidingVariance extends SlidingAccumulator {
 export class SlidingStdDev extends SlidingVariance {
   _getValue(timestamp: number): number {
     return Math.sqrt(this.getVariance());
+  }
+}
+
+interface BagNode {
+  value: number;
+  count: number;
+}
+
+export class SortedBag {
+  map = new AvlTree<BagNode>((a, b) => a.value - b.value, { key: 'value' });
+  size = 0;
+
+  constructor(descending: boolean) {
+    if (descending) {
+      this.map = new AvlTree<BagNode>((a, b) => b.value - a.value, {
+        key: 'value',
+      });
+    } else {
+      this.map = new AvlTree<BagNode>((a, b) => a.value - b.value, {
+        key: 'value',
+      });
+    }
+  }
+
+  push(value: number) {
+    let node = this.map.findKey(value)?.getValue();
+    if (node == null) {
+      node = { value, count: 1 };
+      this.map.insert(node);
+    } else {
+      node.count++;
+    }
+    this.size++;
+  }
+
+  remove(value: number): boolean {
+    let node = this.map.findKey(value)?.getValue();
+    if (!node) {
+      return false;
+    }
+    node.count--;
+    if (node.count == 0) {
+      this.map.remove(node);
+    }
+    this.size--;
+    return true;
+  }
+
+  pop(): number | null {
+    const node = this.map.min()?.getValue();
+    if (!node) {
+      return null;
+    }
+    this.remove(node.value);
+    return node.value;
+  }
+
+  top(): number | undefined {
+    return this.map.min()?.getValue()?.value;
+  }
+}
+
+export class SlidingMedian extends SlidingAccumulator {
+  minHeap = new SortedBag(false);
+
+  maxHeap = new SortedBag(true);
+
+  rebalance() {
+    while (this.maxHeap.size > this.minHeap.size + 1) {
+      this.minHeap.push(this.maxHeap.pop()!);
+    }
+    while (this.minHeap.size > this.maxHeap.size) {
+      this.maxHeap.push(this.minHeap.pop()!);
+    }
+  }
+
+  onPush(sample: Sample) {
+    const v = sample.value;
+    if (v <= -this.maxHeap.top()!) {
+      this.maxHeap.push(v);
+    } else {
+      this.minHeap.push(v);
+    }
+    this.rebalance();
+  }
+
+  onEvict(sample: Sample): void {
+    if (!this.minHeap.remove(sample.value)) {
+      this.maxHeap.remove(sample.value);
+    }
+    this.rebalance();
+  }
+
+  protected _getValue(timestamp: number): number {
+    console.log(
+      this.maxHeap.size,
+      this.minHeap.size,
+      this.minHeap.top(),
+      this.maxHeap.top()
+    );
+    if (this.maxHeap.size == 0) {
+      return NaN;
+    }
+    if (this.minHeap.size == this.maxHeap.size) {
+      return (this.minHeap.top()! + this.maxHeap.top()!) / 2;
+    }
+    return this.maxHeap.top()!;
   }
 }
