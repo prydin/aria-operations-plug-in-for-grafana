@@ -53,7 +53,6 @@ export const makeFilter = (args: any): FilterSpec => {
         spec.conjunctionOperator &&
         p.conjunctive.toUpperCase() !== spec.conjunctionOperator
       ) {
-        console.log(spec.conjunctionOperator);
         throw (
           'All terms must have the same conjunctive operator (and/or). Offending operator: ' +
           p.conjunctive
@@ -107,7 +106,6 @@ export const compileQuery = (query: AriaOpsQuery): CompiledQuery => {
       resourceQuery.propertyConditions = makeFilter(args);
     },
     whereMetrics: (args: any) => {
-      console.log('whereMetrics: ' + args);
       resourceQuery.statConditions = makeFilter(args);
     },
     whereHealth: (args: any) => {
@@ -131,7 +129,6 @@ export const compileQuery = (query: AriaOpsQuery): CompiledQuery => {
   };
   if (query.advancedMode) {
     let pq = parser.parse(query.queryText);
-    console.log(pq);
 
     /// Handle type
     let types: string[] = pq.type;

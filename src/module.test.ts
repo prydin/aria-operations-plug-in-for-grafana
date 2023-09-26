@@ -31,8 +31,17 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 import { Stats } from 'aggregator';
+import exp from 'constants';
 import { fill } from 'lodash';
 import { compileQuery } from 'queryparser/compiler';
+import {
+  SlidingAverage,
+  SlidingMax,
+  SlidingMin,
+  SlidingStdDev,
+  SlidingSum,
+  SlidingVariance,
+} from 'sliding';
 import { AggregationSpec, CompiledQuery } from 'types';
 
 const aggregations = [
@@ -404,10 +413,123 @@ describe('Sliced aggregations', () => {
 });
 
 describe('Simple percentile', () => {
-  const q = testCompile(
-    `resource(VMWARE:VirtualMachine).all().metrics(cpu|demandmhz).percentile(90, foo, bar)`
-  );
-  expect(q.aggregation?.type).toBe('percentile');
-  expect(q.aggregation?.parameter).toBe(90);
-  expect(q.aggregation?.properties).toStrictEqual(['foo', 'bar']);
+  test('Percentile', () => {
+    const q = testCompile(
+      `resource(VMWARE:VirtualMachine).all().metrics(cpu|demandmhz).percentile(90, foo, bar)`
+    );
+    expect(q.aggregation?.type).toBe('percentile');
+    expect(q.aggregation?.parameter).toBe(90);
+    expect(q.aggregation?.properties).toStrictEqual(['foo', 'bar']);
+  });
+});
+
+function seqSum(x) {
+  return (x * (x + 1)) / 2;
+}
+
+describe('Sliding functions', () => {
+  test('Average', () => {
+    const interval = 10000;
+    const resolution = 100;
+    const n = interval / resolution;
+    const acc = new SlidingAverage(interval, resolution);
+    for (let i = 0; i < n * 2; ++i) {
+      acc.push(i * resolution, i);
+      if (i < n) {
+        expect(acc.getValue(i * resolution)).toBe(i / 2);
+      } else {
+        expect(acc.getValue(i * resolution)).toBe((2 * i - n + 1) / 2);
+      }
+    }
+  });
+  test('Sum', () => {
+    const interval = 10000;
+    const resolution = 100;
+    const n = interval / resolution;
+    const acc = new SlidingSum(interval, resolution);
+    for (let i = 0; i < n * 2; ++i) {
+      acc.push(i * resolution, i);
+      if (i < n) {
+        expect(acc.getValue(i * resolution)).toBe(seqSum(i));
+      } else {
+        expect(acc.getValue(i * resolution)).toBe(seqSum(i) - seqSum(i - n));
+      }
+    }
+  });
+  test('Max toggle', () => {
+    const interval = 10000;
+    const resolution = 100;
+    const n = interval / resolution;
+    const acc = new SlidingMax(interval, resolution);
+    for (let i = 0; i < n * 2; ++i) {
+      acc.push(i * resolution * 2, i);
+      acc.push(i * resolution * 2 + 1, -i);
+      expect(acc.getValue(i * resolution * 2 + 1)).toBe(i);
+    }
+  });
+
+  test('Max backwards', () => {
+    const interval = 10000;
+    const resolution = 100;
+    const n = interval / resolution;
+    const acc = new SlidingMax(interval, resolution);
+    for (let i = 0; i < n * 2; ++i) {
+      acc.push(i * resolution, -i);
+      if (i < n) {
+        expect(acc.getValue(i * resolution)).toBe(-0);
+      } else {
+        expect(acc.getValue(i * resolution)).toBe(n - i - 1);
+      }
+    }
+  });
+
+  test('Min toggle', () => {
+    const interval = 10000;
+    const resolution = 100;
+    const n = interval / resolution;
+    const acc = new SlidingMin(interval, resolution);
+    for (let i = 0; i < n * 2; ++i) {
+      acc.push(i * resolution * 2, i);
+      acc.push(i * resolution * 2 + 1, -i);
+      expect(acc.getValue(i * resolution * 2 + 1)).toBe(-i);
+    }
+  });
+
+  test('Min backwards', () => {
+    const interval = 10000;
+    const resolution = 100;
+    const n = interval / resolution;
+    const acc = new SlidingMin(interval, resolution);
+    for (let i = 0; i < n * 2; ++i) {
+      acc.push(i * resolution, i);
+      if (i < n) {
+        expect(acc.getValue(i * resolution)).toBe(0);
+      } else {
+        expect(acc.getValue(i * resolution)).toBe(i - n + 1);
+      }
+    }
+  });
+
+  const stddev = [
+    0, 0.707106781, 1, 1.290994449, 1.58113883, 1.870828693, 2.160246899,
+    2.449489743, 2.738612788, 3.027650354,
+  ];
+
+  test('StdDev', () => {
+    const interval = 10;
+    const resolution = 1;
+    const n = interval / resolution;
+    const acc = new SlidingStdDev(interval, resolution);
+    for (let i = 0; i < n * 2; ++i) {
+      acc.push(i * resolution, i);
+      if (i < n) {
+        expect(acc.getValue(i * resolution)).toBeCloseTo(stddev[i], 6);
+      } else {
+        expect(acc.getValue(i * resolution)).toBeCloseTo(
+          stddev[stddev.length - 1],
+          6
+        );
+      }
+    }
+  });
 });

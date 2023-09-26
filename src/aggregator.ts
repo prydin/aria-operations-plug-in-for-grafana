@@ -142,7 +142,6 @@ export class Stats {
   wantPercentile = false;
   percentile = 0.0;
   constructor(aggregation: AggregationSpec) {
-    console.log(aggregation);
     if (aggregation.type === 'percentile') {
       this.wantPercentile = true;
       this.percentile = aggregation.parameter ? aggregation.parameter : 0.0;
