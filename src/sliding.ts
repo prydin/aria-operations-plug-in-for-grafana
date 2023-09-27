@@ -367,7 +367,7 @@ export class SlidingMedian extends SlidingAccumulator {
   maxHeap = new SortedBag(true);
 
   /**
-   * Make sure the invariants described above are maintained.
+   * Make sure the invariant described above is maintained.
    */
   rebalance() {
     while (this.maxHeap.size > this.minHeap.size + 1) {

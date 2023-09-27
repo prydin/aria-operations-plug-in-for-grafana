@@ -96,7 +96,7 @@ Valid comparison operators are as follows
 | > | Greater than (only valid for numbers) |
 | >= | Greater than or equal (only valid for numbers) |
 | < | Less than (only valid for numbers) |
-| <>= | Less than or equal (only valid for numbers) |
+| <= | Less than or equal (only valid for numbers) |
 
 #### Built-in functions
 
@@ -154,6 +154,28 @@ The following aggregations are currently available.
 | max | The maximum of all values in a group |
 | stddev | Standard deviaton across all values in a group |
 | variance | Variance across all values in a group |
+| percentile(n) | The n:th percentile for the group
+
+### Sliding window functions
+
+Sliding window functions are typically used for smoothing or enhancing a time series. They work using a "lag", i.e. a period of time to look back and apply their function.
+For example, a sliding window average with a lag of one hour will look at the one hour of data prior to the current sample and calculate an average of those samples.
+This is repeated for each sample in the series. The following sliding window functions are available:
+| Name | Description |
+| - | - |
+| mavg(lag) | Moving average |
+| mmax(lag) | Moving maximum |
+| mmedian(lag) | Moving median. Useful for removing outliers |
+| mmin(lag) | Moving minimum |
+| mstddev(lag) | Moving standard deviation |
+| msum(lag) | Moving sum |
+| mvariance(lag) | Moving variance
+
+Note that if aggregations are used, moving window functions must be applied after any aggregations.
+
+#### Lag specifiers
+
+Lag is specified using a quantity and a time unit. Available units are `s`, `m`, `h`, `d`, `w`, `y` for second, minute, hour, day and year.
 
 ### Example queries
 
@@ -178,6 +200,12 @@ resource(VMWARE:VirtualMachine).
     regex("prod-.*").
     whereProperties(summary|parentCluster = "cluster1" and not contains(summary|fullGuestName, "Linux").
     metrics(cpu|demandmhz)
+```
+
+Get CPU demand for all hosts and smooth the graph using a moving median with a 1 hour lag
+
+```
+resource(VMWARE:HostSystem).all().metrics(cpu|demandmhz).mmedian(lag)
 ```
 
 ### Known issues
