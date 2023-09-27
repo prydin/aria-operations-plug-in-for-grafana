@@ -293,9 +293,7 @@ export class AriaOpsDataSource extends DataSourceApi<
     const slidingWindowFactory = slidingWindow
       ? () =>
           slidingWindowFactories[slidingWindow.type](
-            Math.round(
-              ((slidingWindow.duration * 1000) / (end - begin)) * maxPoints
-            ),
+            Math.round(Math.round(slidingWindow.duration / (interval * 60))),
             slidingWindow.duration * 1000
           )
       : null;
@@ -315,7 +313,7 @@ export class AriaOpsDataSource extends DataSourceApi<
           stats.add(envelope.timestamps, envelope.data, pm);
         }
       }
-      return stats.toFrames(refId, aggregation);
+      return stats.toFrames(refId, aggregation, slidingWindowFactory);
     }
     return resp.data.values
       .map((r: any): DataFrame[] => {

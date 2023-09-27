@@ -31,6 +31,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 import { DataFrame, FieldType, Labels, MutableDataFrame } from '@grafana/data';
+import { SlidingAccumulator } from 'sliding';
 import { AggregationSpec, KeyValue } from 'types';
 const TDigest = require('tdigest').TDigest;
 
@@ -163,7 +164,11 @@ export class Stats {
     }
   }
 
-  toFrames(refId: string, aggregation: AggregationSpec): DataFrame[] {
+  toFrames(
+    refId: string,
+    aggregation: AggregationSpec,
+    slidingWindowFactory: (() => SlidingAccumulator) | null
+  ): DataFrame[] {
     const produce = statProducers[aggregation.type];
     if (!produce) {
       throw 'Internal error: Producer ' + aggregation.type + ' not found';
@@ -171,6 +176,9 @@ export class Stats {
     const frames: MutableDataFrame[] = [];
     let statKey = '<undefined>';
     for (const [key, bucket] of this.buckets) {
+      const slidingWindow = slidingWindowFactory
+        ? slidingWindowFactory()
+        : null;
       const labels: Labels = {};
       if (key) {
         const properties = new Map<string, string>(JSON.parse(key));
@@ -191,7 +199,11 @@ export class Stats {
         ],
       });
       for (const [timestamp, data] of bucket.getResults()) {
-        frame.add({ Time: timestamp, Value: produce(data) });
+        const value = produce(data);
+        const point = slidingWindow
+          ? slidingWindow.pushAndGet(timestamp, value)
+          : value;
+        frame.add({ Time: timestamp, Value: point });
       }
       frames.push(frame);
     }

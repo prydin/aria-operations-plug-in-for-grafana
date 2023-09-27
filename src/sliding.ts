@@ -29,6 +29,7 @@ export abstract class SlidingAccumulator {
   buffer: Array<Sample | null>;
   head = 0;
   interval = 0;
+  pushCount = 0;
 
   constructor(size: number, interval: number) {
     console.log(
@@ -60,6 +61,7 @@ export abstract class SlidingAccumulator {
     this.head = (this.head + 1) % this.buffer.length;
     const old = this.buffer[this.head];
     this.buffer[this.head] = { timestamp, value };
+    ++this.pushCount;
     this.onPush(sample);
     if (old) {
       this.onEvict(old);
@@ -349,10 +351,15 @@ export class SortedBag {
 /**
  * Sliding median. Uses the "dual heap" algorithm. It works as follows.
  * Two heaps are kept, one sorted ascending (minHeap) and the other
- * sorted descending (maxHeap). The following invariant is maintained:
- * minHeap.size <= maxHeap.size <= minHeap.size + 1
+ * sorted descending (maxHeap).
+ * 1.  Values that are smaller than the greatest value on maxHeap are pushed
+ * to maxHeap, otherwise it's pushed to minHeap.
+ * 2. The following invariant is maintained:
+ * minHeap.size <= maxHeap.size <= minHeap.size + 1.
+ *
  * This partitions the list in two and the median can easily be obtained
- * by looking at the top of the heaps.
+ * by looking at the top of the heaps. By convention, if both heaps are
+ * of equal size, the average of the top value from both heaps is returned.
  */
 export class SlidingMedian extends SlidingAccumulator {
   minHeap = new SortedBag(false);
@@ -373,7 +380,7 @@ export class SlidingMedian extends SlidingAccumulator {
 
   onPush(sample: Sample) {
     const v = sample.value;
-    if (v <= -this.maxHeap.top()!) {
+    if (v <= this.maxHeap.top()!) {
       this.maxHeap.push(v);
     } else {
       this.minHeap.push(v);
@@ -392,6 +399,7 @@ export class SlidingMedian extends SlidingAccumulator {
     if (this.maxHeap.size === 0) {
       return NaN;
     }
+
     if (this.minHeap.size === this.maxHeap.size) {
       return (this.minHeap.top()! + this.maxHeap.top()!) / 2;
     }

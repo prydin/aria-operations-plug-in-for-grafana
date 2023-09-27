@@ -446,7 +446,7 @@ describe('Aggregations', () => {
       const s = new Stats(simpleAggregationSpec);
       for (let i = 0; i < 10; ++i) {
         s.add(fill(Array(data.length), i), data, new Map());
-        for (const frame of s.toFrames('dummy', simpleAggregationSpec)) {
+        for (const frame of s.toFrames('dummy', simpleAggregationSpec, null)) {
           expect(frame.fields[1].values.get(0)).toBe(aggResults[agg]);
         }
       }
@@ -465,7 +465,7 @@ describe('Sliced aggregations', () => {
       const s = new Stats(simpleAggregationSpec);
       for (let i = 0; i < 10; ++i) {
         s.add(fill(Array(data.length), i), data, key);
-        for (const frame of s.toFrames('dummy', simpleAggregationSpec)) {
+        for (const frame of s.toFrames('dummy', simpleAggregationSpec, null)) {
           const f = frame.fields[1];
           expect(f.labels!['foo']).toBe('bar');
           expect(f.labels!['bar']).toBe('foo');
