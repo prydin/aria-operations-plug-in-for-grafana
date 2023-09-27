@@ -1,34 +1,60 @@
 import { AvlTree } from '@datastructures-js/binary-search-tree';
 import { MaxHeap, MinHeap } from '@datastructures-js/heap';
 
+export const slidingWindowFactories: {
+  [key: string]: (size: number, interval: number) => SlidingAccumulator;
+} = {
+  mavg: (n, i) => new SlidingAverage(n, i),
+  msum: (n, i) => new SlidingSum(n, i),
+  mmedian: (n, i) => new SlidingMedian(n, i),
+  mstddev: (n, i) => new SlidingStdDev(n, i),
+  mvariance: (n, i) => new SlidingVariance(n, i),
+  mmax: (n, i) => new SlidingMax(n, i),
+  mmin: (n, i) => new SlidingMin(n, i),
+};
+
 interface Sample {
   timestamp: number;
   value: number;
 }
 
-abstract class SlidingAccumulator {
-  buffer: (Sample | null)[]; // Ring buffer
-  interval: number;
+/**
+ * Base class for sliding windows
+ */
+export abstract class SlidingAccumulator {
+  /**
+   * Samples are kept in a ring buffer with buffer[head] being the most recent
+   * and buffer[(head+1)%size] being the oldest
+   */
+  buffer: Array<Sample | null>;
   head = 0;
+  interval = 0;
 
-  constructor(interval: number, resolution: number) {
-    this.buffer = new Array<Sample>(interval / resolution);
+  constructor(size: number, interval: number) {
+    console.log(
+      'Created sliding window, size=' + size + ', interval=' + interval
+    );
+    this.buffer = new Array<Sample>(size);
     this.interval = interval;
   }
 
+  /**
+   * Called when a new sample arrived
+   * @param sample
+   */
   onPush(sample: Sample): void {}
 
+  /**
+   * Called when the ring buffer overflows and an old entry is evicted
+   * @param sample
+   */
   onEvict(sample: Sample): void {}
 
-  apply(timestamp: number, callback: (s: Sample) => void) {
-    for (let i = 0; i < this.buffer.length; ++i) {
-      const s = this.buffer[(i + 1) % this.buffer.length];
-      if (s && s.timestamp > timestamp - this.interval) {
-        callback(s);
-      }
-    }
-  }
-
+  /**
+   * Add a new sample to the sliding window handler
+   * @param timestamp
+   * @param value
+   */
   push(timestamp: number, value: number) {
     const sample = { timestamp, value };
     this.head = (this.head + 1) % this.buffer.length;
@@ -40,8 +66,24 @@ abstract class SlidingAccumulator {
     }
   }
 
+  /**
+   * Pushes a sample and immediately gets the update result from the algorithm.
+   * @param timestamp
+   * @param value
+   * @returns The latest value at the head of the window
+   */
+  pushAndGet(timestamp: number, value: number): number {
+    this.push(timestamp, value);
+    return this.getValue(timestamp);
+  }
+
   protected abstract _getValue(timestamp: number): number;
 
+  /**
+   * Return the calculated value at a point in time
+   * @param timestamp
+   * @returns
+   */
   getValue(timestamp: number): number {
     // Clean out stale entries
     for (let i = 0; i < this.buffer.length; ++i) {
@@ -60,6 +102,9 @@ abstract class SlidingAccumulator {
   }
 }
 
+/**
+ * Sliding window average
+ */
 export class SlidingAverage extends SlidingAccumulator {
   sum = 0.0;
   count = 0;
@@ -95,6 +140,9 @@ export class SlidingCount extends SlidingAccumulator {
   }
 }
 
+/**
+ * Sliding window sum
+ */
 export class SlidingSum extends SlidingAccumulator {
   sum = 0.0;
 
@@ -111,6 +159,11 @@ export class SlidingSum extends SlidingAccumulator {
   }
 }
 
+/**
+ * Sliding window max. Uses a heap to keep track of the largest value,
+ * as well as when to adjust the maximum when the largest sample
+ * exits the sliding window
+ */
 export class SlidingMax extends SlidingAccumulator {
   heap = new MaxHeap<number>();
   filled = false;
@@ -121,7 +174,7 @@ export class SlidingMax extends SlidingAccumulator {
 
   onEvict(sample: Sample): void {
     // If the heap is full and smallest value is about to get dropped, then pop it from the heap
-    if (this.heap.top() == sample.value) {
+    if (this.heap.top() === sample.value) {
       this.heap.pop();
     }
   }
@@ -131,6 +184,11 @@ export class SlidingMax extends SlidingAccumulator {
   }
 }
 
+/**
+ * Sliding window min. Uses a heap to keep track of the smalles value,
+ * as well as when to adjust the minimum when the smallest sample
+ * exits the sliding window
+ */
 export class SlidingMin extends SlidingAccumulator {
   heap = new MinHeap<number>();
   filled = false;
@@ -141,7 +199,7 @@ export class SlidingMin extends SlidingAccumulator {
 
   onEvict(sample: Sample): void {
     // If the heap is full and smallest value is about to get dropped, then pop it from the heap
-    if (this.heap.top() == sample.value) {
+    if (this.heap.top() === sample.value) {
       this.heap.pop();
     }
   }
@@ -151,6 +209,9 @@ export class SlidingMin extends SlidingAccumulator {
   }
 }
 
+/**
+ * Slding window variance
+ */
 export class SlidingVariance extends SlidingAccumulator {
   avg = 0.0;
   vAcc = 0.0;
@@ -167,7 +228,9 @@ export class SlidingVariance extends SlidingAccumulator {
       this.full = true;
     }
 
-    // Standard algorithm for non-sliding window. Otherwise calculation is done in onEvic
+    // Welford's method. The stock version of this is used when the windows isn't full. Once
+    // the window fills up, the calculation takes place in onEvict.
+    // https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Welford's_online_algorithm
     const v = sample.value;
     this.sum += v;
     const avg = this.sum / this.count;
@@ -176,6 +239,8 @@ export class SlidingVariance extends SlidingAccumulator {
   }
 
   onEvict(sample: Sample): void {
+    // Slightly modified version of Welford's method that allows us to remove
+    // values that are out of scope.
     const current = this.buffer[this.head]?.value || NaN;
     const evicted = sample.value;
     const oldAvg = this.avg;
@@ -192,6 +257,9 @@ export class SlidingVariance extends SlidingAccumulator {
   }
 }
 
+/**
+ * Sliding standard deviation
+ */
 export class SlidingStdDev extends SlidingVariance {
   _getValue(timestamp: number): number {
     return Math.sqrt(this.getVariance());
@@ -203,10 +271,18 @@ interface BagNode {
   count: number;
 }
 
+/**
+ * A simple implementation of a sorted Bag (multiset). This is an extension to a Set
+ * allowing multiple identical values to be added and removed.
+ */
 export class SortedBag {
   map = new AvlTree<BagNode>((a, b) => a.value - b.value, { key: 'value' });
   size = 0;
 
+  /**
+   * Constructs a new SortedBag
+   * @param descending If set, the larges value will be at the top of the bag
+   */
   constructor(descending: boolean) {
     if (descending) {
       this.map = new AvlTree<BagNode>((a, b) => b.value - a.value, {
@@ -219,6 +295,10 @@ export class SortedBag {
     }
   }
 
+  /**
+   * Adds a value to the bag
+   * @param value
+   */
   push(value: number) {
     let node = this.map.findKey(value)?.getValue();
     if (node == null) {
@@ -230,19 +310,28 @@ export class SortedBag {
     this.size++;
   }
 
+  /**
+   * Removes a value from the bag
+   * @param value
+   * @returns True if the value was found and removed
+   */
   remove(value: number): boolean {
     let node = this.map.findKey(value)?.getValue();
     if (!node) {
       return false;
     }
     node.count--;
-    if (node.count == 0) {
+    if (node.count === 0) {
       this.map.remove(node);
     }
     this.size--;
     return true;
   }
 
+  /**
+   * Returns the top value and removes it from the Bag
+   * @returns The top value
+   */
   pop(): number | null {
     const node = this.map.min()?.getValue();
     if (!node) {
@@ -257,11 +346,22 @@ export class SortedBag {
   }
 }
 
+/**
+ * Sliding median. Uses the "dual heap" algorithm. It works as follows.
+ * Two heaps are kept, one sorted ascending (minHeap) and the other
+ * sorted descending (maxHeap). The following invariant is maintained:
+ * minHeap.size <= maxHeap.size <= minHeap.size + 1
+ * This partitions the list in two and the median can easily be obtained
+ * by looking at the top of the heaps.
+ */
 export class SlidingMedian extends SlidingAccumulator {
   minHeap = new SortedBag(false);
 
   maxHeap = new SortedBag(true);
 
+  /**
+   * Make sure the invariants described above are maintained.
+   */
   rebalance() {
     while (this.maxHeap.size > this.minHeap.size + 1) {
       this.minHeap.push(this.maxHeap.pop()!);
@@ -289,10 +389,10 @@ export class SlidingMedian extends SlidingAccumulator {
   }
 
   protected _getValue(timestamp: number): number {
-    if (this.maxHeap.size == 0) {
+    if (this.maxHeap.size === 0) {
       return NaN;
     }
-    if (this.minHeap.size == this.maxHeap.size) {
+    if (this.minHeap.size === this.maxHeap.size) {
       return (this.minHeap.top()! + this.maxHeap.top()!) / 2;
     }
     return this.maxHeap.top()!;

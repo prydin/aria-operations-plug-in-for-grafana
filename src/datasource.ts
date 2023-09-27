@@ -52,10 +52,12 @@ import {
   defaultQuery,
   ResourceRequest,
   AggregationSpec,
+  SlidingWindowSpec,
 } from './types';
 import { lastValueFrom } from 'rxjs';
 import { compileQuery } from 'queryparser/compiler';
 import { Stats } from 'aggregator';
+import { SlidingAccumulator, slidingWindowFactories } from 'sliding';
 
 type Resolver = { (token: string): void };
 type Rejecter = { (reason: any): void };
@@ -235,11 +237,15 @@ export class AriaOpsDataSource extends DataSourceApi<
   private framesFromResourceMetrics(
     refId: string,
     resources: Map<string, string>,
-    resourceMetric: any
+    resourceMetric: any,
+    slidingWindowFactory: (() => SlidingAccumulator) | null
   ): DataFrame[] {
     const frames: MutableDataFrame[] = [];
     let resId = resourceMetric.resourceId;
     for (let envelope of resourceMetric['stat-list'].stat) {
+      const slidingWindow = slidingWindowFactory
+        ? slidingWindowFactory()
+        : null;
       const labels: Labels = {
         resourceName: resources.get(resId) || 'unknown',
       };
@@ -253,7 +259,10 @@ export class AriaOpsDataSource extends DataSourceApi<
       });
       frames.push(frame);
       for (let i in envelope.timestamps) {
-        frame.add({ Time: envelope.timestamps[i], Value: envelope.data[i] });
+        const point = slidingWindow
+          ? slidingWindow.pushAndGet(envelope.timestamps[i], envelope.data[i])
+          : envelope.data[i];
+        frame.add({ Time: envelope.timestamps[i], Value: point });
       }
     }
     return frames;
@@ -266,7 +275,8 @@ export class AriaOpsDataSource extends DataSourceApi<
     begin: number,
     end: number,
     maxPoints: number,
-    aggregation: AggregationSpec | undefined
+    aggregation: AggregationSpec | undefined,
+    slidingWindow: SlidingWindowSpec | undefined
   ): Promise<DataFrame[]> {
     let interval = Math.max((end - begin) / (maxPoints * 60000), 5);
     let payload = {
@@ -278,7 +288,17 @@ export class AriaOpsDataSource extends DataSourceApi<
       intervalType: 'MINUTES',
       intervalQuantifier: interval.toFixed(0),
     };
+    console.log('Interval:', interval);
     let resp = await this.post('resources/stats/query', payload);
+    const slidingWindowFactory = slidingWindow
+      ? () =>
+          slidingWindowFactories[slidingWindow.type](
+            Math.round(
+              ((slidingWindow.duration * 1000) / (end - begin)) * maxPoints
+            ),
+            slidingWindow.duration * 1000
+          )
+      : null;
     if (aggregation) {
       let propertyMap = new Map();
       if (aggregation.properties) {
@@ -299,7 +319,12 @@ export class AriaOpsDataSource extends DataSourceApi<
     }
     return resp.data.values
       .map((r: any): DataFrame[] => {
-        return this.framesFromResourceMetrics(refId, resources, r);
+        return this.framesFromResourceMetrics(
+          refId,
+          resources,
+          r,
+          slidingWindowFactory
+        );
       })
       .flat();
   }
@@ -368,7 +393,8 @@ export class AriaOpsDataSource extends DataSourceApi<
         from,
         to,
         maxDataPoints || 10000,
-        compiled.aggregation
+        compiled.aggregation,
+        compiled.slidingWindow
       );
       chunk.forEach((d) => data.push(d));
     }

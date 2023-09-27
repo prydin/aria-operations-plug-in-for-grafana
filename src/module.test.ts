@@ -413,7 +413,6 @@ describe('Query parser', () => {
       ['y', 365 * 86400],
     ]) {
       for (const sw of slidingWindows) {
-        console.log(sw);
         const q = testCompile(
           `resource(VMWARE:VirtualMachine).all().metrics(cpu|demandmhz).${sw}(7${timeunit[0]})`
         );
@@ -497,7 +496,7 @@ describe('Sliding functions', () => {
     const interval = 10000;
     const resolution = 100;
     const n = interval / resolution;
-    const acc = new SlidingAverage(interval, resolution);
+    const acc = new SlidingAverage(n, interval);
     for (let i = 0; i < n * 2; ++i) {
       acc.push(i * resolution, i);
       if (i < n) {
@@ -511,7 +510,7 @@ describe('Sliding functions', () => {
     const interval = 10000;
     const resolution = 100;
     const n = interval / resolution;
-    const acc = new SlidingSum(interval, resolution);
+    const acc = new SlidingSum(n, interval);
     for (let i = 0; i < n * 2; ++i) {
       acc.push(i * resolution, i);
       if (i < n) {
@@ -525,7 +524,7 @@ describe('Sliding functions', () => {
     const interval = 10000;
     const resolution = 100;
     const n = interval / resolution;
-    const acc = new SlidingMax(interval, resolution);
+    const acc = new SlidingMax(n, interval);
     for (let i = 0; i < n * 2; ++i) {
       acc.push(i * resolution * 2, i);
       acc.push(i * resolution * 2 + 1, -i);
@@ -537,7 +536,7 @@ describe('Sliding functions', () => {
     const interval = 10000;
     const resolution = 100;
     const n = interval / resolution;
-    const acc = new SlidingMax(interval, resolution);
+    const acc = new SlidingMax(n, interval);
     for (let i = 0; i < n * 2; ++i) {
       acc.push(i * resolution, -i);
       if (i < n) {
@@ -552,7 +551,7 @@ describe('Sliding functions', () => {
     const interval = 10000;
     const resolution = 100;
     const n = interval / resolution;
-    const acc = new SlidingMin(interval, resolution);
+    const acc = new SlidingMin(n, interval);
     for (let i = 0; i < n * 2; ++i) {
       acc.push(i * resolution * 2, i);
       acc.push(i * resolution * 2 + 1, -i);
@@ -564,7 +563,7 @@ describe('Sliding functions', () => {
     const interval = 10000;
     const resolution = 100;
     const n = interval / resolution;
-    const acc = new SlidingMin(interval, resolution);
+    const acc = new SlidingMin(n, interval);
     for (let i = 0; i < n * 2; ++i) {
       acc.push(i * resolution, i);
       if (i < n) {
@@ -584,7 +583,7 @@ describe('Sliding functions', () => {
     const interval = 10;
     const resolution = 1;
     const n = interval / resolution;
-    const acc = new SlidingStdDev(interval, resolution);
+    const acc = new SlidingStdDev(n, interval);
     for (let i = 0; i < n * 2; ++i) {
       acc.push(i * resolution, i);
       if (i < n) {
@@ -623,10 +622,10 @@ describe('Sliding functions', () => {
   });
 
   test('SlidingMedian', () => {
-    const interval = 10;
-    const resolution = 1;
+    const interval = 10000;
+    const resolution = 100;
     const n = interval / resolution;
-    const acc = new SlidingMedian(interval, resolution);
+    const acc = new SlidingMedian(n, interval);
     for (let i = 0; i < n * 2; ++i) {
       acc.push(i * resolution, i);
       if (i < n) {
