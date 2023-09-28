@@ -1,10 +1,10 @@
 {
   "name": "pontusrydin-ariaoperations-datasource",
   "version": "1.1.0-BETA-1",
-  "description": "Plugin for running queries against v mware aria operations",
+  "description": "Plugin for running queries against VMware aria operations",
   "scripts": {
-    "build": "webpack -c ./.config/webpack/webpack.config.ts --env production",
-    "dev": "webpack -w -c ./.config/webpack/webpack.config.ts --env development",
+    "build": "peggy src/queryparser/grammar/query.pegjs -o ./src/queryparser/parser.js; webpack -c ./.config/webpack/webpack.config.ts --env production",
+    "dev": "peggy src/queryparser/grammar/query.pegjs -o ./src/queryparser/parser.js; webpack -w -c ./.config/webpack/webpack.config.ts --env development",
     "test": "jest --watch --onlyChanged",
     "test:ci": "jest --passWithNoTests --maxWorkers 4",
     "typecheck": "tsc --noEmit",
