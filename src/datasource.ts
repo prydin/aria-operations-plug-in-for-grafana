@@ -52,10 +52,12 @@ import {
   defaultQuery,
   ResourceRequest,
   AggregationSpec,
+  SlidingWindowSpec,
 } from './types';
 import { lastValueFrom } from 'rxjs';
 import { compileQuery } from 'queryparser/compiler';
 import { Stats } from 'aggregator';
+import { SlidingAccumulator, slidingWindowFactories } from 'sliding';
 
 type Resolver = { (token: string): void };
 type Rejecter = { (reason: any): void };
@@ -67,10 +69,8 @@ type AuthWaiter = {
 
 class AriaOpsError extends Error {
   static buildMessage(apiResponse: FetchResponse<any>): string {
-    console.log(apiResponse);
     const content = apiResponse.data;
     let message = content.message;
-    console.log(message);
     if (content.validationFailures) {
       message += ' Details: ';
       for (const v of content.validationFailures) {
@@ -240,11 +240,15 @@ export class AriaOpsDataSource extends DataSourceApi<
   private framesFromResourceMetrics(
     refId: string,
     resources: Map<string, string>,
-    resourceMetric: any
+    resourceMetric: any,
+    slidingWindowFactory: (() => SlidingAccumulator) | null
   ): DataFrame[] {
     const frames: MutableDataFrame[] = [];
     let resId = resourceMetric.resourceId;
     for (let envelope of resourceMetric['stat-list'].stat) {
+      const slidingWindow = slidingWindowFactory
+        ? slidingWindowFactory()
+        : null;
       const labels: Labels = {
         resourceName: resources.get(resId) || 'unknown',
       };
@@ -258,7 +262,10 @@ export class AriaOpsDataSource extends DataSourceApi<
       });
       frames.push(frame);
       for (let i in envelope.timestamps) {
-        frame.add({ Time: envelope.timestamps[i], Value: envelope.data[i] });
+        const point = slidingWindow
+          ? slidingWindow.pushAndGet(envelope.timestamps[i], envelope.data[i])
+          : envelope.data[i];
+        frame.add({ Time: envelope.timestamps[i], Value: point });
       }
     }
     return frames;
@@ -271,11 +278,10 @@ export class AriaOpsDataSource extends DataSourceApi<
     begin: number,
     end: number,
     maxPoints: number,
-    aggregation: AggregationSpec | undefined
+    aggregation: AggregationSpec | undefined,
+    slidingWindow: SlidingWindowSpec | undefined
   ): Promise<DataFrame[]> {
-    console.log('Time range: ' + new Date(begin) + '-' + new Date(end));
     let interval = Math.max((end - begin) / (maxPoints * 60000), 5);
-    console.log('Interval: ' + interval);
     let payload = {
       resourceId: [...resources.keys()],
       statKey: metrics,
@@ -285,7 +291,15 @@ export class AriaOpsDataSource extends DataSourceApi<
       intervalType: 'MINUTES',
       intervalQuantifier: interval.toFixed(0),
     };
+    console.log('Interval:', interval);
     let resp = await this.post('resources/stats/query', payload);
+    const slidingWindowFactory = slidingWindow
+      ? () =>
+          slidingWindowFactories[slidingWindow.type](
+            Math.round(Math.round(slidingWindow.duration / (interval * 60))),
+            slidingWindow.duration * 1000
+          )
+      : null;
     if (aggregation) {
       let propertyMap = new Map();
       if (aggregation.properties) {
@@ -294,7 +308,7 @@ export class AriaOpsDataSource extends DataSourceApi<
           aggregation.properties
         );
       }
-      const stats = new Stats();
+      const stats = new Stats(aggregation);
       for (let r of resp.data.values) {
         for (let envelope of r['stat-list'].stat) {
           const pm = propertyMap.get(r.resourceId) || new Map();
@@ -302,11 +316,16 @@ export class AriaOpsDataSource extends DataSourceApi<
           stats.add(envelope.timestamps, envelope.data, pm);
         }
       }
-      return stats.toFrames(refId, aggregation);
+      return stats.toFrames(refId, aggregation, slidingWindowFactory);
     }
     return resp.data.values
       .map((r: any): DataFrame[] => {
-        return this.framesFromResourceMetrics(refId, resources, r);
+        return this.framesFromResourceMetrics(
+          refId,
+          resources,
+          r,
+          slidingWindowFactory
+        );
       })
       .flat();
   }
@@ -315,7 +334,6 @@ export class AriaOpsDataSource extends DataSourceApi<
     let payload: Object = {
       username: jsonData.username,
     };
-    console.log(jsonData, payload);
     let url =
       jsonData.authSource && jsonData.authSource !== 'Local Users'
         ? 'auth/token/acquire-withsource'
@@ -323,7 +341,6 @@ export class AriaOpsDataSource extends DataSourceApi<
     try {
       let response = await this.request('POST', url, payload, false);
       this.token = response.data.token;
-      console.log('Successfully reauthenticated');
       setTimeout(() => {
         this.authenticate(jsonData);
       }, AriaOpsDataSource.EXPIRATION_TIME);
@@ -377,7 +394,8 @@ export class AriaOpsDataSource extends DataSourceApi<
         from,
         to,
         maxDataPoints || 10000,
-        compiled.aggregation
+        compiled.aggregation,
+        compiled.slidingWindow
       );
       chunk.forEach((d) => data.push(d));
     }

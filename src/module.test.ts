@@ -33,7 +33,16 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 import { Stats } from 'aggregator';
 import { fill } from 'lodash';
 import { compileQuery } from 'queryparser/compiler';
-import { AggregationSpec, CompiledQuery } from 'types';
+import {
+  SlidingAverage,
+  SlidingMax,
+  SlidingMedian,
+  SlidingMin,
+  SlidingStdDev,
+  SlidingSum,
+  SortedBag,
+} from 'sliding';
+import { AggregationSpec, CompiledQuery, SlidingWindowSpec } from 'types';
 
 const aggregations = [
   'avg',
@@ -43,6 +52,16 @@ const aggregations = [
   'min',
   'variance',
   'stddev',
+];
+
+const slidingWindows = [
+  'mavg',
+  'msum',
+  'mmax',
+  'mmin',
+  'mmedian',
+  'mstddev',
+  'mvariance',
 ];
 
 const data = [1, 2, 3, 4, 5, 6, 7, 8, 9];
@@ -62,6 +81,7 @@ const simpleAllQueryResult: CompiledQuery = {
   },
   metrics: ['cpu|demandmhz'],
   aggregation: null as any,
+  slidingWindow: null as any,
 };
 
 const simpleNameQueryResult: CompiledQuery = {
@@ -77,6 +97,7 @@ const simpleNameQueryResult: CompiledQuery = {
   },
   metrics: ['cpu|demandmhz'],
   aggregation: null as any,
+  slidingWindow: null as any,
 };
 
 const simpleRegexQueryResult: CompiledQuery = {
@@ -92,6 +113,7 @@ const simpleRegexQueryResult: CompiledQuery = {
   },
   metrics: ['cpu|demandmhz'],
   aggregation: null as any,
+  slidingWindow: null as any,
 };
 
 const simpleWherePropertiesQueryResult: CompiledQuery = {
@@ -114,6 +136,7 @@ const simpleWherePropertiesQueryResult: CompiledQuery = {
   },
   metrics: ['cpu|demandmhz'],
   aggregation: null as any,
+  slidingWindow: null as any,
 };
 
 const negatedWherePropertiesQueryResult: CompiledQuery = {
@@ -133,6 +156,7 @@ const negatedWherePropertiesQueryResult: CompiledQuery = {
   },
   metrics: ['cpu|demandmhz'],
   aggregation: null as any,
+  slidingWindow: null as any,
 };
 
 const simpleWhereMetricsQueryResult: CompiledQuery = {
@@ -155,6 +179,7 @@ const simpleWhereMetricsQueryResult: CompiledQuery = {
   },
   metrics: ['cpu|demandmhz'],
   aggregation: null as any,
+  slidingWindow: null as any,
 };
 
 const simpleWhereHealthQueryResult: CompiledQuery = {
@@ -170,6 +195,7 @@ const simpleWhereHealthQueryResult: CompiledQuery = {
   },
   metrics: ['cpu|demandmhz'],
   aggregation: null as any,
+  slidingWindow: null as any,
 };
 
 const simpleWhereStateQueryResult: CompiledQuery = {
@@ -185,6 +211,7 @@ const simpleWhereStateQueryResult: CompiledQuery = {
   },
   metrics: ['cpu|demandmhz'],
   aggregation: null as any,
+  slidingWindow: null as any,
 };
 
 const simpleWhereStatusQueryResult: CompiledQuery = {
@@ -200,6 +227,7 @@ const simpleWhereStatusQueryResult: CompiledQuery = {
   },
   metrics: ['cpu|demandmhz'],
   aggregation: null as any,
+  slidingWindow: null as any,
 };
 
 const simpleWhereTagsQueryResult: CompiledQuery = {
@@ -216,6 +244,7 @@ const simpleWhereTagsQueryResult: CompiledQuery = {
   },
   metrics: ['cpu|demandmhz'],
   aggregation: null as any,
+  slidingWindow: null as any,
 };
 
 const aggregationResultTemplate: CompiledQuery = {
@@ -231,10 +260,33 @@ const aggregationResultTemplate: CompiledQuery = {
   },
   metrics: ['cpu|demandmhz'],
   aggregation: null as any,
+  slidingWindow: null as any,
+};
+
+const simpleSlidingWindowSpec: SlidingWindowSpec = {
+  type: 'mavg',
+  duration: 0,
+};
+
+const slidingWindowResultTemplate: CompiledQuery = {
+  resourceQuery: {
+    adapterKind: ['VMWARE'],
+    name: [],
+    regex: [],
+    resourceHealth: [],
+    resourceId: [],
+    resourceKind: ['VirtualMachine'],
+    resourceState: [],
+    resourceStatus: [],
+  },
+  metrics: ['cpu|demandmhz'],
+  aggregation: null as any,
+  slidingWindow: simpleSlidingWindowSpec,
 };
 
 const simpleAggregationSpec: AggregationSpec = {
   type: 'avg',
+  parameter: 50.0,
   properties: [],
 };
 
@@ -351,6 +403,28 @@ describe('Query parser', () => {
     }
   });
 
+  test('Simple sliding window', () => {
+    for (const timeunit of [
+      ['s', 1],
+      ['m', 60],
+      ['h', 3600],
+      ['d', 86400],
+      ['w', 7 * 86400],
+      ['y', 365 * 86400],
+    ]) {
+      for (const sw of slidingWindows) {
+        const q = testCompile(
+          `resource(VMWARE:VirtualMachine).all().metrics(cpu|demandmhz).${sw}(7${timeunit[0]})`
+        );
+        slidingWindowResultTemplate.slidingWindow = {
+          type: sw,
+          duration: 7 * (timeunit[1] as number),
+        };
+        expect(q).toStrictEqual(slidingWindowResultTemplate);
+      }
+    }
+  });
+
   test('Aggregation with properties', () => {
     for (const aggregation of aggregations) {
       const q = testCompile(
@@ -368,11 +442,11 @@ describe('Query parser', () => {
 describe('Aggregations', () => {
   for (const agg in aggregations) {
     test(aggregations[agg], () => {
-      const s = new Stats();
+      simpleAggregationSpec.type = aggregations[agg];
+      const s = new Stats(simpleAggregationSpec);
       for (let i = 0; i < 10; ++i) {
         s.add(fill(Array(data.length), i), data, new Map());
-        simpleAggregationSpec.type = aggregations[agg];
-        for (const frame of s.toFrames('dummy', simpleAggregationSpec)) {
+        for (const frame of s.toFrames('dummy', simpleAggregationSpec, null)) {
           expect(frame.fields[1].values.get(0)).toBe(aggResults[agg]);
         }
       }
@@ -387,11 +461,11 @@ describe('Sliced aggregations', () => {
   ]);
   for (const agg in aggregations) {
     test(aggregations[agg], () => {
-      const s = new Stats();
+      simpleAggregationSpec.type = aggregations[agg];
+      const s = new Stats(simpleAggregationSpec);
       for (let i = 0; i < 10; ++i) {
         s.add(fill(Array(data.length), i), data, key);
-        simpleAggregationSpec.type = aggregations[agg];
-        for (const frame of s.toFrames('dummy', simpleAggregationSpec)) {
+        for (const frame of s.toFrames('dummy', simpleAggregationSpec, null)) {
           const f = frame.fields[1];
           expect(f.labels!['foo']).toBe('bar');
           expect(f.labels!['bar']).toBe('foo');
@@ -400,4 +474,168 @@ describe('Sliced aggregations', () => {
       }
     });
   }
+});
+
+describe('Simple percentile', () => {
+  test('Percentile', () => {
+    const q = testCompile(
+      `resource(VMWARE:VirtualMachine).all().metrics(cpu|demandmhz).percentile(90, foo, bar)`
+    );
+    expect(q.aggregation?.type).toBe('percentile');
+    expect(q.aggregation?.parameter).toBe(90);
+    expect(q.aggregation?.properties).toStrictEqual(['foo', 'bar']);
+  });
+});
+
+function seqSum(x: number) {
+  return (x * (x + 1)) / 2;
+}
+
+describe('Sliding functions', () => {
+  test('Average', () => {
+    const interval = 10000;
+    const resolution = 100;
+    const n = interval / resolution;
+    const acc = new SlidingAverage(n, interval);
+    for (let i = 0; i < n * 2; ++i) {
+      acc.push(i * resolution, i);
+      if (i < n) {
+        expect(acc.getValue(i * resolution)).toBe(i / 2);
+      } else {
+        expect(acc.getValue(i * resolution)).toBe((2 * i - n + 1) / 2);
+      }
+    }
+  });
+  test('Sum', () => {
+    const interval = 10000;
+    const resolution = 100;
+    const n = interval / resolution;
+    const acc = new SlidingSum(n, interval);
+    for (let i = 0; i < n * 2; ++i) {
+      acc.push(i * resolution, i);
+      if (i < n) {
+        expect(acc.getValue(i * resolution)).toBe(seqSum(i));
+      } else {
+        expect(acc.getValue(i * resolution)).toBe(seqSum(i) - seqSum(i - n));
+      }
+    }
+  });
+  test('Max toggle', () => {
+    const interval = 10000;
+    const resolution = 100;
+    const n = interval / resolution;
+    const acc = new SlidingMax(n, interval);
+    for (let i = 0; i < n * 2; ++i) {
+      acc.push(i * resolution * 2, i);
+      acc.push(i * resolution * 2 + 1, -i);
+      expect(acc.getValue(i * resolution * 2 + 1)).toBe(i);
+    }
+  });
+
+  test('Max backwards', () => {
+    const interval = 10000;
+    const resolution = 100;
+    const n = interval / resolution;
+    const acc = new SlidingMax(n, interval);
+    for (let i = 0; i < n * 2; ++i) {
+      acc.push(i * resolution, -i);
+      if (i < n) {
+        expect(acc.getValue(i * resolution)).toBe(-0);
+      } else {
+        expect(acc.getValue(i * resolution)).toBe(n - i - 1);
+      }
+    }
+  });
+
+  test('Min toggle', () => {
+    const interval = 10000;
+    const resolution = 100;
+    const n = interval / resolution;
+    const acc = new SlidingMin(n, interval);
+    for (let i = 0; i < n * 2; ++i) {
+      acc.push(i * resolution * 2, i);
+      acc.push(i * resolution * 2 + 1, -i);
+      expect(acc.getValue(i * resolution * 2 + 1)).toBe(-i);
+    }
+  });
+
+  test('Min backwards', () => {
+    const interval = 10000;
+    const resolution = 100;
+    const n = interval / resolution;
+    const acc = new SlidingMin(n, interval);
+    for (let i = 0; i < n * 2; ++i) {
+      acc.push(i * resolution, i);
+      if (i < n) {
+        expect(acc.getValue(i * resolution)).toBe(0);
+      } else {
+        expect(acc.getValue(i * resolution)).toBe(i - n + 1);
+      }
+    }
+  });
+
+  const stddev = [
+    0, 0.707106781, 1, 1.290994449, 1.58113883, 1.870828693, 2.160246899,
+    2.449489743, 2.738612788, 3.027650354,
+  ];
+
+  test('StdDev', () => {
+    const interval = 10;
+    const resolution = 1;
+    const n = interval / resolution;
+    const acc = new SlidingStdDev(n, interval);
+    for (let i = 0; i < n * 2; ++i) {
+      acc.push(i * resolution, i);
+      if (i < n) {
+        expect(acc.getValue(i * resolution)).toBeCloseTo(stddev[i], 6);
+      } else {
+        expect(acc.getValue(i * resolution)).toBeCloseTo(
+          stddev[stddev.length - 1],
+          6
+        );
+      }
+    }
+  });
+
+  const sequence = [3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 5, 9];
+
+  test('SortedBag', () => {
+    const bag = new SortedBag(false);
+    sequence.forEach((x) => bag.push(x));
+    expect(bag.size).toBe(sequence.length);
+    sequence.sort();
+    sequence.forEach((x) => {
+      expect(bag.pop()).toBe(x);
+    });
+    expect(bag.size).toBe(0);
+  });
+
+  test('SortedBag descending', () => {
+    const bag = new SortedBag(true);
+    sequence.forEach((x) => bag.push(x));
+    expect(bag.size).toBe(sequence.length);
+    sequence.sort().reverse();
+    sequence.forEach((x: number) => {
+      expect(bag.pop()).toBe(x);
+    });
+    expect(bag.size).toBe(0);
+  });
+
+  test('SlidingMedian', () => {
+    const interval = 10000;
+    const resolution = 100;
+    const n = interval / resolution;
+    const acc = new SlidingMedian(n, interval);
+    for (let i = 0; i < n * 2; ++i) {
+      acc.push(i * resolution, i);
+      if (i < n) {
+        expect(acc.getValue(i * resolution)).toBeCloseTo(i / 2, 6);
+      } else {
+        expect(acc.getValue(i * resolution)).toBeCloseTo(
+          (2 * i - n + 1) / 2,
+          6
+        );
+      }
+    }
+  });
 });

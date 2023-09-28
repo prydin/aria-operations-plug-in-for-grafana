@@ -241,6 +241,7 @@ export class AriaOpsCompletionItemProvider
     stddev: this.handleProperty,
     count: this.handleProperty,
     variance: this.handleProperty,
+    percentile: this.handleProperty,
   };
 
   private makeCompletionItem(

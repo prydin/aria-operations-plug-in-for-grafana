@@ -34,7 +34,8 @@ Query =
 _ type: TypeSpec Dot 
 instances: InstanceSelectors 
 _ metrics: MetricSelector 
-aggregation: (Aggregation)? { return { type, instances, metrics, aggregation }}
+aggregation: (Aggregation)? 
+slidingWindow: (SlidingWindow)? { return { type, instances, metrics, slidingWindow, aggregation }}
 
 TypeSpec = "resource" LP resourceType: IdentifierList RP { return resourceType }
 
@@ -67,8 +68,9 @@ BinaryFunction = name: BinaryFunctionName LP  arg0: Identifier Comma arg1: Liter
 InfixExpression = left: Identifier _ operator: Operator _ right: LiteralValue { return { name: operator, arg: [ left, right ] }}
 LiteralValue = LiteralString / Number
 
-Aggregation = Dot type: AggregationOp LP properties: IdentifierList? RP { return { type, properties}}
-AggregationOp = 
+Aggregation = TwoParamAggregation / OneParamAggregation
+OneParamAggregation = Dot type: OneParamAggregationOp LP properties: IdentifierList? RP { return { type, properties } }
+OneParamAggregationOp = 
     "avg" /
     "min" /
     "max" /
@@ -76,6 +78,28 @@ AggregationOp =
     "count" /
     "variance" /
     "stddev"
+TwoParamAggregation = Dot type: TwoParamAggregationOp LP parameter: Number properties: (Comma identifiers: IdentifierList {return identifiers})? RP { return { type, parameter, properties } }
+TwoParamAggregationOp = 
+    "percentile"
+
+SlidingWindow = Dot type: SlidingWindowOp LP duration: TimeSpec RP { return { type, duration }}
+SlidingWindowOp = 
+  "mavg" /
+  "mstddev" /
+  "mvariance" /
+  "mmedian" /
+  "mmax" /
+  "mmin" /
+  "msum"
+
+TimeSpec = timequantity: Number timeunit: TimeUnit { return timequantity * timeunit }
+TimeUnit = 
+  "s" { return 1} /
+  "m" { return 60 } /
+  "h" { return 60 * 60 } /
+  "d" { return 24 * 60 * 60 } /
+  "w" { return 7 * 24 * 60 * 60 }/
+  "y" { return 365 * 24 * 60 * 60}
 
 Operator = OpEQ / OpNE / OpLT / OpGT / OpLT_EQ / OpGT_EQ
 OpEQ = "=" { return "EQ" }

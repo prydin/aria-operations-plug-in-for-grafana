@@ -60,4 +60,12 @@ export const KEYWORDS = [
   'max',
   'count',
   'variance',
+  'percentile',
+  'mavg',
+  'mmax',
+  'mmin',
+  'mmedian',
+  'mstddev',
+  'mvariance',
+  'msum',
 ];

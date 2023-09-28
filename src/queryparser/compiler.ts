@@ -38,6 +38,7 @@ import {
   Condition,
   CompiledQuery,
   AggregationSpec,
+  SlidingWindowSpec,
 } from '../types';
 
 let parser = require('./parser');
@@ -53,7 +54,6 @@ export const makeFilter = (args: any): FilterSpec => {
         spec.conjunctionOperator &&
         p.conjunctive.toUpperCase() !== spec.conjunctionOperator
       ) {
-        console.log(spec.conjunctionOperator);
         throw (
           'All terms must have the same conjunctive operator (and/or). Offending operator: ' +
           p.conjunctive
@@ -107,7 +107,6 @@ export const compileQuery = (query: AriaOpsQuery): CompiledQuery => {
       resourceQuery.propertyConditions = makeFilter(args);
     },
     whereMetrics: (args: any) => {
-      console.log('whereMetrics: ' + args);
       resourceQuery.statConditions = makeFilter(args);
     },
     whereHealth: (args: any) => {
@@ -131,7 +130,6 @@ export const compileQuery = (query: AriaOpsQuery): CompiledQuery => {
   };
   if (query.advancedMode) {
     let pq = parser.parse(query.queryText);
-    console.log(pq);
 
     /// Handle type
     let types: string[] = pq.type;
@@ -159,9 +157,10 @@ export const compileQuery = (query: AriaOpsQuery): CompiledQuery => {
     }
     const metrics = pq.metrics;
 
-    // Handle aggregations
+    // Handle aggregations and sliding windows
     const aggregation: AggregationSpec = pq.aggregation;
-    return { resourceQuery, metrics, aggregation };
+    const slidingWindow: SlidingWindowSpec = pq.slidingWindow;
+    return { resourceQuery, metrics, aggregation, slidingWindow };
   } else {
     if (!query.resourceId) {
       throw 'No resource specified';

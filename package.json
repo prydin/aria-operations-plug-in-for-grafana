@@ -1,10 +1,10 @@
 {
   "name": "pontusrydin-ariaoperations-datasource",
-  "version": "1.0.0",
-  "description": "Plugin for running queries against v mware aria operations",
+  "version": "1.1.0-BETA-1",
+  "description": "Plugin for running queries against VMware aria operations",
   "scripts": {
-    "build": "webpack -c ./.config/webpack/webpack.config.ts --env production",
-    "dev": "webpack -w -c ./.config/webpack/webpack.config.ts --env development",
+    "build": "peggy src/queryparser/grammar/query.pegjs -o ./src/queryparser/parser.js; webpack -c ./.config/webpack/webpack.config.ts --env production",
+    "dev": "peggy src/queryparser/grammar/query.pegjs -o ./src/queryparser/parser.js; webpack -w -c ./.config/webpack/webpack.config.ts --env development",
     "test": "jest --watch --onlyChanged",
     "test:ci": "jest --passWithNoTests --maxWorkers 4",
     "typecheck": "tsc --noEmit",
@@ -19,7 +19,7 @@
   "license": "Apache-2.0",
   "devDependencies": {
     "@babel/core": "^7.16.7",
-    "@grafana/e2e": "9.2.5",
+    "@grafana/e2e": "^10.1.2",
     "@grafana/e2e-selectors": "9.2.5",
     "@grafana/eslint-config": "^5.1.0",
     "@grafana/tsconfig": "^1.2.0-rc1",
@@ -65,13 +65,17 @@
     "node": ">=16"
   },
   "dependencies": {
+    "@datastructures-js/binary-search-tree": "^5.3.1",
+    "@datastructures-js/heap": "^4.3.2",
     "@emotion/css": "^11.1.3",
-    "@grafana/data": "9.2.5",
+    "@grafana/data": "^9.5.10",
     "@grafana/experimental": "^1.1.0",
-    "@grafana/runtime": "9.2.5",
-    "@grafana/ui": "9.2.5",
+    "@grafana/runtime": "^9.5.10",
+    "@grafana/ui": "^9.5.10",
     "peggy": "^2.0.1",
     "react": "17.0.2",
-    "react-dom": "17.0.2"
+    "react-dom": "17.0.2",
+    "tdigest": "^0.1.2",
+    "vscode": "^1.1.37"
   }
 }

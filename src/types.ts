@@ -99,13 +99,20 @@ export interface ResourceRequest {
 
 export interface AggregationSpec {
   type: string;
+  parameter?: number;
   properties: string[];
+}
+
+export interface SlidingWindowSpec {
+  type: string;
+  duration: number;
 }
 
 export interface CompiledQuery {
   resourceQuery: ResourceRequest;
   metrics: string[];
   aggregation?: AggregationSpec;
+  slidingWindow?: SlidingWindowSpec;
 }
 
 export interface KeyValue {
