@@ -1,6 +1,6 @@
 {
   "name": "pontusrydin-ariaoperations-datasource",
-  "version": "1.0.0",
+  "version": "1.1.0-BETA-1",
   "description": "Plugin for running queries against v mware aria operations",
   "scripts": {
     "build": "webpack -c ./.config/webpack/webpack.config.ts --env production",

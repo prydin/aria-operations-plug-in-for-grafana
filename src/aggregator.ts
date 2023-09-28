@@ -46,6 +46,9 @@ const statProducers: KeyValue = {
   percentile: (acc: Accumulator) => acc.getPercentile(),
 };
 
+/**
+ * Statistics accumulator for calculating average, variance, standard deviation and percentiles
+ */
 export class Accumulator {
   sum = 0;
   count = 0;
@@ -65,7 +68,11 @@ export class Accumulator {
     this.percentile = percentile;
   }
 
-  aaddDataPoint(value: number) {
+  /**
+   * Adds a new sample to the accumulator
+   * @param value
+   */
+  addDataPoint(value: number) {
     this.sum += value;
     this.count++;
     this.max = Math.max(this.max, value);
@@ -112,6 +119,9 @@ export class Accumulator {
   }
 }
 
+/**
+ * Holds the accumulators for a specific point in time.
+ */
 export class Bucket {
   accumulators: Map<number, Accumulator> = new Map();
   wantPercentile = false;
@@ -122,15 +132,24 @@ export class Bucket {
     this.wantPercentile = wantPercentile;
   }
 
+  /**
+   * Adds a new sample
+   * @param timestamp
+   * @param value
+   */
   addDataPoint(timestamp: number, value: number) {
     let accumulator = this.accumulators.get(timestamp);
     if (!accumulator) {
       accumulator = new Accumulator(this.wantPercentile, this.percentile);
       this.accumulators.set(timestamp, accumulator);
     }
-    accumulator.aaddDataPoint(value);
+    accumulator.addDataPoint(value);
   }
 
+  /**
+   * Returns the accumulators for each point in time, sorted by time.
+   * @returns
+   */
   getResults(): Map<number, Accumulator> {
     // If datapoints are missing in some time series, it's possible that some
     // values are inserted out of order. To prevent strange graph artifacts,
@@ -139,6 +158,9 @@ export class Bucket {
   }
 }
 
+/**
+ * Statistics accumulator for an entire composite time-series
+ */
 export class Stats {
   wantPercentile = false;
   percentile = 0.0;
@@ -150,6 +172,12 @@ export class Stats {
   }
   buckets: Map<string, Bucket> = new Map();
 
+  /**
+   * Adds a sample and updates the accumulators
+   * @param timestamps
+   * @param values
+   * @param properties
+   */
   add(timestamps: number[], values: number[], properties: Map<string, string>) {
     const key = JSON.stringify(Array.from(properties?.entries() || {}));
     for (const idx in timestamps) {
@@ -164,6 +192,14 @@ export class Stats {
     }
   }
 
+  /**
+   *
+   * @param refId Converts the computed statistical key figures. If slidingWindowFactoey is
+   * non-null, the specified sliding window is applied to the resulting time series.
+   * @param aggregation
+   * @param slidingWindowFactory
+   * @returns
+   */
   toFrames(
     refId: string,
     aggregation: AggregationSpec,
