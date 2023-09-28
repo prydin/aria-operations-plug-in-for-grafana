@@ -5,6 +5,7 @@
  */
  {
   "extends": ["@grafana/eslint-config"],
+  "parser": "@babel/eslint-parser",
   "root": true,
   "rules": {
     "react/prop-types": "off"

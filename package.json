@@ -65,6 +65,7 @@
     "node": ">=16"
   },
   "dependencies": {
+    "@babel/eslint-parser": "^7.22.15",
     "@datastructures-js/binary-search-tree": "^5.3.1",
     "@datastructures-js/heap": "^4.3.2",
     "@emotion/css": "^11.1.3",
