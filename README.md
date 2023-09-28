@@ -1,4 +1,4 @@
-# Aria Operations plugin for Grafana
+# Aria Operations (vrops) plugin for Grafana
 
 Grafana datasource plugin for reading metrics from VMware Aria Operations (formerly vRealize Operations). This is a full-featured datasource capable of accessing any metric in Aria Operations
 either through a simple list picker or a rich query language
@@ -105,9 +105,6 @@ In addition to the comparison operators, the query language supports built-in fu
 | Name        | Parameters                    | Descrption                                                                        |
 | ----------- | ----------------------------- | --------------------------------------------------------------------------------- |
 | exists      | Metric or property name       | Return true if the metric or property exists                                      |
-| empty       | Metric or property name       | Return true if the metric or property exists but lacks a value                    |
-| like        | Property name, literal string | TODO                                                                              |
-| in          | Property name, literal string | TODO                                                                              |
 | contains    | Property name, literal string | Returns true if the property value contains the literal string                    |
 | starts_with | Property name, literal string | Returns true if the property value starts with the literal string                 |
 | ends_with   | Property name, literal string | Returns true if the property value ends with the literal string                   |
