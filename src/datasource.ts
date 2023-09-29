@@ -57,7 +57,7 @@ import {
 import { lastValueFrom } from 'rxjs';
 import { compileQuery } from 'queryparser/compiler';
 import { Stats } from 'aggregator';
-import { SlidingAccumulator, slidingWindowFactories } from 'sliding';
+import { KernelSmoother, kernelSmootherFactories } from 'sliding';
 
 type Resolver = { (token: string): void };
 type Rejecter = { (reason: any): void };
@@ -241,7 +241,7 @@ export class AriaOpsDataSource extends DataSourceApi<
     refId: string,
     resources: Map<string, string>,
     resourceMetric: any,
-    slidingWindowFactory: (() => SlidingAccumulator) | null
+    slidingWindowFactory: (() => KernelSmoother) | null
   ): DataFrame[] {
     const frames: MutableDataFrame[] = [];
     let resId = resourceMetric.resourceId;
@@ -293,12 +293,11 @@ export class AriaOpsDataSource extends DataSourceApi<
     };
     console.log('Interval:', interval);
     let resp = await this.post('resources/stats/query', payload);
-    const slidingWindowFactory = slidingWindow
+    const jernelSmootherFactory = slidingWindow
       ? () =>
-          slidingWindowFactories[slidingWindow.type](
-            Math.round(Math.round(slidingWindow.duration / (interval * 60))),
-            slidingWindow.duration * 1000
-          )
+          kernelSmootherFactories[slidingWindow.type](interval * 60000, {
+            duration: slidingWindow.duration * 1000,
+          })
       : null;
     if (aggregation) {
       let propertyMap = new Map();
@@ -316,7 +315,7 @@ export class AriaOpsDataSource extends DataSourceApi<
           stats.add(envelope.timestamps, envelope.data, pm);
         }
       }
-      return stats.toFrames(refId, aggregation, slidingWindowFactory);
+      return stats.toFrames(refId, aggregation, jernelSmootherFactory);
     }
     return resp.data.values
       .map((r: any): DataFrame[] => {
@@ -324,7 +323,7 @@ export class AriaOpsDataSource extends DataSourceApi<
           refId,
           resources,
           r,
-          slidingWindowFactory
+          jernelSmootherFactory
         );
       })
       .flat();
@@ -403,7 +402,7 @@ export class AriaOpsDataSource extends DataSourceApi<
   }
 
   async testDatasource() {
-    // Sign in an list adapter kinds. If this works, the plugin can communicate with vR Ops and chances are
+    // Sign in and list adapter kinds. If this works, the plugin can communicate with vR Ops and chances are
     // great the rest of it works too.
     try {
       const adapterKinds = await this.getAdapterKinds();

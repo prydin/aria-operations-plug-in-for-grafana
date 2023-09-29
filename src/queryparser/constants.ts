@@ -68,4 +68,5 @@ export const KEYWORDS = [
   'mstddev',
   'mvariance',
   'msum',
+  'mexpavg',
 ];

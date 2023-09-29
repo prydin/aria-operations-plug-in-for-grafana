@@ -33,16 +33,23 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 import { AvlTree } from '@datastructures-js/binary-search-tree';
 import { MaxHeap, MinHeap } from '@datastructures-js/heap';
 
-export const slidingWindowFactories: {
-  [key: string]: (size: number, interval: number) => SlidingAccumulator;
+export interface KernelSmoother {
+  push: (value: number, timestamp: number) => void;
+  pushAndGet: (value: number, timestamp: number) => number;
+  getValue: () => number;
+}
+
+export const kernelSmootherFactories: {
+  [key: string]: (interval: number, params: any) => KernelSmoother;
 } = {
-  mavg: (n, i) => new SlidingAverage(n, i),
-  msum: (n, i) => new SlidingSum(n, i),
-  mmedian: (n, i) => new SlidingMedian(n, i),
-  mstddev: (n, i) => new SlidingStdDev(n, i),
-  mvariance: (n, i) => new SlidingVariance(n, i),
-  mmax: (n, i) => new SlidingMax(n, i),
-  mmin: (n, i) => new SlidingMin(n, i),
+  mavg: (interval, params) => new SlidingAverage(interval, params),
+  msum: (interval, params) => new SlidingSum(interval, params),
+  mmedian: (interval, params) => new SlidingMedian(interval, params),
+  mstddev: (interval, params) => new SlidingStdDev(interval, params),
+  mvariance: (interval, params) => new SlidingVariance(interval, params),
+  mmax: (interval, params) => new SlidingMax(interval, params),
+  mmin: (interval, params) => new SlidingMin(interval, params),
+  mexpavg: (interval, params) => new ExponentialAverage(interval, params),
 };
 
 interface Sample {
@@ -53,7 +60,7 @@ interface Sample {
 /**
  * Base class for sliding windows
  */
-export abstract class SlidingAccumulator {
+export abstract class SlidingAccumulator implements KernelSmoother {
   /**
    * Samples are kept in a ring buffer with buffer[head] being the most recent
    * and buffer[(head+1)%size] being the oldest
@@ -62,13 +69,13 @@ export abstract class SlidingAccumulator {
   head = 0;
   interval = 0;
   pushCount = 0;
+  lag = 0;
 
-  constructor(size: number, interval: number) {
-    console.log(
-      'Created sliding window, size=' + size + ', interval=' + interval
-    );
-    this.buffer = new Array<Sample>(size);
+  constructor(interval: number, params: { duration: number }) {
+    const nPoints = Math.round(params.duration / interval);
+    this.buffer = new Array<Sample>(nPoints);
     this.interval = interval;
+    this.lag = params.duration;
   }
 
   /**
@@ -108,31 +115,31 @@ export abstract class SlidingAccumulator {
    */
   pushAndGet(timestamp: number, value: number): number {
     this.push(timestamp, value);
-    return this.getValue(timestamp);
+    return this.getValue();
   }
 
-  protected abstract _getValue(timestamp: number): number;
+  protected abstract _getValue(): number;
 
   /**
-   * Return the calculated value at a point in time
-   * @param timestamp
+   * Return the latest calculated value
    * @returns
    */
-  getValue(timestamp: number): number {
+  getValue(): number {
     // Clean out stale entries
+    const latest = this.buffer[this.head]!.timestamp;
     for (let i = 0; i < this.buffer.length; ++i) {
       let p = (i + 1) % this.buffer.length;
       const s = this.buffer[p];
       if (!s) {
         continue;
       }
-      if (s.timestamp >= timestamp - this.interval) {
+      if (s.timestamp >= latest - this.lag) {
         break;
       }
       this.onEvict(s!);
       this.buffer[p] = null;
     }
-    return this._getValue(timestamp);
+    return this._getValue();
   }
 }
 
@@ -153,7 +160,7 @@ export class SlidingAverage extends SlidingAccumulator {
     this.count--;
   }
 
-  _getValue(timestamp: number): number {
+  _getValue(): number {
     return this.sum / this.count;
   }
 }
@@ -169,7 +176,7 @@ export class SlidingCount extends SlidingAccumulator {
     this.count--;
   }
 
-  _getValue(timestamp: number): number {
+  _getValue(): number {
     return this.count;
   }
 }
@@ -188,7 +195,7 @@ export class SlidingSum extends SlidingAccumulator {
     this.sum -= sample.value;
   }
 
-  _getValue(timestamp: number): number {
+  _getValue(): number {
     return this.sum;
   }
 }
@@ -213,7 +220,7 @@ export class SlidingMax extends SlidingAccumulator {
     }
   }
 
-  _getValue(timestamp: number): number {
+  _getValue(): number {
     return this.heap.root() != null ? this.heap.root()! : NaN;
   }
 }
@@ -238,7 +245,7 @@ export class SlidingMin extends SlidingAccumulator {
     }
   }
 
-  _getValue(timestamp: number): number {
+  _getValue(): number {
     return this.heap.root() != null ? this.heap.root()! : NaN;
   }
 }
@@ -286,7 +293,7 @@ export class SlidingVariance extends SlidingAccumulator {
     return this.count > 1 ? this.vAcc / (this.count - 1) : 0;
   }
 
-  _getValue(timestamp: number): number {
+  _getValue(): number {
     return this.getVariance();
   }
 }
@@ -295,7 +302,7 @@ export class SlidingVariance extends SlidingAccumulator {
  * Sliding standard deviation
  */
 export class SlidingStdDev extends SlidingVariance {
-  _getValue(timestamp: number): number {
+  _getValue(): number {
     return Math.sqrt(this.getVariance());
   }
 }
@@ -427,7 +434,7 @@ export class SlidingMedian extends SlidingAccumulator {
     this.rebalance();
   }
 
-  protected _getValue(timestamp: number): number {
+  _getValue(): number {
     if (this.maxHeap.size === 0) {
       return NaN;
     }
@@ -436,5 +443,35 @@ export class SlidingMedian extends SlidingAccumulator {
       return (this.minHeap.top()! + this.maxHeap.top()!) / 2;
     }
     return this.maxHeap.top()!;
+  }
+}
+
+/**
+ * Simple exponential smoother. s(n+1) = s(n) * alpha + x * (1 - alpha)
+ */
+export class ExponentialAverage implements KernelSmoother {
+  alpha: number;
+  current: number = NaN;
+
+  constructor(interval: number, params: { duration: number }) {
+    this.alpha = 1 - Math.exp(-interval / params.duration);
+    console.log('Alpha', this.alpha);
+  }
+
+  push(timestamp: number, value: number) {
+    // TODO: Handle gaps
+    this.current = isNaN(this.current)
+      ? value
+      : (1 - this.alpha) * this.current + this.alpha * value;
+    console.log(value, this.current);
+  }
+
+  getValue() {
+    return this.current;
+  }
+
+  pushAndGet(timestamp: number, value: number): number {
+    this.push(timestamp, value);
+    return this.getValue();
   }
 }

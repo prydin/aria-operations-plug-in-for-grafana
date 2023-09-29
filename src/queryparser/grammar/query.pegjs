@@ -90,7 +90,8 @@ SlidingWindowOp =
   "mmedian" /
   "mmax" /
   "mmin" /
-  "msum"
+  "msum" /
+  "mexpavg" 
 
 TimeSpec = timequantity: Number timeunit: TimeUnit { return timequantity * timeunit }
 TimeUnit = 

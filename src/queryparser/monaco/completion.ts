@@ -104,6 +104,12 @@ export class AriaOpsCompletionItemProvider
     this.resourceKinds = buffer;
   }
 
+  /**
+   * Tries to match a string starting with 'resource(...)' and assumes that
+   * what's within the parameters is a resorce type.
+   * @param text
+   * @returns
+   */
   private inferResourceType(text: string): string {
     const match = text.match(/\s*resource\(([^)]+)/);
     if (!match) {
@@ -112,6 +118,7 @@ export class AriaOpsCompletionItemProvider
     return match.at(1) || '';
   }
 
+  // Context aware handlers. Each handler tries to infer the best completion choices based on its context.
   private handleMetric = (
     text: string,
     range: any
@@ -223,6 +230,9 @@ export class AriaOpsCompletionItemProvider
     };
   };
 
+  /**
+   * Each keyword carries a hint on how to handle the parameters.
+   */
   keywords: KeyValue = {
     resource: this.handleResource,
     whereMetrics: this.handleMetric,
