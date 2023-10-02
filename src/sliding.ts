@@ -50,6 +50,7 @@ export const kernelSmootherFactories: {
   mmax: (interval, params) => new SlidingMax(interval, params),
   mmin: (interval, params) => new SlidingMin(interval, params),
   mexpavg: (interval, params) => new ExponentialAverage(interval, params),
+  mgaussian: (interval, params) => new GaussianEstimator(interval, params),
 };
 
 interface Sample {
@@ -455,7 +456,6 @@ export class ExponentialAverage implements KernelSmoother {
 
   constructor(interval: number, params: { duration: number }) {
     this.alpha = 1 - Math.exp(-interval / params.duration);
-    console.log('Alpha', this.alpha);
   }
 
   push(timestamp: number, value: number) {
@@ -463,7 +463,6 @@ export class ExponentialAverage implements KernelSmoother {
     this.current = isNaN(this.current)
       ? value
       : (1 - this.alpha) * this.current + this.alpha * value;
-    console.log(value, this.current);
   }
 
   getValue() {
@@ -473,5 +472,69 @@ export class ExponentialAverage implements KernelSmoother {
   pushAndGet(timestamp: number, value: number): number {
     this.push(timestamp, value);
     return this.getValue();
+  }
+}
+
+/**
+ * Estimate the Nadaraya-Watson bandwidth factor corresponding to a certain duration
+ * @param duration
+ * @returns
+ */
+export function estimateBandwidth(duration: number) {
+  return Math.sqrt(1.176 * lambertW(duration * duration));
+}
+
+/**
+ * Estimate the Lambert W-function using Corless' method
+ * @param x
+ * @returns
+ */
+export function lambertW(x: number) {
+  let w = 1;
+  const iterations = 10;
+  for (let i = 0; i < iterations; ++i) {
+    w = (w / (1 + w)) * (1 + Math.log(x / w));
+  }
+  return w;
+}
+
+const sqrt2pi = Math.sqrt(2 * Math.PI);
+
+export class GaussianEstimator extends SlidingAccumulator {
+  sum = 0.0;
+  weightedSum = 0.0;
+  h: number;
+
+  onEvict(sample: Sample): void {}
+
+  onPush(sample: Sample): void {}
+
+  constructor(interval: number, params: { duration: number }) {
+    super(interval, params);
+    this.h = estimateBandwidth(params.duration * 4);
+  }
+
+  _getValue(): number {
+    let sum = 0;
+    let wSum = 0;
+    let latest = this.buffer[this.head]?.timestamp;
+    for (let i = 0; i < this.buffer.length; ++i) {
+      let sample = this.buffer[(this.head + i + 1) % this.buffer.length];
+      if (sample == null) {
+        continue;
+      }
+      let g = this.gaussian(
+        (sample.timestamp - latest!) / (this.buffer.length * this.interval)
+      );
+      sum += g;
+      wSum += g * sample.value;
+    }
+    return wSum / sum;
+  }
+
+  gaussian(x: number): number {
+    return (
+      (1 / (sqrt2pi * this.h)) * Math.exp(-(x * x) / (2 * this.h * this.h))
+    );
   }
 }

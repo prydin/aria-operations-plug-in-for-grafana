@@ -41,6 +41,7 @@ import {
   SlidingStdDev,
   SlidingSum,
   SortedBag,
+  lambertW,
 } from 'sliding';
 import { AggregationSpec, CompiledQuery, SlidingWindowSpec } from 'types';
 
@@ -623,5 +624,10 @@ describe('Sliding functions', () => {
         expect(acc.getValue()).toBeCloseTo((2 * i - duration + 1) / 2, 6);
       }
     }
+  });
+
+  test('Gaussian math', () => {
+    expect(lambertW(1)).toBeCloseTo(0.56714, 4);
+    expect(lambertW(1000)).toBeCloseTo(5.2496, 4);
   });
 });
