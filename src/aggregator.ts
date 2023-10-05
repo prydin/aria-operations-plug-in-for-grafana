@@ -31,7 +31,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 import { DataFrame, FieldType, Labels, MutableDataFrame } from '@grafana/data';
-import { KernelSmoother } from 'sliding';
+import { Smoother } from 'sliding';
 import { AggregationSpec, KeyValue } from 'types';
 const TDigest = require('tdigest').TDigest;
 
@@ -203,7 +203,7 @@ export class Stats {
   toFrames(
     refId: string,
     aggregation: AggregationSpec,
-    slidingWindowFactory: (() => KernelSmoother) | null
+    slidingWindowFactory: (() => Smoother) | null
   ): DataFrame[] {
     const produce = statProducers[aggregation.type];
     if (!produce) {

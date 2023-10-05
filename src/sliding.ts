@@ -33,14 +33,14 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 import { AvlTree } from '@datastructures-js/binary-search-tree';
 import { MaxHeap, MinHeap } from '@datastructures-js/heap';
 
-export interface KernelSmoother {
+export interface Smoother {
   push: (value: number, timestamp: number) => void;
   pushAndGet: (value: number, timestamp: number) => number;
   getValue: () => number;
 }
 
-export const kernelSmootherFactories: {
-  [key: string]: (interval: number, params: any) => KernelSmoother;
+export const smootherFactories: {
+  [key: string]: (interval: number, params: any) => Smoother;
 } = {
   mavg: (interval, params) => new SlidingAverage(interval, params),
   msum: (interval, params) => new SlidingSum(interval, params),
@@ -61,20 +61,21 @@ interface Sample {
 /**
  * Base class for sliding windows
  */
-export abstract class SlidingAccumulator implements KernelSmoother {
+export abstract class SlidingAccumulator implements Smoother {
   /**
    * Samples are kept in a ring buffer with buffer[head] being the most recent
    * and buffer[(head+1)%size] being the oldest
    */
   buffer: Array<Sample | null>;
+  nPoints: number;
   head = 0;
   interval = 0;
   pushCount = 0;
   lag = 0;
 
   constructor(interval: number, params: { duration: number }) {
-    const nPoints = Math.round(params.duration / interval);
-    this.buffer = new Array<Sample>(nPoints);
+    this.nPoints = Math.round(params.duration / interval);
+    this.buffer = new Array<Sample>(this.nPoints);
     this.interval = interval;
     this.lag = params.duration;
   }
@@ -98,7 +99,7 @@ export abstract class SlidingAccumulator implements KernelSmoother {
    */
   push(timestamp: number, value: number) {
     const sample = { timestamp, value };
-    this.head = (this.head + 1) % this.buffer.length;
+    this.head = (this.head + 1) % this.nPoints;
     const old = this.buffer[this.head];
     this.buffer[this.head] = { timestamp, value };
     ++this.pushCount;
@@ -128,8 +129,8 @@ export abstract class SlidingAccumulator implements KernelSmoother {
   getValue(): number {
     // Clean out stale entries
     const latest = this.buffer[this.head]!.timestamp;
-    for (let i = 0; i < this.buffer.length; ++i) {
-      let p = (i + 1) % this.buffer.length;
+    for (let i = 0; i < this.nPoints; ++i) {
+      let p = (i + 1) % this.nPoints;
       const s = this.buffer[p];
       if (!s) {
         continue;
@@ -266,7 +267,7 @@ export class SlidingVariance extends SlidingAccumulator {
       return;
     }
     this.count++;
-    if (this.count >= this.buffer.length) {
+    if (this.count >= this.nPoints) {
       this.full = true;
     }
 
@@ -450,7 +451,7 @@ export class SlidingMedian extends SlidingAccumulator {
 /**
  * Simple exponential smoother. s(n+1) = s(n) * alpha + x * (1 - alpha)
  */
-export class ExponentialAverage implements KernelSmoother {
+export class ExponentialAverage implements Smoother {
   alpha: number;
   current: number = NaN;
 
@@ -490,7 +491,8 @@ export function estimateBandwidth(duration: number) {
  * @returns
  */
 export function lambertW(x: number) {
-  let w = 1;
+  let w = x > Math.E ? Math.log(x) - Math.log(Math.log(x)) : x;
+  console.log('w0', w);
   const iterations = 10;
   for (let i = 0; i < iterations; ++i) {
     w = (w / (1 + w)) * (1 + Math.log(x / w));
@@ -510,21 +512,25 @@ export class GaussianEstimator extends SlidingAccumulator {
   onPush(sample: Sample): void {}
 
   constructor(interval: number, params: { duration: number }) {
-    super(interval, params);
-    this.h = estimateBandwidth(params.duration * 4);
+    super(interval, { duration: params.duration * 4 });
+    console.log('Lag: ' + this.lag / this.nPoints);
+    this.h = estimateBandwidth(1 / 12);
+    console.log('h', this.h);
   }
 
   _getValue(): number {
     let sum = 0;
     let wSum = 0;
-    let latest = this.buffer[this.head]?.timestamp;
-    for (let i = 0; i < this.buffer.length; ++i) {
-      let sample = this.buffer[(this.head + i + 1) % this.buffer.length];
+    // console.log('-----------------');
+    let x = this.buffer[this.head]!.timestamp;
+    for (let i = 0; i < this.nPoints; i++) {
+      let sample = this.buffer[(this.head + i + 1) % this.nPoints];
       if (sample == null) {
         continue;
       }
+      // console.log((sample.timestamp - x) / (this.nPoints * this.interval));
       let g = this.gaussian(
-        (sample.timestamp - latest!) / (this.buffer.length * this.interval)
+        (sample.timestamp - x) / (this.nPoints * this.interval)
       );
       sum += g;
       wSum += g * sample.value;

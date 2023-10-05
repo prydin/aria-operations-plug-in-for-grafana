@@ -57,7 +57,7 @@ import {
 import { lastValueFrom } from 'rxjs';
 import { compileQuery } from 'queryparser/compiler';
 import { Stats } from 'aggregator';
-import { KernelSmoother, kernelSmootherFactories } from 'sliding';
+import { Smoother, smootherFactories } from 'sliding';
 
 type Resolver = { (token: string): void };
 type Rejecter = { (reason: any): void };
@@ -241,7 +241,7 @@ export class AriaOpsDataSource extends DataSourceApi<
     refId: string,
     resources: Map<string, string>,
     resourceMetric: any,
-    slidingWindowFactory: (() => KernelSmoother) | null
+    slidingWindowFactory: (() => Smoother) | null
   ): DataFrame[] {
     const frames: MutableDataFrame[] = [];
     let resId = resourceMetric.resourceId;
@@ -295,7 +295,7 @@ export class AriaOpsDataSource extends DataSourceApi<
     let resp = await this.post('resources/stats/query', payload);
     const jernelSmootherFactory = slidingWindow
       ? () =>
-          kernelSmootherFactories[slidingWindow.type](interval * 60000, {
+          smootherFactories[slidingWindow.type](interval * 60000, {
             duration: slidingWindow.duration * 1000,
           })
       : null;
@@ -368,9 +368,13 @@ export class AriaOpsDataSource extends DataSourceApi<
     const { range, maxDataPoints } = options;
     const from = range!.from.valueOf();
     const to = range!.to.valueOf();
+    console.log('Query', options);
 
     const data: DataFrame[] = [];
     for (let target of options.targets) {
+      if (target.hide) {
+        continue;
+      }
       const query = defaults(target, defaultQuery);
 
       // Skip empty targets (would generate errors otherwise)
