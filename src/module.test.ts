@@ -43,7 +43,7 @@ import {
   SortedBag,
   estimateBandwidth,
   lambertW,
-} from 'sliding';
+} from 'smoother';
 import { AggregationSpec, CompiledQuery, SlidingWindowSpec } from 'types';
 
 const aggregations = [
@@ -267,7 +267,7 @@ const aggregationResultTemplate: CompiledQuery = {
 
 const simpleSlidingWindowSpec: SlidingWindowSpec = {
   type: 'mavg',
-  duration: 0,
+  params: { duration: 0 },
 };
 
 const slidingWindowResultTemplate: CompiledQuery = {
@@ -293,6 +293,7 @@ const simpleAggregationSpec: AggregationSpec = {
 };
 
 const testCompile = (queryText: string): CompiledQuery => {
+  console.log(queryText);
   return compileQuery({ queryText, advancedMode: true, refId: 'dummy' });
 };
 
@@ -406,6 +407,7 @@ describe('Query parser', () => {
   });
 
   test('Simple sliding window', () => {
+    let shift = false;
     for (const timeunit of [
       ['s', 1],
       ['m', 60],
@@ -416,11 +418,11 @@ describe('Query parser', () => {
     ]) {
       for (const sw of slidingWindows) {
         const q = testCompile(
-          `resource(VMWARE:VirtualMachine).all().metrics(cpu|demandmhz).${sw}(7${timeunit[0]})`
+          `resource(VMWARE:VirtualMachine).all().metrics(cpu|demandmhz).${sw}(7${timeunit[0]}, ${shift})`
         );
         slidingWindowResultTemplate.slidingWindow = {
           type: sw,
-          duration: 7 * (timeunit[1] as number),
+          params: { duration: 1000 * 7 * (timeunit[1] as number), shift },
         };
         expect(q).toStrictEqual(slidingWindowResultTemplate);
       }
@@ -494,29 +496,35 @@ function seqSum(x: number) {
 }
 
 describe('Sliding functions', () => {
+  test('Smoke test', () => {
+    const acc = new SlidingSum(1000, { duration: 2 });
+    expect(acc.pushAndGet(1, 42).value).toBe(42);
+    expect(acc.pushAndGet(2, 42).value).toBe(84);
+    expect(acc.pushAndGet(2, 42).value).toBe(84);
+  });
   test('Average', () => {
     const n = 1000;
     const duration = 100;
-    const acc = new SlidingAverage(1, { duration });
+    const acc = new SlidingAverage(1000, { duration });
     for (let i = 0; i < n; ++i) {
       acc.push(i, i);
       if (i < duration) {
-        expect(acc.getValue()).toBe(i / 2);
+        expect(acc.getValue().value).toBe(i / 2);
       } else {
-        expect(acc.getValue()).toBe((2 * i - duration + 1) / 2);
+        expect(acc.getValue().value).toBe((2 * i - duration + 1) / 2);
       }
     }
   });
   test('Sum', () => {
     const n = 1000;
     const duration = 100;
-    const acc = new SlidingSum(1, { duration });
+    const acc = new SlidingSum(1000, { duration });
     for (let i = 0; i < n; ++i) {
       acc.push(i, i);
       if (i < duration) {
-        expect(acc.getValue()).toBe(seqSum(i));
+        expect(acc.getValue().value).toBe(seqSum(i));
       } else {
-        expect(acc.getValue()).toBe(seqSum(i) - seqSum(i - duration));
+        expect(acc.getValue().value).toBe(seqSum(i) - seqSum(i - duration));
       }
     }
   });
@@ -527,20 +535,20 @@ describe('Sliding functions', () => {
     for (let i = 0; i < n; ++i) {
       acc.push(i * 2, i);
       acc.push(i * 2 + 1, -i);
-      expect(acc.getValue()).toBe(i);
+      expect(acc.getValue().value).toBe(i);
     }
   });
 
   test('Max backwards', () => {
     const n = 1000;
     const duration = 100;
-    const acc = new SlidingMax(1, { duration });
+    const acc = new SlidingMax(1000, { duration });
     for (let i = 0; i < n; ++i) {
       acc.push(i, -i);
       if (i < duration) {
-        expect(acc.getValue()).toBe(-0);
+        expect(acc.getValue().value).toBe(-0);
       } else {
-        expect(acc.getValue()).toBe(duration - i - 1);
+        expect(acc.getValue().value).toBe(duration - i - 1);
       }
     }
   });
@@ -548,24 +556,24 @@ describe('Sliding functions', () => {
   test('Min toggle', () => {
     const n = 1000;
     const duration = 100;
-    const acc = new SlidingMin(1, { duration });
+    const acc = new SlidingMin(1000, { duration });
     for (let i = 0; i < n; ++i) {
       acc.push(i * 2, i);
       acc.push(i * 2 + 1, -i);
-      expect(acc.getValue()).toBe(-i);
+      expect(acc.getValue().value).toBe(-i);
     }
   });
 
   test('Min backwards', () => {
     const n = 1000;
     const duration = 100;
-    const acc = new SlidingMin(1, { duration });
+    const acc = new SlidingMin(1000, { duration });
     for (let i = 0; i < n; ++i) {
       acc.push(i, i);
       if (i < duration) {
-        expect(acc.getValue()).toBe(0);
+        expect(acc.getValue().value).toBe(0);
       } else {
-        expect(acc.getValue()).toBe(i - duration + 1);
+        expect(acc.getValue().value).toBe(i - duration + 1);
       }
     }
   });
@@ -578,13 +586,13 @@ describe('Sliding functions', () => {
   test('StdDev', () => {
     const n = 20;
     const duration = 10;
-    const acc = new SlidingStdDev(1, { duration });
+    const acc = new SlidingStdDev(1000, { duration });
     for (let i = 0; i < n; ++i) {
       acc.push(i, i);
       if (i < duration) {
-        expect(acc.getValue()).toBeCloseTo(stddev[i], 6);
+        expect(acc.getValue().value).toBeCloseTo(stddev[i], 6);
       } else {
-        expect(acc.getValue()).toBeCloseTo(stddev[stddev.length - 1], 6);
+        expect(acc.getValue().value).toBeCloseTo(stddev[stddev.length - 1], 6);
       }
     }
   });
@@ -616,13 +624,13 @@ describe('Sliding functions', () => {
   test('SlidingMedian', () => {
     const n = 10000;
     const duration = 100;
-    const acc = new SlidingMedian(1, { duration });
+    const acc = new SlidingMedian(1000, { duration });
     for (let i = 0; i < n; ++i) {
       acc.push(i, i);
       if (i < duration) {
-        expect(acc.getValue()).toBeCloseTo(i / 2, 6);
+        expect(acc.getValue().value).toBeCloseTo(i / 2, 6);
       } else {
-        expect(acc.getValue()).toBeCloseTo((2 * i - duration + 1) / 2, 6);
+        expect(acc.getValue().value).toBeCloseTo((2 * i - duration + 1) / 2, 6);
       }
     }
   });

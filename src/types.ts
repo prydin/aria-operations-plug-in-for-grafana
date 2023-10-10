@@ -105,7 +105,7 @@ export interface AggregationSpec {
 
 export interface SlidingWindowSpec {
   type: string;
-  duration: number;
+  params: any;
 }
 
 export interface CompiledQuery {

@@ -57,7 +57,7 @@ import {
 import { lastValueFrom } from 'rxjs';
 import { compileQuery } from 'queryparser/compiler';
 import { Stats } from 'aggregator';
-import { Smoother, smootherFactories } from 'sliding';
+import { Smoother, smootherFactories } from 'smoother';
 
 type Resolver = { (token: string): void };
 type Rejecter = { (reason: any): void };
@@ -107,7 +107,7 @@ export class AriaOpsDataSource extends DataSourceApi<
     useToken: boolean
   ): Promise<FetchResponse<any>> {
     let token = useToken ? await this.getToken() : '';
-    console.log(method, path, data);
+    // console.log(method, path, data);
     return lastValueFrom(
       getBackendSrv()
         .fetch<any>({
@@ -241,14 +241,12 @@ export class AriaOpsDataSource extends DataSourceApi<
     refId: string,
     resources: Map<string, string>,
     resourceMetric: any,
-    slidingWindowFactory: (() => Smoother) | null
+    smootherFactory: (() => Smoother) | null
   ): DataFrame[] {
     const frames: MutableDataFrame[] = [];
+    const smoother = smootherFactory ? smootherFactory() : null;
     let resId = resourceMetric.resourceId;
     for (let envelope of resourceMetric['stat-list'].stat) {
-      const slidingWindow = slidingWindowFactory
-        ? slidingWindowFactory()
-        : null;
       const labels: Labels = {
         resourceName: resources.get(resId) || 'unknown',
       };
@@ -261,11 +259,21 @@ export class AriaOpsDataSource extends DataSourceApi<
         ],
       });
       frames.push(frame);
-      for (let i in envelope.timestamps) {
-        const point = slidingWindow
-          ? slidingWindow.pushAndGet(envelope.timestamps[i], envelope.data[i])
-          : envelope.data[i];
-        frame.add({ Time: envelope.timestamps[i], Value: point });
+      console.log(smoother);
+      if (smoother) {
+        // Run samples through the smoother
+        for (let i in envelope.timestamps) {
+          const point = smoother.pushAndGet(
+            envelope.timestamps[i],
+            envelope.data[i]
+          );
+          frame.add({ Time: point.timestamp, Value: point.value });
+        }
+      } else {
+        // No smoother
+        for (let i in envelope.timestamps) {
+          frame.add({ Time: envelope.timestamps[i], Value: envelope.data[i] });
+        }
       }
     }
     return frames;
@@ -279,9 +287,19 @@ export class AriaOpsDataSource extends DataSourceApi<
     end: number,
     maxPoints: number,
     aggregation: AggregationSpec | undefined,
-    slidingWindow: SlidingWindowSpec | undefined
+    smootherSpec: SlidingWindowSpec | undefined
   ): Promise<DataFrame[]> {
     let interval = Math.max((end - begin) / (maxPoints * 60000), 5);
+
+    // TODO: Extend time window if there is a smoother that needs time shifting
+    console.log('smoother', smootherSpec?.params);
+    const smootherFactory = smootherSpec
+      ? () =>
+          smootherFactories[smootherSpec.type](
+            interval * 60000,
+            smootherSpec.params
+          )
+      : null;
     let payload = {
       resourceId: [...resources.keys()],
       statKey: metrics,
@@ -291,14 +309,7 @@ export class AriaOpsDataSource extends DataSourceApi<
       intervalType: 'MINUTES',
       intervalQuantifier: interval.toFixed(0),
     };
-    console.log('Interval:', interval);
     let resp = await this.post('resources/stats/query', payload);
-    const jernelSmootherFactory = slidingWindow
-      ? () =>
-          smootherFactories[slidingWindow.type](interval * 60000, {
-            duration: slidingWindow.duration * 1000,
-          })
-      : null;
     if (aggregation) {
       let propertyMap = new Map();
       if (aggregation.properties) {
@@ -315,7 +326,7 @@ export class AriaOpsDataSource extends DataSourceApi<
           stats.add(envelope.timestamps, envelope.data, pm);
         }
       }
-      return stats.toFrames(refId, aggregation, jernelSmootherFactory);
+      return stats.toFrames(refId, aggregation, smootherFactory);
     }
     return resp.data.values
       .map((r: any): DataFrame[] => {
@@ -323,7 +334,7 @@ export class AriaOpsDataSource extends DataSourceApi<
           refId,
           resources,
           r,
-          jernelSmootherFactory
+          smootherFactory
         );
       })
       .flat();
