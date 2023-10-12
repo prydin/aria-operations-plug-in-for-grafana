@@ -297,6 +297,7 @@ export class AriaOpsDataSource extends DataSourceApi<
       ? () =>
           smootherFactories[smootherSpec.type](
             interval * 60000,
+            end - begin,
             smootherSpec.params
           )
       : null;

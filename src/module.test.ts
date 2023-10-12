@@ -34,6 +34,7 @@ import { Stats } from 'aggregator';
 import { fill } from 'lodash';
 import { compileQuery } from 'queryparser/compiler';
 import {
+  GaussianEstimator,
   SlidingAverage,
   SlidingMax,
   SlidingMedian,
@@ -293,7 +294,6 @@ const simpleAggregationSpec: AggregationSpec = {
 };
 
 const testCompile = (queryText: string): CompiledQuery => {
-  console.log(queryText);
   return compileQuery({ queryText, advancedMode: true, refId: 'dummy' });
 };
 
@@ -497,15 +497,15 @@ function seqSum(x: number) {
 
 describe('Sliding functions', () => {
   test('Smoke test', () => {
-    const acc = new SlidingSum(1000, { duration: 2 });
+    const acc = new SlidingSum(1000, 10000, { duration: 2000 });
     expect(acc.pushAndGet(1, 42).value).toBe(42);
     expect(acc.pushAndGet(2, 42).value).toBe(84);
-    expect(acc.pushAndGet(2, 42).value).toBe(84);
+    expect(acc.pushAndGet(3, 42).value).toBe(84);
   });
   test('Average', () => {
     const n = 1000;
     const duration = 100;
-    const acc = new SlidingAverage(1000, { duration });
+    const acc = new SlidingAverage(1, 10, { duration });
     for (let i = 0; i < n; ++i) {
       acc.push(i, i);
       if (i < duration) {
@@ -518,7 +518,7 @@ describe('Sliding functions', () => {
   test('Sum', () => {
     const n = 1000;
     const duration = 100;
-    const acc = new SlidingSum(1000, { duration });
+    const acc = new SlidingSum(1, 10, { duration });
     for (let i = 0; i < n; ++i) {
       acc.push(i, i);
       if (i < duration) {
@@ -531,7 +531,7 @@ describe('Sliding functions', () => {
   test('Max toggle', () => {
     const n = 1000;
     const duration = 100;
-    const acc = new SlidingMax(1, { duration });
+    const acc = new SlidingMax(1, 10000, { duration });
     for (let i = 0; i < n; ++i) {
       acc.push(i * 2, i);
       acc.push(i * 2 + 1, -i);
@@ -542,7 +542,7 @@ describe('Sliding functions', () => {
   test('Max backwards', () => {
     const n = 1000;
     const duration = 100;
-    const acc = new SlidingMax(1000, { duration });
+    const acc = new SlidingMax(1, 10, { duration });
     for (let i = 0; i < n; ++i) {
       acc.push(i, -i);
       if (i < duration) {
@@ -556,7 +556,7 @@ describe('Sliding functions', () => {
   test('Min toggle', () => {
     const n = 1000;
     const duration = 100;
-    const acc = new SlidingMin(1000, { duration });
+    const acc = new SlidingMin(1, 10, { duration });
     for (let i = 0; i < n; ++i) {
       acc.push(i * 2, i);
       acc.push(i * 2 + 1, -i);
@@ -567,7 +567,7 @@ describe('Sliding functions', () => {
   test('Min backwards', () => {
     const n = 1000;
     const duration = 100;
-    const acc = new SlidingMin(1000, { duration });
+    const acc = new SlidingMin(1, 10, { duration });
     for (let i = 0; i < n; ++i) {
       acc.push(i, i);
       if (i < duration) {
@@ -586,7 +586,7 @@ describe('Sliding functions', () => {
   test('StdDev', () => {
     const n = 20;
     const duration = 10;
-    const acc = new SlidingStdDev(1000, { duration });
+    const acc = new SlidingStdDev(1, 10, { duration });
     for (let i = 0; i < n; ++i) {
       acc.push(i, i);
       if (i < duration) {
@@ -624,7 +624,7 @@ describe('Sliding functions', () => {
   test('SlidingMedian', () => {
     const n = 10000;
     const duration = 100;
-    const acc = new SlidingMedian(1000, { duration });
+    const acc = new SlidingMedian(1, 10, { duration });
     for (let i = 0; i < n; ++i) {
       acc.push(i, i);
       if (i < duration) {
@@ -641,5 +641,10 @@ describe('Sliding functions', () => {
     expect(lambertW(0.5)).toBeCloseTo(0.351734, 4);
     expect(lambertW(1 / 144)).toBeCloseTo(0.006897, 4);
     expect(estimateBandwidth(1 / 12)).toBeCloseTo(0.090058, 4);
+  });
+
+  test('Gaussian', () => {
+    const g = new GaussianEstimator(300000, 8640000, { duration: 60000 });
+    console.log(g.h);
   });
 });
