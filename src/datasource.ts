@@ -301,16 +301,19 @@ export class AriaOpsDataSource extends DataSourceApi<
             smootherSpec.params
           )
       : null;
-    let payload = {
+    const extenedEnd = smootherSpec?.params?.shift
+      ? smootherSpec.params.duration
+      : 0;
+    const payload = {
       resourceId: [...resources.keys()],
       statKey: metrics,
       begin: begin.toFixed(0),
-      end: end.toFixed(0),
+      end: (end + extenedEnd).toFixed(0),
       rollUpType: 'AVG',
       intervalType: 'MINUTES',
       intervalQuantifier: interval.toFixed(0),
     };
-    let resp = await this.post('resources/stats/query', payload);
+    const resp = await this.post('resources/stats/query', payload);
     if (aggregation) {
       let propertyMap = new Map();
       if (aggregation.properties) {

@@ -232,14 +232,20 @@ export class Stats {
           { name: 'Value', type: FieldType.number, labels },
         ],
       });
-      for (const [timestamp, data] of bucket.getResults()) {
-        const value = produce(data);
-        const point = slidingWindow
-          ? slidingWindow.pushAndGet(timestamp, value)
-          : value;
-        frame.add({ Time: timestamp, Value: point });
+      if (slidingWindow)
+        for (const [timestamp, data] of bucket.getResults()) {
+          const value = produce(data);
+          const point = slidingWindow.pushAndGet(timestamp, value);
+          frame.add({ Time: point.timestamp, Value: point.value });
+        }
+      else {
+        for (const [timestamp, data] of bucket.getResults()) {
+          const value = produce(data);
+          frame.add({ Time: timestamp, Value: value });
+        }
       }
       frames.push(frame);
+      console.log(frame);
     }
     return frames;
   }
