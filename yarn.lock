@@ -3390,12 +3390,7 @@
   "version" "5.1.3"
   dependencies:
     "deep-equal" "^2.0.5"
-
-"arima@^0.2.5":
-  "integrity" "sha512-DeACdPoXO3EbFo99oW5BcwMvu3TjgxzMfqd9T1gcPkKrQEsw2P08czMJHycbEjLnDKEcUNLVzhqi3a6raK8Eng=="
-  "resolved" "https://registry.npmjs.org/arima/-/arima-0.2.5.tgz"
-  "version" "0.2.5"
-
+    
 "array-buffer-byte-length@^1.0.0":
   "integrity" "sha512-LPuwb2P+NrQw3XhxGc36+XSvuBPopovXYTR9Ew++Du9Yb/bx5AzBfrIsBoj0EZUifjQU+sHL21sseZ3jerWO/A=="
   "resolved" "https://registry.npmjs.org/array-buffer-byte-length/-/array-buffer-byte-length-1.0.0.tgz"
