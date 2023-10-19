@@ -245,7 +245,6 @@ export class Stats {
         }
       }
       frames.push(frame);
-      console.log(frame);
     }
     return frames;
   }
