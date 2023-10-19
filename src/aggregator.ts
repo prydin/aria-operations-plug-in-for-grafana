@@ -31,7 +31,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 import { DataFrame, FieldType, Labels, MutableDataFrame } from '@grafana/data';
-import { SlidingAccumulator } from 'sliding';
+import { Smoother } from 'smoother';
 import { AggregationSpec, KeyValue } from 'types';
 const TDigest = require('tdigest').TDigest;
 
@@ -203,7 +203,7 @@ export class Stats {
   toFrames(
     refId: string,
     aggregation: AggregationSpec,
-    slidingWindowFactory: (() => SlidingAccumulator) | null
+    smootherFactory: (() => Smoother) | null
   ): DataFrame[] {
     const produce = statProducers[aggregation.type];
     if (!produce) {
@@ -212,9 +212,7 @@ export class Stats {
     const frames: MutableDataFrame[] = [];
     let statKey = '<undefined>';
     for (const [key, bucket] of this.buckets) {
-      const slidingWindow = slidingWindowFactory
-        ? slidingWindowFactory()
-        : null;
+      const slidingWindow = smootherFactory ? smootherFactory() : null;
       const labels: Labels = {};
       if (key) {
         const properties = new Map<string, string>(JSON.parse(key));
@@ -234,12 +232,17 @@ export class Stats {
           { name: 'Value', type: FieldType.number, labels },
         ],
       });
-      for (const [timestamp, data] of bucket.getResults()) {
-        const value = produce(data);
-        const point = slidingWindow
-          ? slidingWindow.pushAndGet(timestamp, value)
-          : value;
-        frame.add({ Time: timestamp, Value: point });
+      if (slidingWindow)
+        for (const [timestamp, data] of bucket.getResults()) {
+          const value = produce(data);
+          const point = slidingWindow.pushAndGet(timestamp, value);
+          frame.add({ Time: point.timestamp, Value: point.value });
+        }
+      else {
+        for (const [timestamp, data] of bucket.getResults()) {
+          const value = produce(data);
+          frame.add({ Time: timestamp, Value: value });
+        }
       }
       frames.push(frame);
     }

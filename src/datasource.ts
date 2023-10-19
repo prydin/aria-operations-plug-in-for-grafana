@@ -57,7 +57,7 @@ import {
 import { lastValueFrom } from 'rxjs';
 import { compileQuery } from 'queryparser/compiler';
 import { Stats } from 'aggregator';
-import { SlidingAccumulator, slidingWindowFactories } from 'sliding';
+import { Smoother, smootherFactories } from 'smoother';
 
 type Resolver = { (token: string): void };
 type Rejecter = { (reason: any): void };
@@ -107,7 +107,7 @@ export class AriaOpsDataSource extends DataSourceApi<
     useToken: boolean
   ): Promise<FetchResponse<any>> {
     let token = useToken ? await this.getToken() : '';
-    console.log(method, path, data);
+    // console.log(method, path, data);
     return lastValueFrom(
       getBackendSrv()
         .fetch<any>({
@@ -241,14 +241,12 @@ export class AriaOpsDataSource extends DataSourceApi<
     refId: string,
     resources: Map<string, string>,
     resourceMetric: any,
-    slidingWindowFactory: (() => SlidingAccumulator) | null
+    smootherFactory: (() => Smoother) | null
   ): DataFrame[] {
     const frames: MutableDataFrame[] = [];
+    const smoother = smootherFactory ? smootherFactory() : null;
     let resId = resourceMetric.resourceId;
     for (let envelope of resourceMetric['stat-list'].stat) {
-      const slidingWindow = slidingWindowFactory
-        ? slidingWindowFactory()
-        : null;
       const labels: Labels = {
         resourceName: resources.get(resId) || 'unknown',
       };
@@ -261,11 +259,21 @@ export class AriaOpsDataSource extends DataSourceApi<
         ],
       });
       frames.push(frame);
-      for (let i in envelope.timestamps) {
-        const point = slidingWindow
-          ? slidingWindow.pushAndGet(envelope.timestamps[i], envelope.data[i])
-          : envelope.data[i];
-        frame.add({ Time: envelope.timestamps[i], Value: point });
+      console.log(smoother);
+      if (smoother) {
+        // Run samples through the smoother
+        for (let i in envelope.timestamps) {
+          const point = smoother.pushAndGet(
+            envelope.timestamps[i],
+            envelope.data[i]
+          );
+          frame.add({ Time: point.timestamp, Value: point.value });
+        }
+      } else {
+        // No smoother
+        for (let i in envelope.timestamps) {
+          frame.add({ Time: envelope.timestamps[i], Value: envelope.data[i] });
+        }
       }
     }
     return frames;
@@ -279,27 +287,33 @@ export class AriaOpsDataSource extends DataSourceApi<
     end: number,
     maxPoints: number,
     aggregation: AggregationSpec | undefined,
-    slidingWindow: SlidingWindowSpec | undefined
+    smootherSpec: SlidingWindowSpec | undefined
   ): Promise<DataFrame[]> {
     let interval = Math.max((end - begin) / (maxPoints * 60000), 5);
-    let payload = {
+
+    // TODO: Extend time window if there is a smoother that needs time shifting
+    console.log('smoother', smootherSpec?.params);
+    const smootherFactory = smootherSpec
+      ? () =>
+          smootherFactories[smootherSpec.type](
+            interval * 60000,
+            end - begin,
+            smootherSpec.params
+          )
+      : null;
+    const extenedEnd = smootherSpec?.params?.shift
+      ? smootherSpec.params.duration
+      : 0;
+    const payload = {
       resourceId: [...resources.keys()],
       statKey: metrics,
       begin: begin.toFixed(0),
-      end: end.toFixed(0),
+      end: (end + extenedEnd).toFixed(0),
       rollUpType: 'AVG',
       intervalType: 'MINUTES',
       intervalQuantifier: interval.toFixed(0),
     };
-    console.log('Interval:', interval);
-    let resp = await this.post('resources/stats/query', payload);
-    const slidingWindowFactory = slidingWindow
-      ? () =>
-          slidingWindowFactories[slidingWindow.type](
-            Math.round(Math.round(slidingWindow.duration / (interval * 60))),
-            slidingWindow.duration * 1000
-          )
-      : null;
+    const resp = await this.post('resources/stats/query', payload);
     if (aggregation) {
       let propertyMap = new Map();
       if (aggregation.properties) {
@@ -316,7 +330,7 @@ export class AriaOpsDataSource extends DataSourceApi<
           stats.add(envelope.timestamps, envelope.data, pm);
         }
       }
-      return stats.toFrames(refId, aggregation, slidingWindowFactory);
+      return stats.toFrames(refId, aggregation, smootherFactory);
     }
     return resp.data.values
       .map((r: any): DataFrame[] => {
@@ -324,7 +338,7 @@ export class AriaOpsDataSource extends DataSourceApi<
           refId,
           resources,
           r,
-          slidingWindowFactory
+          smootherFactory
         );
       })
       .flat();
@@ -369,9 +383,13 @@ export class AriaOpsDataSource extends DataSourceApi<
     const { range, maxDataPoints } = options;
     const from = range!.from.valueOf();
     const to = range!.to.valueOf();
+    console.log('Query', options);
 
     const data: DataFrame[] = [];
     for (let target of options.targets) {
+      if (target.hide) {
+        continue;
+      }
       const query = defaults(target, defaultQuery);
 
       // Skip empty targets (would generate errors otherwise)
@@ -403,7 +421,7 @@ export class AriaOpsDataSource extends DataSourceApi<
   }
 
   async testDatasource() {
-    // Sign in an list adapter kinds. If this works, the plugin can communicate with vR Ops and chances are
+    // Sign in and list adapter kinds. If this works, the plugin can communicate with vR Ops and chances are
     // great the rest of it works too.
     try {
       const adapterKinds = await this.getAdapterKinds();

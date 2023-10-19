@@ -160,13 +160,21 @@ For example, a sliding window average with a lag of one hour will look at the on
 This is repeated for each sample in the series. The following sliding window functions are available:
 | Name | Description |
 | - | - |
-| mavg(lag) | Moving average |
-| mmax(lag) | Moving maximum |
-| mmedian(lag) | Moving median. Useful for removing outliers |
-| mmin(lag) | Moving minimum |
-| mstddev(lag) | Moving standard deviation |
-| msum(lag) | Moving sum |
-| mvariance(lag) | Moving variance
+| mavg(lag [, shift]) | Moving average |
+| mmax(lag) [, shift] | Moving maximum |
+| mmedian(lag [, shift]) | Moving median. Useful for removing outliers |
+| mmin(lag [, shift]) | Moving minimum |
+| mstddev(lag [, shift]) | Moving standard deviation |
+| msum(lag [, shift]) | Moving sum |
+| mvariance(lag [, shift]) | Moving variance |
+| mexp(lag [, shift]) | Exponentially weighted moving average |
+| mgaussian(lag [, shift]) | Moving Gaussian average |
+
+The `shift` parameter is used to correct the lag that's inherent in moving averages and smoothing kernels. It's useful when
+creating a smoothed graph that follows the original data closely.
+
+In most cases, `mgaussian` produces the best and smoothest fit to any graph. The only downside is that it's computationally
+demanding, but unless you are processing years worth of data, the delay should be minimal.
 
 Note that if aggregations are used, moving window functions must be applied after any aggregations.
 
