@@ -67,6 +67,8 @@ type AuthWaiter = {
   reject: Rejecter;
 };
 
+const SAAS_CSP_AUTH_URL = 'csp/authorize';
+
 class AriaOpsError extends Error {
   static buildMessage(apiResponse: FetchResponse<any>): string {
     const content = apiResponse.data;
@@ -104,9 +106,17 @@ export class AriaOpsDataSource extends DataSourceApi<
     method: string,
     path: string,
     data: any,
-    useToken: boolean
+    useToken: boolean,
+    headerOverride?: Record<string, any>
   ): Promise<FetchResponse<any>> {
     let token = useToken ? await this.getToken() : '';
+    const headers = {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+      Authorization: token,
+      ...headerOverride,
+    };
+
     // console.log(method, path, data);
     return lastValueFrom(
       getBackendSrv()
@@ -114,11 +124,7 @@ export class AriaOpsDataSource extends DataSourceApi<
           method: method,
           url: this.url + path,
           data: data,
-          headers: {
-            Accept: 'application/json',
-            'Content-Type': 'application/json',
-            Authorization: 'vRealizeOpsToken ' + token,
-          },
+          headers: headers,
         })
         .pipe(
           catchError((err) => {
@@ -343,18 +349,35 @@ export class AriaOpsDataSource extends DataSourceApi<
       })
       .flat();
   }
+  /*
+  curl --location --request POST 'https://console.cloud.vmware.com/csp/gateway/am/api/auth/api-tokens/authorize' --header 'Content-Type: application/x-www-form-urlencoded' --data-urlencode 'refresh_token=your_api_token_goes_here'
+  */
 
-  private async authenticate(jsonData: AriaOpsOptions) {
-    let payload: Object = {
+  private async authenticateSaaS() {
+    const response = await this.request('POST', SAAS_CSP_AUTH_URL, '', false, {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    });
+    console.log('Token: ' + response.data.access_token);
+    return 'CSPToken ' + response.data.access_token;
+  }
+
+  private async authenticateOnPrem(jsonData: AriaOpsOptions) {
+    const payload: Object = {
       username: jsonData.username,
     };
-    let url =
+    const url =
       jsonData.authSource && jsonData.authSource !== 'Local Users'
         ? 'auth/token/acquire-withsource'
         : 'auth/token/acquire';
+    const response = await this.request('POST', url, payload, false);
+    return 'vRealizeOpsToken ' + response.data.token;
+  }
+
+  private async authenticate(jsonData: AriaOpsOptions) {
     try {
-      let response = await this.request('POST', url, payload, false);
-      this.token = response.data.token;
+      this.token = jsonData.isSaaS
+        ? await this.authenticateSaaS()
+        : await this.authenticateOnPrem(jsonData);
       setTimeout(() => {
         this.authenticate(jsonData);
       }, AriaOpsDataSource.EXPIRATION_TIME);

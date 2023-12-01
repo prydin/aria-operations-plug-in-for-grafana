@@ -36,11 +36,36 @@ import { AriaOpsOptions, MySecureJsonData } from '../types';
 
 const { SecretFormField, FormField } = LegacyForms;
 
+const SAAS_HOST_SUFFIX = 'www.mgmt.cloud.vmware.com/vrops-cloud';
+
 interface Props extends DataSourcePluginOptionsEditorProps<AriaOpsOptions> {}
 
 interface State {}
 
 export class ConfigEditor extends PureComponent<Props, State> {
+  onSaaSChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const { onOptionsChange, options } = this.props;
+    const jsonData = {
+      ...options.jsonData,
+      isSaaS: event.target.checked,
+    };
+    onOptionsChange({ ...options, jsonData });
+  };
+
+  onRegionChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const { onOptionsChange, options } = this.props;
+    const region = event.target.value;
+    const jsonData = {
+      ...options.jsonData,
+      saasRegion: region,
+      host:
+        region && region !== 'us'
+          ? region + '.' + SAAS_HOST_SUFFIX
+          : SAAS_HOST_SUFFIX,
+    };
+    onOptionsChange({ ...options, jsonData });
+  };
+
   onHostChange = (event: ChangeEvent<HTMLInputElement>) => {
     const { onOptionsChange, options } = this.props;
     const jsonData = {
@@ -110,8 +135,36 @@ export class ConfigEditor extends PureComponent<Props, State> {
     const { jsonData, secureJsonFields } = options;
     const secureJsonData = (options.secureJsonData || {}) as MySecureJsonData;
 
-    return (
-      <div className="gf-form-group">
+    const details = jsonData.isSaaS ? ( // SaaS fields
+      <div>
+        <div className="gf-form">
+          <FormField
+            label="SaaS Region (blank for US)"
+            labelWidth={20}
+            inputWidth={20}
+            onChange={this.onRegionChange}
+            value={jsonData.saasRegion || ''}
+            placeholder="Aria Operations Host or IP"
+          />
+        </div>
+        <div className="gf-form">
+          <SecretFormField
+            isConfigured={
+              (secureJsonFields && secureJsonFields.password) as boolean
+            }
+            value={secureJsonData.password || ''}
+            label="API Key"
+            placeholder="Aria Operations API Key"
+            labelWidth={20}
+            inputWidth={20}
+            onReset={this.onResetPassword}
+            onChange={this.onPasswordChange}
+          />
+        </div>
+      </div>
+    ) : (
+      // On premises fields
+      <div>
         <div className="gf-form">
           <FormField
             label="Aria Ops Host"
@@ -122,7 +175,6 @@ export class ConfigEditor extends PureComponent<Props, State> {
             placeholder="Aria Operations Host or IP"
           />
         </div>
-
         <div className="gf-form">
           <FormField
             label="Username"
@@ -131,6 +183,7 @@ export class ConfigEditor extends PureComponent<Props, State> {
             onChange={this.onUsernameChange}
             value={jsonData.username || ''}
             placeholder="Aria Operations Username"
+            disabled={!jsonData.isSaaS}
           />
         </div>
 
@@ -169,6 +222,21 @@ export class ConfigEditor extends PureComponent<Props, State> {
             type="checkbox"
           />
         </div>
+      </div>
+    );
+
+    return (
+      <div className="gf-form-group">
+        <FormField
+          label="Connecting to SaaS instance?"
+          labelWidth={20}
+          inputWidth={20}
+          onChange={this.onSaaSChange}
+          checked={jsonData.isSaaS}
+          placeholder="SaaS instance"
+          type="checkbox"
+        />
+        {details}
       </div>
     );
   }
