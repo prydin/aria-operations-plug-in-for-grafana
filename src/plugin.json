@@ -44,6 +44,16 @@
       }
     },
     {
+      "path": "aria-operations/suite-api/api/csp/authorize",
+      "url": "https://console.cloud.vmware.com/csp/gateway/am/api/auth/api-tokens/authorize",
+      "urlParams": [
+        { 
+          "name": "api_token", 
+          "content": "{{.SecureJsonData.password}}"
+        }
+      ]
+    },
+    {
       "path": "aria-operations",
       "url": "https://{{.JsonData.host}}/"
     }

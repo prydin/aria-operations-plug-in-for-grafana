@@ -33,10 +33,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 import { DataQuery, DataSourceJsonData } from '@grafana/data';
 
 export interface AriaOpsOptions extends DataSourceJsonData {
+  isSaaS: boolean;
   host: string;
   username: string;
   authSource: string;
   tlsSkipVerify: boolean;
+  saasRegion: string;
 }
 
 export interface MySecureJsonData {
