@@ -73,7 +73,7 @@
     "@grafana/data": "^9.5.10",
     "@grafana/experimental": "^1.1.0",
     "@grafana/runtime": "^9.5.10",
-    "@grafana/ui": "^9.5.10",
+    "@grafana/ui": "^9.5.14",
     "arima": "^0.2.5",
     "peggy": "^2.0.1",
     "react": "17.0.2",
