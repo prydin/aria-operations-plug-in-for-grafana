@@ -116,7 +116,6 @@ export class AriaOpsDataSource extends DataSourceApi<
       Authorization: token,
       ...headerOverride,
     };
-
     // console.log(method, path, data);
     return lastValueFrom(
       getBackendSrv()
