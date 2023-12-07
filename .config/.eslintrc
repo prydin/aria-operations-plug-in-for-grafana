@@ -12,5 +12,19 @@
   "root": true,
   "rules": {
     "react/prop-types": "off"
-  }
+  },
+  "overrides": [
+    {
+      "files": ["*.ts", "*.tsx"], // Your TypeScript files extension
+
+      "extends": [
+        "plugin:@typescript-eslint/recommended",
+        "plugin:@typescript-eslint/recommended-requiring-type-checking",
+      ],
+
+      "parserOptions": {
+        "project": ["./tsconfig.json"], // Specify it only for TypeScript files
+      },
+    }
+  ]
 }
