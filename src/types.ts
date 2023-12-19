@@ -107,7 +107,7 @@ export interface AggregationSpec {
 
 export interface SlidingWindowSpec {
   type: string;
-  params: any;
+  params: object;
 }
 
 export interface CompiledQuery {
@@ -117,6 +117,6 @@ export interface CompiledQuery {
   slidingWindow?: SlidingWindowSpec;
 }
 
-export interface KeyValue {
-  [key: string]: any;
+export interface KeyValue<T> {
+  [key: string]: T;
 }

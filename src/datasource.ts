@@ -60,7 +60,7 @@ import { Stats } from 'aggregator';
 import { Smoother, smootherFactories } from 'smoother';
 
 type Resolver = { (token: string): void };
-type Rejecter = { (reason: any): void };
+type Rejecter = { (reason: string): void };
 
 type AuthWaiter = {
   resolve: Resolver;
@@ -107,7 +107,7 @@ export class AriaOpsDataSource extends DataSourceApi<
     path: string,
     data: any,
     useToken: boolean,
-    headerOverride?: Record<string, any>
+    headerOverride?: Record<string, string>
   ): Promise<FetchResponse<any>> {
     let token = useToken ? await this.getToken() : '';
     const headers = {
@@ -136,11 +136,14 @@ export class AriaOpsDataSource extends DataSourceApi<
     );
   }
 
-  private post(path: string, data: any): Promise<FetchResponse<any>> {
+  private post<REQ, RESP>(
+    path: string,
+    data: REQ
+  ): Promise<FetchResponse<RESP>> {
     return this.request('POST', path, data, true);
   }
 
-  private get(path: string): Promise<FetchResponse<any>> {
+  private get<RESP>(path: string): Promise<FetchResponse<RESP>> {
     return this.request('GET', path, null, true);
   }
 
@@ -249,7 +252,6 @@ export class AriaOpsDataSource extends DataSourceApi<
     smootherFactory: (() => Smoother) | null
   ): DataFrame[] {
     const frames: MutableDataFrame[] = [];
-    const smoother = smootherFactory ? smootherFactory() : null;
     let resId = resourceMetric.resourceId;
     for (let envelope of resourceMetric['stat-list'].stat) {
       const labels: Labels = {
@@ -264,8 +266,8 @@ export class AriaOpsDataSource extends DataSourceApi<
         ],
       });
       frames.push(frame);
-      console.log(smoother);
-      if (smoother) {
+      if (smootherFactory) {
+        const smoother = smootherFactory();
         // Run samples through the smoother
         for (let i in envelope.timestamps) {
           const point = smoother.pushAndGet(
