@@ -67,6 +67,29 @@ export const defaultQuery: Partial<AriaOpsQuery> = {
   metric: '',
 };
 
+export interface AggregationSpec {
+  type: string;
+  parameter?: number;
+  properties: string[];
+}
+
+export interface SlidingWindowSpec {
+  type: string;
+  params: { duration: number; shift?: boolean };
+}
+
+export interface CompiledQuery {
+  resourceQuery: ResourceRequest;
+  metrics: string[];
+  aggregation?: AggregationSpec;
+  slidingWindow?: SlidingWindowSpec;
+}
+
+export interface KeyValue<T> {
+  [key: string]: T;
+}
+
+// Aria Ops types
 export interface Condition {
   doubleValue?: number;
   stringValue?: string;
@@ -99,24 +122,85 @@ export interface ResourceRequest {
   resourceTag?: TagSpec[];
 }
 
-export interface AggregationSpec {
-  type: string;
-  parameter?: number;
-  properties: string[];
+export interface Resource {
+  identifier: string;
+  resourceKey: { name: string };
 }
 
-export interface SlidingWindowSpec {
-  type: string;
-  params: object;
+export interface ResourceResponse {
+  resourceList: Resource[];
 }
 
-export interface CompiledQuery {
-  resourceQuery: ResourceRequest;
-  metrics: string[];
-  aggregation?: AggregationSpec;
-  slidingWindow?: SlidingWindowSpec;
+export interface KeyNamePair {
+  key: string;
+  name: string;
 }
 
-export interface KeyValue<T> {
-  [key: string]: T;
+export interface AdapterKindResponse {
+  adapterKind: KeyNamePair[];
+}
+
+export interface ResourceKindResponse {
+  resourceKind: KeyNamePair[];
+}
+
+export interface ResourceKindAttribute {
+  key: string;
+  description: string;
+}
+
+export interface ResourceKindAttributeResponse {
+  resourceKindAttribute: ResourceKindAttribute[];
+}
+
+export interface Stat {
+  timestamps: number[];
+  statKey: {
+    key: string;
+  };
+  data: number[];
+}
+
+export interface ResourceStats {
+  resourceId: string;
+  statList: { stat: Stat[] };
+}
+
+export interface ResourceStatsRequest {
+  resourceId: string[];
+  statKey: string[];
+  begin: string;
+  end: string;
+  rollUpType: string;
+  intervalType: string;
+  intervalQuantifier: string;
+}
+
+export interface ResourceStatsResponse {
+  values: ResourceStats[];
+}
+
+export interface ResourcePropertiesRequest {
+  resourceIds: string[];
+  propertyKeys: string[];
+}
+
+export interface ResourceProperties {
+  resourceId: string;
+  propertyContents: {
+    propertyContent: {
+      statKey: string;
+      timestamps: number[];
+      values: string[] | undefined;
+      data: number[] | undefined;
+    }[];
+  };
+}
+
+export interface ResourcePropertiesResponse {
+  values: ResourceProperties[];
+}
+
+export interface AuthSourceResponse {
+  sources: KeyNamePair[];
 }

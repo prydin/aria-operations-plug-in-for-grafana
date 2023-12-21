@@ -44,7 +44,9 @@ import {
 import { FetchResponse, getBackendSrv } from '@grafana/runtime';
 import { catchError } from 'rxjs/operators';
 
-import _, { defaults } from 'lodash';
+import /* eslint-disable-line @typescript-eslint/no-unused-vars */ _, {
+  defaults,
+} from 'lodash';
 
 import {
   AriaOpsQuery,
@@ -53,6 +55,19 @@ import {
   ResourceRequest,
   AggregationSpec,
   SlidingWindowSpec,
+  ResourceResponse,
+  Resource,
+  AdapterKindResponse,
+  ResourceKindResponse,
+  ResourceKindAttributeResponse,
+  ResourceKindAttribute,
+  ResourceStatsRequest,
+  ResourceStatsResponse,
+  ResourcePropertiesRequest,
+  ResourcePropertiesResponse,
+  AuthSourceResponse,
+  ResourceStats,
+  KeyNamePair,
 } from './types';
 import { lastValueFrom } from 'rxjs';
 import { compileQuery } from 'queryparser/compiler';
@@ -69,9 +84,13 @@ type AuthWaiter = {
 
 const SAAS_CSP_AUTH_URL = 'csp/authorize';
 
+interface ErrorResponse {
+  message: string;
+  validationFailures: Array<{ failureMessage: string }>;
+}
+
 class AriaOpsError extends Error {
-  static buildMessage(apiResponse: FetchResponse<any>): string {
-    const content = apiResponse.data;
+  static buildMessage(content: ErrorResponse): string {
     let message = content.message;
     if (content.validationFailures) {
       message += ' Details: ';
@@ -82,8 +101,8 @@ class AriaOpsError extends Error {
 
     return message;
   }
-  constructor(apiResponse: FetchResponse<any>) {
-    super(AriaOpsError.buildMessage(apiResponse));
+  constructor(content: ErrorResponse) {
+    super(AriaOpsError.buildMessage(content));
   }
 }
 
@@ -98,18 +117,18 @@ export class AriaOpsDataSource extends DataSourceApi<
 
   constructor(instanceSettings: DataSourceInstanceSettings<AriaOpsOptions>) {
     super(instanceSettings);
-    this.url = instanceSettings.url + '/aria-operations/suite-api/api/';
-    this.authenticate(instanceSettings.jsonData);
+    this.url = (instanceSettings.url || '') + '/aria-operations/suite-api/api/';
+    void this.authenticate(instanceSettings.jsonData);
   }
 
-  private async request(
+  private async request<REQ, RESP>(
     method: string,
     path: string,
-    data: any,
+    data: REQ,
     useToken: boolean,
     headerOverride?: Record<string, string>
-  ): Promise<FetchResponse<any>> {
-    let token = useToken ? await this.getToken() : '';
+  ): Promise<RESP> {
+    const token = useToken ? await this.getToken() : '';
     const headers = {
       Accept: 'application/json',
       'Content-Type': 'application/json',
@@ -117,34 +136,37 @@ export class AriaOpsDataSource extends DataSourceApi<
       ...headerOverride,
     };
     // console.log(method, path, data);
-    return lastValueFrom(
+    const resp = await lastValueFrom(
       getBackendSrv()
-        .fetch<any>({
+        .fetch<string>({
           method: method,
-          url: this.url + path,
+          url: (this.url || '') + path,
           data: data,
           headers: headers,
+          responseType: 'text',
         })
         .pipe(
-          catchError((err) => {
-            if (err.data?.message) {
-              throw new AriaOpsError(err);
+          catchError((err: FetchResponse<string>) => {
+            const content: ErrorResponse = JSON.parse(
+              err.data
+            ) as ErrorResponse;
+            if (content?.message) {
+              throw new AriaOpsError(content);
             }
-            throw err.status + ': ' + err.statusText;
+            throw `${err.status} : ${err.statusText}`;
           })
         )
     );
+    console.log(resp.data);
+    return JSON.parse(resp.data) as RESP;
   }
 
-  private post<REQ, RESP>(
-    path: string,
-    data: REQ
-  ): Promise<FetchResponse<RESP>> {
-    return this.request('POST', path, data, true);
+  private post<REQ, RESP>(path: string, data: REQ): Promise<RESP> {
+    return this.request<REQ, RESP>('POST', path, data, true);
   }
 
-  private get<RESP>(path: string): Promise<FetchResponse<RESP>> {
-    return this.request('GET', path, null, true);
+  private get<RESP>(path: string): Promise<RESP> {
+    return this.request<null, RESP>('GET', path, null, true);
   }
 
   async getResources(
@@ -162,29 +184,32 @@ export class AriaOpsDataSource extends DataSourceApi<
   async getResourcesWithRq(
     request: ResourceRequest
   ): Promise<Map<string, string>> {
-    const resp = await this.post('resources/query?pageSize=1000', request);
+    const resp = await this.post<ResourceRequest, ResourceResponse>(
+      'resources/query?pageSize=1000',
+      request
+    );
     return new Map(
-      resp.data.resourceList.map((r: any) => [r.identifier, r.resourceKey.name])
+      resp.resourceList.map((r: Resource) => [r.identifier, r.resourceKey.name])
     );
   }
 
   async getAdapterKinds(): Promise<Map<string, string>> {
-    const resp = await this.get('adapterkinds');
-    return new Map(resp.data['adapter-kind'].map((a: any) => [a.key, a.name]));
+    const resp = await this.get<AdapterKindResponse>('adapterkinds');
+    return new Map(resp.adapterKind.map((a: KeyNamePair) => [a.key, a.name]));
   }
 
   async getResourceKinds(adapterKind: string): Promise<Map<string, string>> {
-    const resp = await this.get(
+    const resp = await this.get<ResourceKindResponse>(
       'adapterkinds/' + adapterKind + '/resourcekinds'
     );
-    return new Map(resp.data['resource-kind'].map((a: any) => [a.key, a.name]));
+    return new Map(resp.resourceKind.map((a: KeyNamePair) => [a.key, a.name]));
   }
 
   async getStatKeysForResourceKind(
     adapterKind: string,
     resourceKind: string
   ): Promise<Map<string, string>> {
-    let resp = await this.get(
+    const resp = await this.get<ResourceKindAttributeResponse>(
       'adapterkinds/' +
         adapterKind +
         '/resourcekinds/' +
@@ -192,7 +217,10 @@ export class AriaOpsDataSource extends DataSourceApi<
         '/statkeys'
     );
     return new Map(
-      resp.data.resourceTypeAttributes.map((a: any) => [a.key, a.name])
+      resp.resourceKindAttribute.map((a: ResourceKindAttribute) => [
+        a.key,
+        a.description,
+      ])
     );
   }
 
@@ -200,7 +228,7 @@ export class AriaOpsDataSource extends DataSourceApi<
     adapterKind: string,
     resourceKind: string
   ): Promise<Map<string, string>> {
-    const resp = await this.get(
+    const resp = await this.get<ResourceKindAttributeResponse>(
       'adapterkinds/' +
         adapterKind +
         '/resourcekinds/' +
@@ -208,7 +236,10 @@ export class AriaOpsDataSource extends DataSourceApi<
         '/properties'
     );
     return new Map(
-      resp.data.resourceTypeAttributes.map((a: any) => [a.key, a.description])
+      resp.resourceKindAttribute.map((a: ResourceKindAttribute) => [
+        a.key,
+        a.description,
+      ])
     );
   }
 
@@ -217,17 +248,18 @@ export class AriaOpsDataSource extends DataSourceApi<
     propertyKeys: string[]
   ): Promise<Map<string, Map<string, string>>> {
     const payload = { resourceIds, propertyKeys, instanced: false };
-    const resp = await this.post('resources/properties/latest/query', payload);
+    const resp = await this.post<
+      ResourcePropertiesRequest,
+      ResourcePropertiesResponse
+    >('resources/properties/latest/query', payload);
     const resourceMap = new Map();
-    for (const resource of resp.data.values) {
+    for (const resource of resp.values) {
       const properties = new Map();
       resourceMap.set(resource.resourceId, properties);
-      for (const property of resource['property-contents'][
-        'property-content'
-      ]) {
+      for (const property of resource.propertyContents.propertyContent) {
         if (property.values) {
           properties.set(property.statKey, property.values[0] || '<undefined>');
-        } else if ([property.data]) {
+        } else if (property.data) {
           properties.set(property.statKey, property.data[0] || '<undefined>');
         } else {
           properties.set(property.statKey, '<undefined>');
@@ -237,23 +269,20 @@ export class AriaOpsDataSource extends DataSourceApi<
     return resourceMap;
   }
 
-  async getAuthSources(
-    adapterKind: string,
-    resourceKind: string
-  ): Promise<Map<string, string>> {
-    let resp = await this.get('auth/sources');
-    return new Map(resp.data.sources.map((a: any) => [a.key, a.description]));
+  async getAuthSources(): Promise<Map<string, string>> {
+    const resp = await this.get<AuthSourceResponse>('auth/sources');
+    return new Map(resp.sources.map((a: KeyNamePair) => [a.key, a.name]));
   }
 
   private framesFromResourceMetrics(
     refId: string,
     resources: Map<string, string>,
-    resourceMetric: any,
+    resourceMetric: ResourceStats,
     smootherFactory: (() => Smoother) | null
   ): DataFrame[] {
     const frames: MutableDataFrame[] = [];
-    let resId = resourceMetric.resourceId;
-    for (let envelope of resourceMetric['stat-list'].stat) {
+    const resId = resourceMetric.resourceId;
+    for (const envelope of resourceMetric.statList.stat) {
       const labels: Labels = {
         resourceName: resources.get(resId) || 'unknown',
       };
@@ -269,18 +298,15 @@ export class AriaOpsDataSource extends DataSourceApi<
       if (smootherFactory) {
         const smoother = smootherFactory();
         // Run samples through the smoother
-        for (let i in envelope.timestamps) {
-          const point = smoother.pushAndGet(
-            envelope.timestamps[i],
-            envelope.data[i]
-          );
+        envelope.timestamps.forEach((ts, i) => {
+          const point = smoother.pushAndGet(ts, envelope.data[i]);
           frame.add({ Time: point.timestamp, Value: point.value });
-        }
+        });
       } else {
         // No smoother
-        for (let i in envelope.timestamps) {
+        envelope.timestamps.forEach((ts, i) => {
           frame.add({ Time: envelope.timestamps[i], Value: envelope.data[i] });
-        }
+        });
       }
     }
     return frames;
@@ -296,7 +322,7 @@ export class AriaOpsDataSource extends DataSourceApi<
     aggregation: AggregationSpec | undefined,
     smootherSpec: SlidingWindowSpec | undefined
   ): Promise<DataFrame[]> {
-    let interval = Math.max((end - begin) / (maxPoints * 60000), 5);
+    const interval = Math.max((end - begin) / (maxPoints * 60000), 5);
 
     // TODO: Extend time window if there is a smoother that needs time shifting
     console.log('smoother', smootherSpec?.params);
@@ -320,27 +346,30 @@ export class AriaOpsDataSource extends DataSourceApi<
       intervalType: 'MINUTES',
       intervalQuantifier: interval.toFixed(0),
     };
-    const resp = await this.post('resources/stats/query', payload);
+    const resp = await this.post<ResourceStatsRequest, ResourceStatsResponse>(
+      'resources/stats/query',
+      payload
+    );
     if (aggregation) {
-      let propertyMap = new Map();
+      let propertyMap = new Map<string, Map<string, string>>();
       if (aggregation.properties) {
         propertyMap = await this.getPropertiesForResources(
-          resp.data.values.map((r: any) => r.resourceId),
+          resp.values.map((r: ResourceStats) => r.resourceId),
           aggregation.properties
         );
       }
       const stats = new Stats(aggregation);
-      for (let r of resp.data.values) {
-        for (let envelope of r['stat-list'].stat) {
-          const pm = propertyMap.get(r.resourceId) || new Map();
+      for (const r of resp.values) {
+        for (const envelope of r.statList.stat) {
+          const pm = propertyMap.get(r.resourceId) || new Map<string, string>();
           pm.set('$statKey', envelope.statKey.key);
           stats.add(envelope.timestamps, envelope.data, pm);
         }
       }
       return stats.toFrames(refId, aggregation, smootherFactory);
     }
-    return resp.data.values
-      .map((r: any): DataFrame[] => {
+    return resp.values
+      .map((r: ResourceStats): DataFrame[] => {
         return this.framesFromResourceMetrics(
           refId,
           resources,
@@ -355,23 +384,34 @@ export class AriaOpsDataSource extends DataSourceApi<
   */
 
   private async authenticateSaaS() {
-    const response = await this.request('POST', SAAS_CSP_AUTH_URL, '', false, {
-      'Content-Type': 'application/x-www-form-urlencoded',
-    });
-    console.log('Token: ' + response.data.access_token);
-    return 'CSPToken ' + response.data.access_token;
+    const response = await this.request<string, { access_token: string }>(
+      'POST',
+      SAAS_CSP_AUTH_URL,
+      '',
+      false,
+      {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      }
+    );
+    console.log('Token: ' + response.access_token);
+    return 'CSPToken ' + response.access_token;
   }
 
   private async authenticateOnPrem(jsonData: AriaOpsOptions) {
-    const payload: Object = {
+    const payload = {
       username: jsonData.username,
     };
     const url =
       jsonData.authSource && jsonData.authSource !== 'Local Users'
         ? 'auth/token/acquire-withsource'
         : 'auth/token/acquire';
-    const response = await this.request('POST', url, payload, false);
-    return 'vRealizeOpsToken ' + response.data.token;
+    const response = await this.request<typeof payload, { token: string }>(
+      'POST',
+      url,
+      payload,
+      false
+    );
+    return 'vRealizeOpsToken ' + response.token;
   }
 
   private async authenticate(jsonData: AriaOpsOptions) {
@@ -380,12 +420,12 @@ export class AriaOpsDataSource extends DataSourceApi<
         ? await this.authenticateSaaS()
         : await this.authenticateOnPrem(jsonData);
       setTimeout(() => {
-        this.authenticate(jsonData);
+        void this.authenticate(jsonData);
       }, AriaOpsDataSource.EXPIRATION_TIME);
-      this.authWaiters.forEach((waiter) => waiter.resolve(this.token!));
+      this.authWaiters.forEach((waiter) => waiter.resolve(this.token || ''));
       this.authWaiters = [];
     } catch (e: any) {
-      this.authWaiters.forEach((waiter) => waiter.reject(e));
+      this.authWaiters.forEach((waiter) => waiter.reject(e as string));
     }
   }
 
@@ -405,12 +445,12 @@ export class AriaOpsDataSource extends DataSourceApi<
     options: DataQueryRequest<AriaOpsQuery>
   ): Promise<DataQueryResponse> {
     const { range, maxDataPoints } = options;
-    const from = range!.from.valueOf();
-    const to = range!.to.valueOf();
+    const from = range.from.valueOf();
+    const to = range.to.valueOf();
     console.log('Query', options);
 
     const data: DataFrame[] = [];
-    for (let target of options.targets) {
+    for (const target of options.targets) {
       if (target.hide) {
         continue;
       }
@@ -429,7 +469,7 @@ export class AriaOpsDataSource extends DataSourceApi<
 
       const compiled = compileQuery(query);
       const resources = await this.getResourcesWithRq(compiled.resourceQuery);
-      let chunk = await this.getMetrics(
+      const chunk = await this.getMetrics(
         query.refId,
         resources,
         compiled.metrics,

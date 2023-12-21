@@ -66,6 +66,11 @@ const HEALTH = ['GREEN', 'YELLOW', 'ORANGE', 'RED', 'GREY'];
 
 type Tuple = [string, string];
 
+type HandlerFunction = (
+  text: string,
+  range: monacoTypes.IRange
+) => monacoTypes.languages.ProviderResult<monacoTypes.languages.CompletionList>;
+
 export class AriaOpsCompletionItemProvider
   implements monacoTypes.languages.CompletionItemProvider
 {
@@ -86,21 +91,23 @@ export class AriaOpsCompletionItemProvider
 
   private preLoadResourceTypes() {
     const buffer: string[] = [];
-    this.datasource.getAdapterKinds().then((adapterKinds) => {
-      for (let adapterKind of adapterKinds.keys()) {
-        this.datasource
-          .getResourceKinds(adapterKind)
-          .then((resourceKinds) => {
-            for (let resourceKind of resourceKinds.keys()) {
-              buffer.push(adapterKind + ':' + resourceKind);
-            }
-          })
-          .catch(
-            (adapterKind) =>
-              console.log('Could not load resource kinds for ') + adapterKind
-          );
-      }
-    });
+    void this.datasource
+      .getAdapterKinds()
+      .then((adapterKinds: Map<string, string>) => {
+        for (const adapterKind of adapterKinds.keys()) {
+          this.datasource
+            .getResourceKinds(adapterKind)
+            .then((resourceKinds) => {
+              for (const resourceKind of resourceKinds.keys()) {
+                buffer.push(adapterKind + ':' + resourceKind);
+              }
+            })
+            .catch(
+              (adapterKind: string) =>
+                console.log('Could not load resource kinds for ') + adapterKind
+            );
+        }
+      });
     this.resourceKinds = buffer;
   }
 
@@ -121,62 +128,72 @@ export class AriaOpsCompletionItemProvider
   // Context aware handlers. Each handler tries to infer the best completion choices based on its context.
   private handleMetric = (
     text: string,
-    range: any
+    range: monacoTypes.IRange
   ): monacoTypes.languages.ProviderResult<monacoTypes.languages.CompletionList> => {
     const type = this.inferResourceType(text);
     const cached = this.metricNameCache.get(type);
     if (cached) {
       return Promise.resolve({
-        suggestions: cached!.map((m) =>
+        suggestions: cached.map((m: Tuple) =>
           this.makeCompletionItem(m[0], range, m[1])
         ),
       });
     }
-    return new Promise((resolve, reject) => {
-      const tuple = type.split(':');
-      this.datasource
-        .getStatKeysForResourceKind(tuple[0], tuple[1])
-        .then((metrics) => {
-          const suggestions = [];
-          for (let key in metrics) {
-            suggestions.push(
-              this.makeCompletionItem(key, range, metrics.get(key))
-            );
-          }
-          this.metricNameCache.set(type, [...metrics.entries()]);
-          resolve({ suggestions });
-        });
-    });
+    return new Promise(
+      (
+        resolve,
+        /* eslint-disable-line @typescript-eslint/no-unused-vars */ reject
+      ) => {
+        const tuple = type.split(':');
+        void this.datasource
+          .getStatKeysForResourceKind(tuple[0], tuple[1])
+          .then((metrics) => {
+            const suggestions = [];
+            for (const key in metrics) {
+              suggestions.push(
+                this.makeCompletionItem(key, range, metrics.get(key))
+              );
+            }
+            this.metricNameCache.set(type, [...metrics.entries()]);
+            resolve({ suggestions });
+          });
+      }
+    );
   };
 
   private handleProperty = (
     text: string,
-    range: any
+    range: monacoTypes.IRange
   ): monacoTypes.languages.ProviderResult<monacoTypes.languages.CompletionList> => {
     const type = this.inferResourceType(text);
     const cached = this.propertyNameCache.get(type);
     if (cached) {
       return Promise.resolve({
-        suggestions: cached!.map((p) =>
+        suggestions: cached.map((p) =>
           this.makeCompletionItem(p[0], range, p[1])
         ),
       });
     }
-    return new Promise((resolve, reject) => {
-      const tuple = type.split(':');
-      this.datasource
-        .getPropertiesForResourceKind(tuple[0], tuple[1])
-        .then((properties) => {
-          const suggestions = [];
-          for (let key in properties) {
-            suggestions.push(
-              this.makeCompletionItem(key, range, properties.get(key))
-            );
-          }
-          this.propertyNameCache.set(type, [...properties.entries()]);
-          resolve({ suggestions });
-        });
-    });
+    return new Promise(
+      (
+        resolve,
+        /* eslint-disable-line @typescript-eslint/no-unused-vars */ reject
+      ) => {
+        const tuple = type.split(':');
+        void this.datasource
+          .getPropertiesForResourceKind(tuple[0], tuple[1])
+          .then((properties) => {
+            const suggestions = [];
+            for (const key in properties) {
+              suggestions.push(
+                this.makeCompletionItem(key, range, properties.get(key))
+              );
+            }
+            this.propertyNameCache.set(type, [...properties.entries()]);
+            resolve({ suggestions });
+          });
+      }
+    );
   };
 
   private handleResource = (
@@ -222,8 +239,8 @@ export class AriaOpsCompletionItemProvider
   };
 
   private handleDefault = (
-    text: string,
-    range: monacoTypes.IRange
+    text: string /* eslint-disable-line @typescript-eslint/no-unused-vars */,
+    range: monacoTypes.IRange /* eslint-disable-line @typescript-eslint/no-unused-vars */
   ): monacoTypes.languages.ProviderResult<monacoTypes.languages.CompletionList> => {
     return {
       suggestions: [],
@@ -233,7 +250,7 @@ export class AriaOpsCompletionItemProvider
   /**
    * Each keyword carries a hint on how to handle the parameters.
    */
-  keywords: KeyValue = {
+  keywords: KeyValue<HandlerFunction> = {
     resource: this.handleResource,
     whereMetrics: this.handleMetric,
     whereProperties: this.handleProperty,
@@ -271,8 +288,8 @@ export class AriaOpsCompletionItemProvider
   provideCompletionItems(
     model: monacoTypes.editor.ITextModel,
     position: monacoTypes.Position,
-    context: monacoTypes.languages.CompletionContext,
-    token: monacoTypes.CancellationToken
+    context: monacoTypes.languages.CompletionContext /* eslint-disable-line @typescript-eslint/no-unused-vars */,
+    token: monacoTypes.CancellationToken /* eslint-disable-line @typescript-eslint/no-unused-vars */
   ): monacoTypes.languages.ProviderResult<monacoTypes.languages.CompletionList> {
     const textUntilPosition = model.getValueInRange({
       startLineNumber: 1,
@@ -312,7 +329,7 @@ export class AriaOpsCompletionItemProvider
     // Assume we're inside a filter declaration. We pick the one that's closest to the cursor looking backwards.
     let bestPos = -1;
     let bestHandler = null;
-    for (let key in this.keywords) {
+    for (const key in this.keywords) {
       const p = textUntilPosition.lastIndexOf(key);
       if (p > bestPos) {
         bestPos = p;
@@ -327,8 +344,8 @@ export class AriaOpsCompletionItemProvider
   }
 
   resolveCompletionItem?(
-    item: monacoTypes.languages.CompletionItem,
-    token: monacoTypes.CancellationToken
+    item: monacoTypes.languages.CompletionItem /* eslint-disable-line @typescript-eslint/no-unused-vars */,
+    token: monacoTypes.CancellationToken /* eslint-disable-line @typescript-eslint/no-unused-vars */
   ): monacoTypes.languages.ProviderResult<monacoTypes.languages.CompletionItem> {
     return null;
   }
