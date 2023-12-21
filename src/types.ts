@@ -137,11 +137,11 @@ export interface KeyNamePair {
 }
 
 export interface AdapterKindResponse {
-  adapterKind: KeyNamePair[];
+  adapter_kind: KeyNamePair[];
 }
 
 export interface ResourceKindResponse {
-  resourceKind: KeyNamePair[];
+  resource_kind: KeyNamePair[];
 }
 
 export interface ResourceKindAttribute {
@@ -150,7 +150,7 @@ export interface ResourceKindAttribute {
 }
 
 export interface ResourceKindAttributeResponse {
-  resourceKindAttribute: ResourceKindAttribute[];
+  resourceTypeAttributes: ResourceKindAttribute[];
 }
 
 export interface Stat {
@@ -163,7 +163,7 @@ export interface Stat {
 
 export interface ResourceStats {
   resourceId: string;
-  statList: { stat: Stat[] };
+  stat_list: { stat: Stat[] };
 }
 
 export interface ResourceStatsRequest {
@@ -188,12 +188,12 @@ export interface ResourcePropertiesRequest {
 export interface ResourceProperties {
   resourceId: string;
   propertyContents: {
-    propertyContent: {
+    propertyContent: Array<{
       statKey: string;
       timestamps: number[];
       values: string[] | undefined;
       data: number[] | undefined;
-    }[];
+    }>;
   };
 }
 

@@ -157,8 +157,23 @@ export class AriaOpsDataSource extends DataSourceApi<
           })
         )
     );
-    console.log(resp.data);
-    return JSON.parse(resp.data) as RESP;
+    /* eslint-disable @typescript-eslint/no-unsafe-member-access */
+    /* eslint-disable @typescript-eslint/no-unsafe-argument */
+    /* eslint-disable @typescript-eslint/no-unsafe-call */
+    /* eslint-disable @typescript-eslint/no-unsafe-assignment */
+    /* eslint-disable @typescript-eslint/no-unsafe-return */
+    return JSON.parse(resp.data, function (key: string, value: any): any {
+      if (key.includes('-')) {
+        this[key.replace('-', '_')] = value;
+      } else {
+        return value;
+      }
+    }) as RESP;
+    /* eslint-enable @typescript-eslint/no-unsafe-member-access */
+    /* eslint-enable @typescript-eslint/no-unsafe-argument */
+    /* eslint-enable @typescript-eslint/no-unsafe-call */
+    /* eslint-enable @typescript-eslint/no-unsafe-assignment */
+    /* eslint-enable @typescript-eslint/no-unsafe-return */
   }
 
   private post<REQ, RESP>(path: string, data: REQ): Promise<RESP> {
@@ -195,14 +210,15 @@ export class AriaOpsDataSource extends DataSourceApi<
 
   async getAdapterKinds(): Promise<Map<string, string>> {
     const resp = await this.get<AdapterKindResponse>('adapterkinds');
-    return new Map(resp.adapterKind.map((a: KeyNamePair) => [a.key, a.name]));
+    console.log(resp);
+    return new Map(resp.adapter_kind.map((a: KeyNamePair) => [a.key, a.name]));
   }
 
   async getResourceKinds(adapterKind: string): Promise<Map<string, string>> {
     const resp = await this.get<ResourceKindResponse>(
       'adapterkinds/' + adapterKind + '/resourcekinds'
     );
-    return new Map(resp.resourceKind.map((a: KeyNamePair) => [a.key, a.name]));
+    return new Map(resp.resource_kind.map((a: KeyNamePair) => [a.key, a.name]));
   }
 
   async getStatKeysForResourceKind(
@@ -216,8 +232,9 @@ export class AriaOpsDataSource extends DataSourceApi<
         resourceKind +
         '/statkeys'
     );
+    console.log(resp);
     return new Map(
-      resp.resourceKindAttribute.map((a: ResourceKindAttribute) => [
+      resp.resourceTypeAttributes.map((a: ResourceKindAttribute) => [
         a.key,
         a.description,
       ])
@@ -236,7 +253,7 @@ export class AriaOpsDataSource extends DataSourceApi<
         '/properties'
     );
     return new Map(
-      resp.resourceKindAttribute.map((a: ResourceKindAttribute) => [
+      resp.resourceTypeAttributes.map((a: ResourceKindAttribute) => [
         a.key,
         a.description,
       ])
@@ -282,7 +299,7 @@ export class AriaOpsDataSource extends DataSourceApi<
   ): DataFrame[] {
     const frames: MutableDataFrame[] = [];
     const resId = resourceMetric.resourceId;
-    for (const envelope of resourceMetric.statList.stat) {
+    for (const envelope of resourceMetric.stat_list.stat) {
       const labels: Labels = {
         resourceName: resources.get(resId) || 'unknown',
       };
@@ -360,7 +377,7 @@ export class AriaOpsDataSource extends DataSourceApi<
       }
       const stats = new Stats(aggregation);
       for (const r of resp.values) {
-        for (const envelope of r.statList.stat) {
+        for (const envelope of r.stat_list.stat) {
           const pm = propertyMap.get(r.resourceId) || new Map<string, string>();
           pm.set('$statKey', envelope.statKey.key);
           stats.add(envelope.timestamps, envelope.data, pm);
