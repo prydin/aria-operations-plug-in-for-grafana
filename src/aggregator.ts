@@ -33,9 +33,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 import { DataFrame, FieldType, Labels, MutableDataFrame } from '@grafana/data';
 import { Smoother } from 'smoother';
 import { AggregationSpec, KeyValue } from 'types';
-const TDigest = require('tdigest').TDigest;
+import { TDigest } from 'tdigest';
 
-const statProducers: KeyValue = {
+export type StatProducer = (acc: Accumulator) => number;
+
+const statProducers: KeyValue<StatProducer> = {
   avg: (acc: Accumulator) => acc.getAverage(),
   stddev: (acc: Accumulator) => acc.getStandardDeviation(),
   min: (acc: Accumulator) => acc.getMin(),
@@ -57,13 +59,13 @@ export class Accumulator {
   vAcc = 0;
   avg = 0;
   wantDigest = false;
-  digest: any;
+  digest?: TDigest;
   percentile? = 0.0;
 
   constructor(wantPercentile: boolean, percentile?: number) {
     this.wantDigest = wantPercentile;
     if (wantPercentile) {
-      this.digest = new TDigest();
+      this.digest = new TDigest(0.01);
     }
     this.percentile = percentile;
   }
@@ -80,9 +82,7 @@ export class Accumulator {
     const avg = this.sum / this.count;
     this.vAcc += (value - this.avg) * (value - avg);
     this.avg = avg;
-    if (this.wantDigest) {
-      this.digest.push(value);
-    }
+    this.digest?.push(value);
   }
 
   getAverage(): number {
@@ -114,8 +114,11 @@ export class Accumulator {
   }
 
   getPercentile(): number {
+    if (!this.digest || !this.percentile) {
+      return NaN;
+    }
     this.digest.compress();
-    return this.digest.percentile(this.percentile! / 100);
+    return this.digest.percentile(this.percentile / 100);
   }
 }
 
@@ -180,7 +183,7 @@ export class Stats {
    */
   add(timestamps: number[], values: number[], properties: Map<string, string>) {
     const key = JSON.stringify(Array.from(properties?.entries() || {}));
-    for (const idx in timestamps) {
+    timestamps.forEach((item, idx) => {
       const ts = timestamps[idx];
       const value = values[idx];
       let slot = this.buckets.get(key);
@@ -189,7 +192,7 @@ export class Stats {
         this.buckets.set(key, slot);
       }
       slot.addDataPoint(ts, value);
-    }
+    });
   }
 
   /**
@@ -215,14 +218,14 @@ export class Stats {
       const slidingWindow = smootherFactory ? smootherFactory() : null;
       const labels: Labels = {};
       if (key) {
-        const properties = new Map<string, string>(JSON.parse(key));
-        for (const [propKey, propValue] of properties) {
+        const properties = JSON.parse(key) as object;
+        Object.entries(properties).forEach(([propKey, propValue]) => {
           if (propKey === '$statKey') {
-            statKey = propValue;
+            statKey = propValue as string;
           } else {
-            labels[propKey] = propValue;
+            labels[propKey] = propValue as string;
           }
-        }
+        });
       }
       const frame = new MutableDataFrame({
         refId: refId,
@@ -232,13 +235,13 @@ export class Stats {
           { name: 'Value', type: FieldType.number, labels },
         ],
       });
-      if (slidingWindow)
+      if (slidingWindow) {
         for (const [timestamp, data] of bucket.getResults()) {
           const value = produce(data);
           const point = slidingWindow.pushAndGet(timestamp, value);
           frame.add({ Time: point.timestamp, Value: point.value });
         }
-      else {
+      } else {
         for (const [timestamp, data] of bucket.getResults()) {
           const value = produce(data);
           frame.add({ Time: timestamp, Value: value });

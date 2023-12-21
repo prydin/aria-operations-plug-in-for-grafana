@@ -41,23 +41,31 @@ import {
   SlidingWindowSpec,
 } from '../types';
 
-let parser = require('./parser');
+// The generated parser is pure JavaScript, so we need to be a little lax on our linting.
+//
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/restrict-template-expressions */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
+const parser = require('./parser'); /* eslint-disable-line @typescript-eslint/no-var-requires */
 
 export const makeFilter = (args: any): FilterSpec => {
   const spec: FilterSpec = {
     conditions: [],
   };
 
-  for (let p of args) {
+  for (const p of args) {
     if (p.conjunctive) {
       if (
         spec.conjunctionOperator &&
         p.conjunctive.toUpperCase() !== spec.conjunctionOperator
       ) {
-        throw (
-          'All terms must have the same conjunctive operator (and/or). Offending operator: ' +
-          p.conjunctive
-        );
+        throw `All terms must have the same conjunctive operator (and/or). Offending operator: ${
+          p.conjunctive as string
+        }`;
       }
       spec.conjunctionOperator = p.conjunctive.toUpperCase();
     }
@@ -68,9 +76,9 @@ export const makeFilter = (args: any): FilterSpec => {
     if (p.arg.length > 1) {
       const v = p.arg[1];
       if (typeof v === 'number') {
-        c.doubleValue = v as number;
+        c.doubleValue = v;
       } else {
-        c.stringValue = v as string;
+        c.stringValue = v;
       }
     }
     spec.conditions.push(c);
@@ -92,8 +100,15 @@ export const compileQuery = (query: AriaOpsQuery): CompiledQuery => {
     resourceHealth: [],
     resourceStatus: [],
   };
-  const resolvers: KeyValue = {
-    all: (args: any) => {},
+
+  type Resolver = (args: any) => void;
+
+  const resolvers: KeyValue<Resolver> = {
+    all: (
+      args: /* eslint-disable-line @typescript-eslint/no-unused-vars */ any
+    ) => {
+      // Empty
+    },
     regex: (args: any) => {
       resourceQuery.regex = args;
     },
@@ -129,25 +144,23 @@ export const compileQuery = (query: AriaOpsQuery): CompiledQuery => {
     },
   };
   if (query.advancedMode) {
-    let pq = parser.parse(query.queryText);
+    const pq = parser.parse(query.queryText);
 
     /// Handle type
-    let types: string[] = pq.type;
-    for (let type of types) {
-      let parts = type.split(':');
+    const types: string[] = pq.type;
+    for (const type of types) {
+      const parts = type.split(':');
       resourceQuery.adapterKind?.push(parts[0]);
       resourceQuery.resourceKind?.push(parts[1]);
     }
 
     // Handle instance filters by calling the resolver functions
     const seenBefore = new Set<string>();
-    for (let predicate of pq.instances) {
-      if (seenBefore.has(predicate)) {
-        throw (
-          'Each filter is only allowed once. Offending filter: ' + predicate
-        );
+    for (const predicate of pq.instances) {
+      if (seenBefore.has(predicate.type)) {
+        throw `Each filter is only allowed once. Offending filter: ${predicate.type}`;
       }
-      seenBefore.add(predicate);
+      seenBefore.add(predicate.type);
       resolvers[predicate.type as string](predicate.arg);
     }
 
