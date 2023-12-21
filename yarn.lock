@@ -6473,10 +6473,6 @@ kleur@^3.0.3:
   version "3.0.3"
   resolved "https://registry.npmjs.org/kleur/-/kleur-3.0.3.tgz"
 
-klona@^2.0.4:
-  version "2.0.6"
-  resolved "https://registry.npmjs.org/klona/-/klona-2.0.6.tgz"
-
 lazy-ass@^1.6.0:
   version "1.6.0"
   resolved "https://registry.npmjs.org/lazy-ass/-/lazy-ass-1.6.0.tgz"
@@ -8118,11 +8114,10 @@ safe-regex-test@^1.0.0:
   version "2.1.2"
   resolved "https://registry.npmjs.org/safer-buffer/-/safer-buffer-2.1.2.tgz"
 
-sass-loader@13.2.0:
-  version "13.2.0"
-  resolved "https://registry.npmjs.org/sass-loader/-/sass-loader-13.2.0.tgz"
+sass-loader@13.3.2:
+  version "13.3.2"
+  resolved "https://registry.yarnpkg.com/sass-loader/-/sass-loader-13.3.2.tgz#460022de27aec772480f03de17f5ba88fa7e18c6"
   dependencies:
-    klona "^2.0.4"
     neo-async "^2.6.2"
 
 sass@1.56.1:
