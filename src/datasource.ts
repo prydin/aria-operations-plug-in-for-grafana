@@ -210,7 +210,6 @@ export class AriaOpsDataSource extends DataSourceApi<
 
   async getAdapterKinds(): Promise<Map<string, string>> {
     const resp = await this.get<AdapterKindResponse>('adapterkinds');
-    console.log(resp);
     return new Map(resp.adapter_kind.map((a: KeyNamePair) => [a.key, a.name]));
   }
 
@@ -232,7 +231,6 @@ export class AriaOpsDataSource extends DataSourceApi<
         resourceKind +
         '/statkeys'
     );
-    console.log(resp);
     return new Map(
       resp.resourceTypeAttributes.map((a: ResourceKindAttribute) => [
         a.key,
@@ -342,7 +340,6 @@ export class AriaOpsDataSource extends DataSourceApi<
     const interval = Math.max((end - begin) / (maxPoints * 60000), 5);
 
     // TODO: Extend time window if there is a smoother that needs time shifting
-    console.log('smoother', smootherSpec?.params);
     const smootherFactory = smootherSpec
       ? () =>
           smootherFactories[smootherSpec.type](
@@ -410,7 +407,6 @@ export class AriaOpsDataSource extends DataSourceApi<
         'Content-Type': 'application/x-www-form-urlencoded',
       }
     );
-    console.log('Token: ' + response.access_token);
     return 'CSPToken ' + response.access_token;
   }
 
@@ -464,7 +460,6 @@ export class AriaOpsDataSource extends DataSourceApi<
     const { range, maxDataPoints } = options;
     const from = range.from.valueOf();
     const to = range.to.valueOf();
-    console.log('Query', options);
 
     const data: DataFrame[] = [];
     for (const target of options.targets) {
@@ -514,7 +509,6 @@ export class AriaOpsDataSource extends DataSourceApi<
         };
       }
     } catch (e: any) {
-      console.log(JSON.stringify(e));
       return {
         status: 'error',
         message:
