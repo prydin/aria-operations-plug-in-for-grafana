@@ -38,9 +38,9 @@ const { SecretFormField, FormField } = LegacyForms;
 
 const SAAS_HOST_SUFFIX = 'www.mgmt.cloud.vmware.com/vrops-cloud';
 
-interface Props extends DataSourcePluginOptionsEditorProps<AriaOpsOptions> {}
+type Props = DataSourcePluginOptionsEditorProps<AriaOpsOptions>;
 
-interface State {}
+type State = object;
 
 export class ConfigEditor extends PureComponent<Props, State> {
   onSaaSChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -90,13 +90,11 @@ export class ConfigEditor extends PureComponent<Props, State> {
       ...options.jsonData,
       authSource: event.target.value,
     };
-    console.log(jsonData);
     onOptionsChange({ ...options, jsonData });
   };
 
   onSkipVerifyChange = (event: ChangeEvent<HTMLInputElement>) => {
     const { onOptionsChange, options } = this.props;
-    console.log(event.target.checked);
     const jsonData = {
       ...options.jsonData,
       tlsSkipVerify: event.target.checked,
@@ -149,9 +147,7 @@ export class ConfigEditor extends PureComponent<Props, State> {
         </div>
         <div className="gf-form">
           <SecretFormField
-            isConfigured={
-              (secureJsonFields && secureJsonFields.password) as boolean
-            }
+            isConfigured={secureJsonFields && secureJsonFields.password}
             value={secureJsonData.password || ''}
             label="API Key"
             placeholder="Aria Operations API Key"
@@ -189,9 +185,7 @@ export class ConfigEditor extends PureComponent<Props, State> {
 
         <div className="gf-form">
           <SecretFormField
-            isConfigured={
-              (secureJsonFields && secureJsonFields.password) as boolean
-            }
+            isConfigured={secureJsonFields && secureJsonFields.password}
             value={secureJsonData.password || ''}
             label="Password"
             placeholder="Aria Operations Password"

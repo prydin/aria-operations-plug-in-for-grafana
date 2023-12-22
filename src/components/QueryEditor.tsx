@@ -91,7 +91,7 @@ export class QueryEditor extends PureComponent<Props, State> {
 
   onResourceIdChange = (
     event: SelectableValue<string>,
-    actionMeta: ActionMeta
+    actionMeta: ActionMeta /* eslint-disable-line @typescript-eslint/no-unused-vars */
   ) => {
     const { onChange, query } = this.props;
     onChange({
@@ -101,7 +101,10 @@ export class QueryEditor extends PureComponent<Props, State> {
     });
   };
 
-  onResourceInputChange = (value: string, actionMeta: InputActionMeta) => {
+  onResourceInputChange = (
+    value: string,
+    actionMeta: InputActionMeta /* eslint-disable-line @typescript-eslint/no-unused-vars */
+  ) => {
     const { query } = this.props;
     if (query.adapterKind && query.resourceKind) {
       this.loadResourceOptions(query.adapterKind, query.resourceKind, value);
@@ -110,7 +113,7 @@ export class QueryEditor extends PureComponent<Props, State> {
 
   onAdapterKindChange = (
     event: SelectableValue<string>,
-    actionMeta: ActionMeta
+    actionMeta: ActionMeta /* eslint-disable-line @typescript-eslint/no-unused-vars */
   ) => {
     const { onChange, query } = this.props;
     this.loadResourceKindOptions(event.value || '');
@@ -122,7 +125,7 @@ export class QueryEditor extends PureComponent<Props, State> {
 
   onResourceKindChange = (
     event: SelectableValue<string>,
-    actionMeta: ActionMeta
+    actionMeta: ActionMeta /* eslint-disable-line @typescript-eslint/no-unused-vars */
   ) => {
     const { onChange, query } = this.props;
     if (query.adapterKind) {
@@ -132,14 +135,16 @@ export class QueryEditor extends PureComponent<Props, State> {
     onChange({ ...query, resourceKind: event.value || '' });
   };
 
-  onMetricChange = (event: SelectableValue<string>, actionMeta: ActionMeta) => {
+  onMetricChange = (
+    event: SelectableValue<string>,
+    actionMeta: ActionMeta /* eslint-disable-line @typescript-eslint/no-unused-vars */
+  ) => {
     const { onChange, query } = this.props;
     onChange({ ...query, metric: event.value || '' });
   };
 
   onAdvancedModeChange = (event: ChangeEvent<HTMLInputElement>) => {
     const { onChange, query } = this.props;
-    console.log(this.editor);
     const qt =
       event.target.checked && !query.queryText
         ? buildTextQuery(query)
@@ -152,7 +157,7 @@ export class QueryEditor extends PureComponent<Props, State> {
     resourceKind: string,
     name?: string
   ) {
-    this.props.datasource
+    void this.props.datasource
       .getResources(adapterKind, resourceKind, name)
       .then((kinds) => {
         this.setState({ resources: mapToSelectable(kinds) });
@@ -160,17 +165,17 @@ export class QueryEditor extends PureComponent<Props, State> {
   }
 
   loadResourceKindOptions(adapterKind: string) {
-    this.props.datasource.getResourceKinds(adapterKind).then((kinds) => {
+    void this.props.datasource.getResourceKinds(adapterKind).then((kinds) => {
       this.setState({ resourceKinds: mapToSelectable(kinds) });
     });
   }
 
   loadMetricOptions(adapterKind: string, resourceKind: string) {
-    this.props.datasource
+    void this.props.datasource
       .getStatKeysForResourceKind(adapterKind, resourceKind)
       .then((kinds) => {
         const s: Array<SelectableValue<string>> = [];
-        for (let [key, value] of kinds) {
+        for (const [key, value] of kinds) {
           s.push({ value: key, label: key + ': ' + value });
         }
         s.sort((a, b) =>
@@ -184,7 +189,7 @@ export class QueryEditor extends PureComponent<Props, State> {
   }
 
   loadAdapterKindOptions() {
-    this.props.datasource.getAdapterKinds().then((kinds) => {
+    void this.props.datasource.getAdapterKinds().then((kinds) => {
       const s = mapToSelectable(kinds);
       s.sort((a, b) =>
         (a.label || '').toLocaleLowerCase() >
@@ -230,6 +235,7 @@ export class QueryEditor extends PureComponent<Props, State> {
               onChange={this.onAdapterKindChange}
               value={adapterKind}
               options={this.state.adapterKinds}
+              disabled={this.state.adapterKinds.length === 0}
             />
             <Select
               width={30}
@@ -237,6 +243,7 @@ export class QueryEditor extends PureComponent<Props, State> {
               onChange={this.onResourceKindChange}
               value={resourceKind}
               options={this.state.resourceKinds}
+              disabled={this.state.resourceKinds.length === 0}
             />
             <Select
               width={30}
@@ -245,6 +252,7 @@ export class QueryEditor extends PureComponent<Props, State> {
               value={resourceId}
               options={this.state.resources}
               onInputChange={debounce(this.onResourceInputChange, 300)}
+              disabled={this.state.resources.length === 0}
             />
             <Select
               width={30}
@@ -252,6 +260,7 @@ export class QueryEditor extends PureComponent<Props, State> {
               onChange={this.onMetricChange}
               value={metric}
               options={this.state.metrics}
+              disabled={this.state.metrics.length === 0}
             />
             <FormField
               label="Advanced mode"
