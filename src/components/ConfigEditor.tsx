@@ -142,7 +142,7 @@ export class ConfigEditor extends PureComponent<Props, State> {
             inputWidth={20}
             onChange={this.onRegionChange}
             value={jsonData.saasRegion || ''}
-            placeholder="Aria Operations Host or IP"
+            placeholder="Aria Operations SaaS Region"
           />
         </div>
         <div className="gf-form">
@@ -179,7 +179,6 @@ export class ConfigEditor extends PureComponent<Props, State> {
             onChange={this.onUsernameChange}
             value={jsonData.username || ''}
             placeholder="Aria Operations Username"
-            disabled={!jsonData.isSaaS}
           />
         </div>
 
