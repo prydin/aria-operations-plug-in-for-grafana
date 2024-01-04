@@ -146,10 +146,9 @@ export class AriaOpsDataSource extends DataSourceApi<
           responseType: 'text',
         })
         .pipe(
-          catchError((err: FetchResponse<string>) => {
-            const content: ErrorResponse = JSON.parse(
-              err.data
-            ) as ErrorResponse;
+          catchError((err: FetchResponse<object>) => {
+            console.log("err.data", err.data, typeof err.data);
+            const content = err.data as ErrorResponse;
             if (content?.message) {
               throw new AriaOpsError(content);
             }
