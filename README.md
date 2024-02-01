@@ -15,7 +15,7 @@ Unfortunately, this plugin is currently not compatible with Grafana Cloud.
 
 ## Quick Start
 
-1. Download the desired release (latest release is always strongly recommended) from here: [releases](releases). The file name should be `vmware-ariaoperations-datasource-<version>.zip`
+1. Download the desired release (latest release is always strongly recommended) from here: [releases](../../releases). The file name should be `vmware-ariaoperations-datasource-<version>.zip`
 3. Unzip the zip file in your plugin directory (as configured)
 4. Restart the Grafana backend
 5. Create a data source with the Aria Operations plugin.
