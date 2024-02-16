@@ -147,7 +147,7 @@ export class AriaOpsDataSource extends DataSourceApi<
         })
         .pipe(
           catchError((err: FetchResponse<object>) => {
-            console.log("err.data", err.data, typeof err.data);
+            console.log('err.data', err.data, typeof err.data);
             const content = err.data as ErrorResponse;
             if (content?.message) {
               throw new AriaOpsError(content);
@@ -270,7 +270,7 @@ export class AriaOpsDataSource extends DataSourceApi<
     for (const resource of resp.values) {
       const properties = new Map();
       resourceMap.set(resource.resourceId, properties);
-      for (const property of resource.propertyContents.propertyContent) {
+      for (const property of resource.property_contents.property_content) {
         if (property.values) {
           properties.set(property.statKey, property.values[0] || '<undefined>');
         } else if (property.data) {
@@ -392,9 +392,6 @@ export class AriaOpsDataSource extends DataSourceApi<
       })
       .flat();
   }
-  /*
-  curl --location --request POST 'https://console.cloud.vmware.com/csp/gateway/am/api/auth/api-tokens/authorize' --header 'Content-Type: application/x-www-form-urlencoded' --data-urlencode 'refresh_token=your_api_token_goes_here'
-  */
 
   private async authenticateSaaS() {
     const response = await this.request<string, { access_token: string }>(
@@ -480,16 +477,20 @@ export class AriaOpsDataSource extends DataSourceApi<
 
       const compiled = compileQuery(query);
       const resources = await this.getResourcesWithRq(compiled.resourceQuery);
-      const chunk = await this.getMetrics(
-        query.refId,
-        resources,
-        compiled.metrics,
-        from,
-        to,
-        maxDataPoints || 10000,
-        compiled.aggregation,
-        compiled.slidingWindow
-      );
+      console.log('Resources', resources);
+      const chunk =
+        resources && resources.size > 0
+          ? await this.getMetrics(
+              query.refId,
+              resources,
+              compiled.metrics,
+              from,
+              to,
+              maxDataPoints || 10000,
+              compiled.aggregation,
+              compiled.slidingWindow
+            )
+          : [];
       chunk.forEach((d) => data.push(d));
     }
     return { data };

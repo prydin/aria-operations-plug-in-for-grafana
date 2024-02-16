@@ -32,5 +32,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 module.exports = {
   // Prettier configuration provided by Grafana scaffolding
-  ...require("./.config/.prettierrc.js")
+  ...require("./.config/.prettierrc.js"),
+  printWidth: 80
 };
