@@ -187,8 +187,8 @@ export interface ResourcePropertiesRequest {
 
 export interface ResourceProperties {
   resourceId: string;
-  propertyContents: {
-    propertyContent: Array<{
+  property_contents: {
+    property_content: Array<{
       statKey: string;
       timestamps: number[];
       values: string[] | undefined;
