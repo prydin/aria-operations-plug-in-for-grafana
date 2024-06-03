@@ -69,6 +69,7 @@ import {
   AuthSourceResponse,
   ResourceStats,
   KeyNamePair,
+  AriaOpsVariableQuery,
 } from './types';
 import { lastValueFrom } from 'rxjs';
 import { compileQuery } from 'queryparser/compiler';
@@ -452,13 +453,13 @@ export class AriaOpsDataSource extends DataSourceApi<
   }
 
   async metricFindQuery(
-    query: string,
+    query: AriaOpsVariableQuery,
     options?: any
   ): Promise<MetricFindValue[]> {
     console.log('FindMetricQuery', query);
-    const q = { advancedMode: true, queryText: query, refId: '' };
+    const q = { advancedMode: true, queryText: query.query, refId: '' };
     const compiledQuery = compileQuery(q, options.scopedVars);
-    console.log('CompiledQuery', compileQuery);
+    console.log('CompiledQuery', compiledQuery);
     const resp = await this.post<ResourceRequest, ResourceResponse>(
       'resources/query?pageSize=1000',
       compiledQuery.resourceQuery

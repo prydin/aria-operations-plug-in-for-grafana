@@ -29,19 +29,42 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
+import React, { useState } from 'react';
+import { AriaOpsVariableQuery } from 'types';
 
-import { DataSourcePlugin } from '@grafana/data';
-import { AriaOpsDataSource } from './datasource';
-import { ConfigEditor } from './components/ConfigEditor';
-import { QueryEditor } from './components/QueryEditor';
-import { AriaOpsQuery, AriaOpsOptions } from './types';
-import { VariableQueryEditor } from 'components/VariableQueryEditor';
+interface VariableQueryProps {
+  query: AriaOpsVariableQuery;
+  onChange: (query: AriaOpsVariableQuery, definition: string) => void;
+}
 
-export const plugin = new DataSourcePlugin<
-  AriaOpsDataSource,
-  AriaOpsQuery,
-  AriaOpsOptions
->(AriaOpsDataSource)
-  .setConfigEditor(ConfigEditor)
-  .setVariableQueryEditor(VariableQueryEditor)
-  .setQueryEditor(QueryEditor);
+export const VariableQueryEditor = ({
+  onChange,
+  query,
+}: VariableQueryProps) => {
+  const [state, setState] = useState(query);
+
+  const saveQuery = () => {
+    onChange(state, `${state.query}`);
+  };
+
+  const handleChange = (event: React.FormEvent<HTMLInputElement>) =>
+    setState({
+      ...state,
+      [event.currentTarget.name]: event.currentTarget.value,
+    });
+
+  return (
+    <>
+      <div className="gf-form">
+        <span className="gf-form-label width-10">Query</span>
+        <input
+          name="query"
+          className="gf-form-input"
+          onBlur={saveQuery}
+          onChange={handleChange}
+          value={state.query}
+        />
+      </div>
+    </>
+  );
+};
