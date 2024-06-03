@@ -33,7 +33,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 Query = 
 _ type: TypeSpec Dot 
 instances: InstanceSelectors 
-_ metrics: MetricSelector 
+_ metrics: (MetricSelector)? 
 aggregation: (Aggregation)? 
 slidingWindow: (SlidingWindow)? { return { type, instances, metrics, slidingWindow, aggregation }}
 

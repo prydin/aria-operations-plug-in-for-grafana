@@ -292,7 +292,7 @@ const simpleAggregationSpec: AggregationSpec = {
 };
 
 const testCompile = (queryText: string): CompiledQuery => {
-  return compileQuery({ queryText, advancedMode: true, refId: 'dummy' });
+  return compileQuery({ queryText, advancedMode: true, refId: 'dummy' }, {});
 };
 
 describe('Query parser', () => {

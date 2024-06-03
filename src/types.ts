@@ -204,3 +204,15 @@ export interface ResourcePropertiesResponse {
 export interface AuthSourceResponse {
   sources: KeyNamePair[];
 }
+
+export enum VariableQueryKind {
+  AdapterKind,
+  ResourceKind,
+  Resource,
+  Metric,
+  Property,
+}
+
+export interface AriaOpsVariableQuery {
+  query: string;
+}

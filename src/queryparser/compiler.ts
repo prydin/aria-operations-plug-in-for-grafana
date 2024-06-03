@@ -30,6 +30,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+import { ScopedVars } from '@grafana/data';
 import {
   AriaOpsQuery,
   ResourceRequest,
@@ -40,6 +41,8 @@ import {
   AggregationSpec,
   SlidingWindowSpec,
 } from '../types';
+
+import { getTemplateSrv } from '@grafana/runtime';
 
 // The generated parser is pure JavaScript, so we need to be a little lax on our linting.
 //
@@ -89,7 +92,10 @@ export const makeFilter = (args: any): FilterSpec => {
   return spec;
 };
 
-export const compileQuery = (query: AriaOpsQuery): CompiledQuery => {
+export const compileQuery = (
+  query: AriaOpsQuery,
+  scopedVars: ScopedVars
+): CompiledQuery => {
   const resourceQuery: ResourceRequest = {
     adapterKind: [],
     regex: [],
@@ -100,6 +106,8 @@ export const compileQuery = (query: AriaOpsQuery): CompiledQuery => {
     resourceHealth: [],
     resourceStatus: [],
   };
+
+  console.log('scopedVars', scopedVars);
 
   type Resolver = (args: any) => void;
 
@@ -144,7 +152,7 @@ export const compileQuery = (query: AriaOpsQuery): CompiledQuery => {
     },
   };
   if (query.advancedMode) {
-    const pq = parser.parse(query.queryText);
+    const pq = parser.parse(getTemplateSrv().replace(query.queryText));
 
     /// Handle type
     const types: string[] = pq.type;
@@ -165,8 +173,8 @@ export const compileQuery = (query: AriaOpsQuery): CompiledQuery => {
     }
 
     // Handle metrics
-    if (!pq.metrics) {
-      throw 'Missing .metrics() clause';
+    if (!pq.metrics && (pq.aggregation || pq.slidingWindow)) {
+      throw 'Aggregation/sliding window without .metrics() clause';
     }
     const metrics = pq.metrics;
 

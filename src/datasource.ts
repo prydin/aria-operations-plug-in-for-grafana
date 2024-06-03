@@ -36,9 +36,10 @@ import {
   DataSourceApi,
   DataSourceInstanceSettings,
   MutableDataFrame,
-  FieldType,
   Labels,
   DataFrame,
+  MetricFindValue,
+  FieldType,
 } from '@grafana/data';
 
 import { FetchResponse, getBackendSrv } from '@grafana/runtime';
@@ -450,6 +451,23 @@ export class AriaOpsDataSource extends DataSourceApi<
     });
   }
 
+  async metricFindQuery(
+    query: string,
+    options?: any
+  ): Promise<MetricFindValue[]> {
+    console.log('FindMetricQuery', query);
+    const q = { advancedMode: true, queryText: query, refId: '' };
+    const compiledQuery = compileQuery(q, options.scopedVars);
+    console.log('CompiledQuery', compileQuery);
+    const resp = await this.post<ResourceRequest, ResourceResponse>(
+      'resources/query?pageSize=1000',
+      compiledQuery.resourceQuery
+    );
+    return resp.resourceList.map((r: Resource): MetricFindValue => {
+      return { text: r.resourceKey.name, value: r.resourceKey.name };
+    });
+  }
+
   async query(
     options: DataQueryRequest<AriaOpsQuery>
   ): Promise<DataQueryResponse> {
@@ -475,7 +493,7 @@ export class AriaOpsDataSource extends DataSourceApi<
         continue;
       }
 
-      const compiled = compileQuery(query);
+      const compiled = compileQuery(query, options.scopedVars);
       const resources = await this.getResourcesWithRq(compiled.resourceQuery);
       console.log('Resources', resources);
       const chunk =
