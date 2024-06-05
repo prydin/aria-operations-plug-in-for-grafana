@@ -34,7 +34,6 @@ import {
   ActionMeta,
   LegacyForms,
   Monaco,
-  ReactMonacoEditor,
   Select,
   monacoTypes,
   InputActionMeta,
@@ -49,6 +48,7 @@ import { buildTextQuery } from 'queryparser/compiler';
 import { AriaOpsCompletionItemProvider } from 'queryparser/monaco/completion';
 import { debounce } from 'lodash';
 import { LANG_ID } from 'queryparser/constants';
+import { QueryTextEditor } from './QueryTextEditor';
 
 const { FormField } = LegacyForms;
 
@@ -216,6 +216,7 @@ export class QueryEditor extends PureComponent<Props, State> {
   };
 
   render() {
+    const props = this.props;
     const {
       resourceId,
       metric,
@@ -223,7 +224,7 @@ export class QueryEditor extends PureComponent<Props, State> {
       resourceKind,
       queryText,
       advancedMode,
-    } = this.props.query;
+    } = props.query;
 
     return (
       <div className="gf-form">
@@ -273,13 +274,10 @@ export class QueryEditor extends PureComponent<Props, State> {
             />
           </EditorRow>
           <EditorRow>
-            <ReactMonacoEditor
-              onChange={debounce(this.onQueryTextChange, 300)}
-              value={queryText}
-              height={200}
-              onMount={this.onMonacoMount}
-              language="aria-operations"
-              options={{ readOnly: !advancedMode, minimap: { enabled: false } }}
+            <QueryTextEditor
+              datasource={this.props.datasource}
+              query={{ queryText }}
+              onChange={this.onQueryTextChange}
             />
           </EditorRow>
         </EditorRows>

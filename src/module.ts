@@ -35,7 +35,6 @@ import { AriaOpsDataSource } from './datasource';
 import { ConfigEditor } from './components/ConfigEditor';
 import { QueryEditor } from './components/QueryEditor';
 import { AriaOpsQuery, AriaOpsOptions } from './types';
-import { VariableQueryEditor } from 'components/VariableQueryEditor';
 
 export const plugin = new DataSourcePlugin<
   AriaOpsDataSource,
@@ -43,5 +42,5 @@ export const plugin = new DataSourcePlugin<
   AriaOpsOptions
 >(AriaOpsDataSource)
   .setConfigEditor(ConfigEditor)
-  .setVariableQueryEditor(VariableQueryEditor)
+  .setVariableQueryEditor(QueryEditor)
   .setQueryEditor(QueryEditor);
