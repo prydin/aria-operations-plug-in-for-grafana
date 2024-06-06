@@ -32,8 +32,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import React, { useState } from 'react';
 import { AriaOpsVariableQuery } from 'types';
+import { AriaOpsDataSource } from 'datasource';
+import { QueryTextEditor } from './QueryTextEditor';
 
 interface VariableQueryProps {
+  datasource: AriaOpsDataSource;
   query: AriaOpsVariableQuery;
   onChange: (query: AriaOpsVariableQuery, definition: string) => void;
 }
@@ -41,29 +44,34 @@ interface VariableQueryProps {
 export const VariableQueryEditor = ({
   onChange,
   query,
+  datasource,
 }: VariableQueryProps) => {
   const [state, setState] = useState(query);
 
+  console.log('State', state);
+
   const saveQuery = () => {
-    onChange(state, `${state.query}`);
+    console.log('saveQuery', state);
+    onChange(state, state.query);
   };
 
-  const handleChange = (event: React.FormEvent<HTMLInputElement>) =>
+  const handleChange = (content: string) => {
     setState({
       ...state,
-      [event.currentTarget.name]: event.currentTarget.value,
+      query: content,
     });
+    console.log('HandleChange state: ', state);
+  };
 
   return (
     <>
       <div className="gf-form">
         <span className="gf-form-label width-10">Query</span>
-        <input
-          name="query"
-          className="gf-form-input"
-          onBlur={saveQuery}
+        <QueryTextEditor
+          datasource={datasource}
+          query={{ queryText: query.query }}
           onChange={handleChange}
-          value={state.query}
+          onBlur={saveQuery}
         />
       </div>
     </>

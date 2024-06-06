@@ -17,6 +17,7 @@ interface Props {
   datasource: AriaOpsDataSource;
   query: SimlpeQuery;
   onChange: (value: string) => void;
+  onBlur?: () => void;
 }
 
 export class QueryTextEditor extends PureComponent<Props> {
@@ -30,6 +31,7 @@ export class QueryTextEditor extends PureComponent<Props> {
     editor: monacoTypes.editor.IStandaloneCodeEditor,
     monaco: Monaco
   ) => {
+    editor.onDidBlurEditorWidget(this.onBlur);
     if (!monaco.languages.getLanguages().some((lang) => lang.id === LANG_ID)) {
       monaco.languages.register({ id: LANG_ID });
       monaco.languages.setMonarchTokensProvider(LANG_ID, monacoHighlighter);
@@ -44,6 +46,13 @@ export class QueryTextEditor extends PureComponent<Props> {
     const { onChange } = this.props;
     this.props.query.queryText = content;
     onChange(content || '');
+  };
+
+  onBlur = (e: any) => {
+    if (this.props.onBlur) {
+      console.log('eeeee', e);
+      this.props.onBlur();
+    }
   };
 
   render() {
