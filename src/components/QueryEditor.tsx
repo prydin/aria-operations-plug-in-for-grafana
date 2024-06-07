@@ -33,7 +33,6 @@ import React, { ChangeEvent, PureComponent } from 'react';
 import {
   ActionMeta,
   LegacyForms,
-  Monaco,
   Select,
   monacoTypes,
   InputActionMeta,
@@ -43,11 +42,8 @@ import { EditorRow, EditorRows } from '@grafana/experimental';
 import { AriaOpsDataSource } from '../datasource';
 import { AriaOpsOptions, AriaOpsQuery } from '../types';
 import { mapToSelectable } from 'utils';
-import { monacoHighlighter } from 'queryparser/monaco/highlight';
 import { buildTextQuery } from 'queryparser/compiler';
-import { AriaOpsCompletionItemProvider } from 'queryparser/monaco/completion';
 import { debounce } from 'lodash';
-import { LANG_ID } from 'queryparser/constants';
 import { QueryTextEditor } from './QueryTextEditor';
 
 const { FormField } = LegacyForms;
@@ -200,20 +196,6 @@ export class QueryEditor extends PureComponent<Props, State> {
       this.setState({ adapterKinds: s });
     });
   }
-
-  onMonacoMount = (
-    editor: monacoTypes.editor.IStandaloneCodeEditor,
-    monaco: Monaco
-  ) => {
-    if (!monaco.languages.getLanguages().some((lang) => lang.id === LANG_ID)) {
-      monaco.languages.register({ id: LANG_ID });
-      monaco.languages.setMonarchTokensProvider(LANG_ID, monacoHighlighter);
-      monaco.languages.registerCompletionItemProvider(
-        LANG_ID,
-        new AriaOpsCompletionItemProvider(this.props.datasource, monaco)
-      );
-    }
-  };
 
   render() {
     const props = this.props;

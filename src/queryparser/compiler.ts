@@ -152,7 +152,12 @@ export const compileQuery = (
     },
   };
   if (query.advancedMode) {
-    const pq = parser.parse(getTemplateSrv().replace(query.queryText));
+    var tmplSrv = getTemplateSrv();
+    var interpolatedQ = tmplSrv
+      ? tmplSrv.replace(query.queryText)
+      : query.queryText;
+    console.log('interpolatedQ', interpolatedQ);
+    const pq = parser.parse(interpolatedQ);
 
     /// Handle type
     const types: string[] = pq.type;

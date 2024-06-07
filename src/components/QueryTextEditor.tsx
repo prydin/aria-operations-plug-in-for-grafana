@@ -1,4 +1,3 @@
-import { EditorRow, EditorRows } from '@grafana/experimental';
 import { Monaco, ReactMonacoEditor, monacoTypes } from '@grafana/ui';
 import { AriaOpsDataSource } from 'datasource';
 import { debounce } from 'lodash';

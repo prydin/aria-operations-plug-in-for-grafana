@@ -456,10 +456,13 @@ export class AriaOpsDataSource extends DataSourceApi<
     query: AriaOpsVariableQuery,
     options?: any
   ): Promise<MetricFindValue[]> {
-    console.log('FindMetricQuery', query);
+    // Avoid error messages by returning an empty array for empty queries
+    if (!query?.query || query.query === '') {
+      return [];
+    }
     const q = { advancedMode: true, queryText: query.query, refId: '' };
+    console.log('findMetricQuery', q);
     const compiledQuery = compileQuery(q, options.scopedVars);
-    console.log('CompiledQuery', compiledQuery);
     const resp = await this.post<ResourceRequest, ResourceResponse>(
       'resources/query?pageSize=1000',
       compiledQuery.resourceQuery
@@ -483,6 +486,8 @@ export class AriaOpsDataSource extends DataSourceApi<
       }
       const query = defaults(target, defaultQuery);
 
+      console.log('Query', query);
+
       // Skip empty targets (would generate errors otherwise)
       if (
         !query.advancedMode &&
@@ -496,7 +501,6 @@ export class AriaOpsDataSource extends DataSourceApi<
 
       const compiled = compileQuery(query, options.scopedVars);
       const resources = await this.getResourcesWithRq(compiled.resourceQuery);
-      console.log('Resources', resources);
       const chunk =
         resources && resources.size > 0
           ? await this.getMetrics(

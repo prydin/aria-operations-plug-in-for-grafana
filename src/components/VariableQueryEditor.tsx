@@ -51,26 +51,23 @@ export const VariableQueryEditor = ({
   console.log('State', state);
 
   const saveQuery = () => {
-    console.log('saveQuery', state);
     onChange(state, state.query);
   };
 
-  const handleChange = (content: string) => {
+  const onQueryTextChange = (content: string) => {
     setState({
       ...state,
       query: content,
     });
-    console.log('HandleChange state: ', state);
   };
 
   return (
     <>
       <div className="gf-form">
-        <span className="gf-form-label width-10">Query</span>
         <QueryTextEditor
           datasource={datasource}
           query={{ queryText: query.query }}
-          onChange={handleChange}
+          onChange={onQueryTextChange}
           onBlur={saveQuery}
         />
       </div>

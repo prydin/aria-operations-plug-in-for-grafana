@@ -66,7 +66,7 @@ Function = UnaryFunction / BinaryFunction
 UnaryFunction = name: UnaryFunctionName  LP arg: Identifier RP { return { name: name.toUpperCase(), arg: [ arg ] } }
 BinaryFunction = name: BinaryFunctionName LP  arg0: Identifier Comma arg1: LiteralValue RP { return { name: name.toUpperCase(), arg: [ arg0, arg1 ] } }
 InfixExpression = left: Identifier _ operator: Operator _ right: LiteralValue { return { name: operator, arg: [ left, right ] }}
-LiteralValue = LiteralString / Number
+LiteralValue = LiteralString / Number 
 
 Aggregation = TwoParamAggregation / OneParamAggregation
 OneParamAggregation = Dot type: OneParamAggregationOp LP properties: IdentifierList? RP { return { type, properties } }
@@ -103,13 +103,15 @@ TimeUnit =
   "w" { return 7 * 24 * 60 * 60 * 1000 } /
   "y" { return 365 * 24 * 60 * 60 * 1000 }
 
-Operator = OpEQ / OpNE / OpLT / OpGT / OpLT_EQ / OpGT_EQ
+Operator = OpEQ / OpNE / OpLT / OpGT / OpLT_EQ / OpGT_EQ / OpIN / OpNOT_IN
 OpEQ = "=" { return "EQ" }
 OpNE = "!=" { return "NE" }
 OpLT = "<" { return "LT" }
 OpGT = ">" { return "GT" }
 OpLT_EQ = "<=" { return "LT_EQ" }
 OpGT_EQ = ">="{ return "GT_EQ" }
+OpIN = "in" { return "IN" }
+OpNOT_IN = "not in" { return "NOT_IN" }
 
 UnaryFunctionName = 
     ("not exists" /
@@ -150,6 +152,8 @@ Dot = _ "." _
 Comma = _ "," _
 LP = _ "(" _
 RP = _ ")" _
+LCURLY = _ "{" _
+RCURLY = _ "}" _ 
 
 Number ="number" Integer / Float
 Integer "integer" = _ DIGIT+ { return parseInt(text(), 10); }

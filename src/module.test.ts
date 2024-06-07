@@ -160,6 +160,26 @@ const negatedWherePropertiesQueryResult: CompiledQuery = {
   slidingWindow: null as any,
 };
 
+const wherePropertiesInQueryResult: CompiledQuery = {
+  resourceQuery: {
+    adapterKind: ['VMWARE'],
+    name: [],
+    regex: [],
+    resourceHealth: [],
+    resourceId: [],
+    resourceKind: ['VirtualMachine'],
+    resourceState: [],
+    resourceStatus: [],
+    propertyConditions: {
+      conditions: [{ key: 'foo', operator: 'IN', stringValue: 'foo,bar' }],
+      conjunctionOperator: 'AND',
+    },
+  },
+  metrics: ['cpu|demandmhz'],
+  aggregation: null as any,
+  slidingWindow: null as any,
+};
+
 const simpleWhereMetricsQueryResult: CompiledQuery = {
   resourceQuery: {
     adapterKind: ['VMWARE'],
@@ -402,6 +422,13 @@ describe('Query parser', () => {
       };
       expect(q).toStrictEqual(aggregationResultTemplate);
     }
+  });
+
+  test('Simple whereTags()', () => {
+    const q = testCompile(
+      'resource(VMWARE:VirtualMachine).whereProperties(name in "foo,bar")).metrics(cpu|demandmhz)'
+    );
+    expect(q).toStrictEqual(simpleWhereTagsQueryResult);
   });
 
   test('Simple sliding window', () => {
