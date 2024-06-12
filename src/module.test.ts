@@ -43,7 +43,7 @@ import {
   SlidingSum,
   SortedBag,
 } from 'smoother';
-import { AggregationSpec, CompiledQuery, SlidingWindowSpec } from 'types';
+import { AggregationSpec, Query, SlidingWindowSpec } from 'types';
 
 const aggregations = [
   'avg',
@@ -69,7 +69,7 @@ const data = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 
 const aggResults = [5, 45, 9, 9, 1, 7.5, Math.sqrt(7.5)];
 
-const simpleAllQueryResult: CompiledQuery = {
+const simpleAllQueryResult: Query = {
   resourceQuery: {
     adapterKind: ['VMWARE'],
     name: [],
@@ -85,7 +85,7 @@ const simpleAllQueryResult: CompiledQuery = {
   slidingWindow: null as any,
 };
 
-const simpleNameQueryResult: CompiledQuery = {
+const simpleNameQueryResult: Query = {
   resourceQuery: {
     adapterKind: ['VMWARE'],
     name: ['myVm'],
@@ -101,7 +101,7 @@ const simpleNameQueryResult: CompiledQuery = {
   slidingWindow: null as any,
 };
 
-const simpleRegexQueryResult: CompiledQuery = {
+const simpleRegexQueryResult: Query = {
   resourceQuery: {
     adapterKind: ['VMWARE'],
     name: [],
@@ -117,7 +117,7 @@ const simpleRegexQueryResult: CompiledQuery = {
   slidingWindow: null as any,
 };
 
-const simpleWherePropertiesQueryResult: CompiledQuery = {
+const simpleWherePropertiesQueryResult: Query = {
   resourceQuery: {
     adapterKind: ['VMWARE'],
     name: [],
@@ -140,7 +140,7 @@ const simpleWherePropertiesQueryResult: CompiledQuery = {
   slidingWindow: null as any,
 };
 
-const negatedWherePropertiesQueryResult: CompiledQuery = {
+const negatedWherePropertiesQueryResult: Query = {
   resourceQuery: {
     adapterKind: ['VMWARE'],
     name: [],
@@ -160,27 +160,7 @@ const negatedWherePropertiesQueryResult: CompiledQuery = {
   slidingWindow: null as any,
 };
 
-const wherePropertiesInQueryResult: CompiledQuery = {
-  resourceQuery: {
-    adapterKind: ['VMWARE'],
-    name: [],
-    regex: [],
-    resourceHealth: [],
-    resourceId: [],
-    resourceKind: ['VirtualMachine'],
-    resourceState: [],
-    resourceStatus: [],
-    propertyConditions: {
-      conditions: [{ key: 'foo', operator: 'IN', stringValue: 'foo,bar' }],
-      conjunctionOperator: 'AND',
-    },
-  },
-  metrics: ['cpu|demandmhz'],
-  aggregation: null as any,
-  slidingWindow: null as any,
-};
-
-const simpleWhereMetricsQueryResult: CompiledQuery = {
+const simpleWhereMetricsQueryResult: Query = {
   resourceQuery: {
     adapterKind: ['VMWARE'],
     name: [],
@@ -203,7 +183,7 @@ const simpleWhereMetricsQueryResult: CompiledQuery = {
   slidingWindow: null as any,
 };
 
-const simpleWhereHealthQueryResult: CompiledQuery = {
+const simpleWhereHealthQueryResult: Query = {
   resourceQuery: {
     adapterKind: ['VMWARE'],
     name: [],
@@ -219,7 +199,7 @@ const simpleWhereHealthQueryResult: CompiledQuery = {
   slidingWindow: null as any,
 };
 
-const simpleWhereStateQueryResult: CompiledQuery = {
+const simpleWhereStateQueryResult: Query = {
   resourceQuery: {
     adapterKind: ['VMWARE'],
     name: [],
@@ -235,7 +215,7 @@ const simpleWhereStateQueryResult: CompiledQuery = {
   slidingWindow: null as any,
 };
 
-const simpleWhereStatusQueryResult: CompiledQuery = {
+const simpleWhereStatusQueryResult: Query = {
   resourceQuery: {
     adapterKind: ['VMWARE'],
     name: [],
@@ -251,7 +231,7 @@ const simpleWhereStatusQueryResult: CompiledQuery = {
   slidingWindow: null as any,
 };
 
-const simpleWhereTagsQueryResult: CompiledQuery = {
+const simpleWhereTagsQueryResult: Query = {
   resourceQuery: {
     adapterKind: ['VMWARE'],
     name: [],
@@ -268,7 +248,7 @@ const simpleWhereTagsQueryResult: CompiledQuery = {
   slidingWindow: null as any,
 };
 
-const aggregationResultTemplate: CompiledQuery = {
+const aggregationResultTemplate: Query = {
   resourceQuery: {
     adapterKind: ['VMWARE'],
     name: [],
@@ -289,7 +269,7 @@ const simpleSlidingWindowSpec: SlidingWindowSpec = {
   params: { duration: 0 },
 };
 
-const slidingWindowResultTemplate: CompiledQuery = {
+const slidingWindowResultTemplate: Query = {
   resourceQuery: {
     adapterKind: ['VMWARE'],
     name: [],
@@ -311,8 +291,9 @@ const simpleAggregationSpec: AggregationSpec = {
   properties: [],
 };
 
-const testCompile = (queryText: string): CompiledQuery => {
-  return compileQuery({ queryText, advancedMode: true, refId: 'dummy' }, {});
+const testCompile = (queryText: string): Query => {
+  return compileQuery({ queryText, advancedMode: true, refId: 'dummy' }, {})
+    .query!;
 };
 
 describe('Query parser', () => {
@@ -422,13 +403,6 @@ describe('Query parser', () => {
       };
       expect(q).toStrictEqual(aggregationResultTemplate);
     }
-  });
-
-  test('Simple whereTags()', () => {
-    const q = testCompile(
-      'resource(VMWARE:VirtualMachine).whereProperties(name in "foo,bar")).metrics(cpu|demandmhz)'
-    );
-    expect(q).toStrictEqual(simpleWhereTagsQueryResult);
   });
 
   test('Simple sliding window', () => {

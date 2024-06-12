@@ -208,7 +208,7 @@ export class AriaOpsCompletionItemProvider
     };
   };
 
-  private handleHelth = (
+  private handleHealth = (
     text: string,
     range: monacoTypes.IRange
   ): monacoTypes.languages.ProviderResult<monacoTypes.languages.CompletionList> => {
@@ -254,7 +254,7 @@ export class AriaOpsCompletionItemProvider
     resource: this.handleResource,
     whereMetrics: this.handleMetric,
     whereProperties: this.handleProperty,
-    whereHealth: this.handleHelth,
+    whereHealth: this.handleHealth,
     whereState: this.handleState,
     whereStatus: this.handleStatus,
     metrics: this.handleMetric,

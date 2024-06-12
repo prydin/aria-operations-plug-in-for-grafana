@@ -30,12 +30,16 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+Expression = 
+  "expr" LP Additive RP /
+  Query
+
 Query = 
-_ type: TypeSpec Dot 
-instances: InstanceSelectors 
-_ metrics: (MetricSelector)? 
-aggregation: (Aggregation)? 
-slidingWindow: (SlidingWindow)? { return { type, instances, metrics, slidingWindow, aggregation }}
+  _ type: TypeSpec Dot 
+  instances: InstanceSelectors 
+  _ metrics: (MetricSelector)? 
+  aggregation: (Aggregation)? 
+  slidingWindow: (SlidingWindow)? { return { type, instances, metrics, slidingWindow, aggregation }}
 
 TypeSpec = "resource" LP resourceType: IdentifierList RP { return resourceType }
 
@@ -66,7 +70,9 @@ Function = UnaryFunction / BinaryFunction
 UnaryFunction = name: UnaryFunctionName  LP arg: Identifier RP { return { name: name.toUpperCase(), arg: [ arg ] } }
 BinaryFunction = name: BinaryFunctionName LP  arg0: Identifier Comma arg1: LiteralValue RP { return { name: name.toUpperCase(), arg: [ arg0, arg1 ] } }
 InfixExpression = left: Identifier _ operator: Operator _ right: LiteralValue { return { name: operator, arg: [ left, right ] }}
-LiteralValue = LiteralString / Number 
+LiteralValue = LiteralString / Number / LP list: LiteralValueList RP  { return list }
+LiteralValueList = first: LiteralValue theRest: LiteralValueNode* { return [ first, ...theRest ] }
+LiteralValueNode = Comma data: LiteralValue { return data }
 
 Aggregation = TwoParamAggregation / OneParamAggregation
 OneParamAggregation = Dot type: OneParamAggregationOp LP properties: IdentifierList? RP { return { type, properties } }
@@ -147,6 +153,19 @@ RegexpList = first: Regexp theRest: RegexpNode* { return [ first, ...theRest ]}
 RegexpNode = Comma data: Regexp { return data }
 Regexp = Quote chars: (Unescaped / "\\")+ Quote { return chars.join("") }
 
+// Metric arthimetic
+Additive = 
+  left: Multiplicative operator: ("+" / "-") Multiplicative { return { left, operator, right }} /
+  left: Multiplicative { return { left } }
+Multiplicative = 
+  left: Unary operator: ( "*" / "/" ) right: Multiplicative { return { left, operator, right }} /
+  left: Unary { return { left }} /
+  left: LP Additive RP { return { left }}
+Unary = 
+  "-" left: ExpressionAtom { return { operator: "NEGATE", left } } /
+  left: ExpressionAtom { return left }
+ExpressionAtom = left: Identifier { return { metric: left } } / 
+  left: Number { return { constant: left } }
 
 Dot = _ "." _
 Comma = _ "," _
@@ -197,4 +216,4 @@ Unescaped
 
 // See RFC 4234, Appendix B (http://tools.ietf.org/html/rfc4234).
 DIGIT  = [0-9]
-HEXDIG = [0-9a-f]i
+HEXDIG = [0-9a-f]

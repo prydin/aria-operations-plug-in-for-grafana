@@ -34,6 +34,7 @@ export const LANG_ID = 'aria-operations';
 
 export const KEYWORDS = [
   'resource',
+  'expr',
   'all',
   'regex',
   'name',

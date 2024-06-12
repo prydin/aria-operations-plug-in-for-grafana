@@ -30,7 +30,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-import { ScopedVars } from '@grafana/data';
+import { DataFrame, ScopedVars } from '@grafana/data';
 import {
   AriaOpsQuery,
   ResourceRequest,
@@ -40,6 +40,8 @@ import {
   CompiledQuery,
   AggregationSpec,
   SlidingWindowSpec,
+  ExpressionEvaluator,
+  DataTable,
 } from '../types';
 
 import { getTemplateSrv } from '@grafana/runtime';
@@ -152,12 +154,13 @@ export const compileQuery = (
     },
   };
   if (query.advancedMode) {
-    var tmplSrv = getTemplateSrv();
-    var interpolatedQ = tmplSrv
+    const tmplSrv = getTemplateSrv();
+    const interpolatedQ = tmplSrv
       ? tmplSrv.replace(query.queryText)
       : query.queryText;
     console.log('interpolatedQ', interpolatedQ);
     const pq = parser.parse(interpolatedQ);
+    console.log('pq', pq);
 
     /// Handle type
     const types: string[] = pq.type;
@@ -186,7 +189,9 @@ export const compileQuery = (
     // Handle aggregations and sliding windows
     const aggregation: AggregationSpec = pq.aggregation;
     const slidingWindow: SlidingWindowSpec = pq.slidingWindow;
-    return { resourceQuery, metrics, aggregation, slidingWindow };
+    return {
+      query: { resourceQuery, metrics, aggregation, slidingWindow },
+    };
   } else {
     if (!query.resourceId) {
       throw 'No resource specified';
@@ -197,7 +202,7 @@ export const compileQuery = (
       throw 'No metric specified';
     }
     const metrics: string[] = [query.metric];
-    return { resourceQuery, metrics };
+    return { query: { resourceQuery, metrics } };
   }
 };
 
@@ -213,4 +218,41 @@ export const buildTextQuery = (query: AriaOpsQuery): string => {
     s += '.metrics(' + query.metric + ')';
   }
   return s;
+};
+
+const buildExpression = (node: any): ExpressionEvaluator => {
+  if (node.constant) {
+    return (data: DataTable): number => {
+      return node.constant;
+    };
+  } else if (node.operator == '+') {
+    return (data: DataTable): number => {
+      return (
+        buildExpression(node.left)(data) + buildExpression(node.right)(data)
+      );
+    };
+  } else if (node.operator == '-') {
+    return (data: DataTable): number => {
+      return (
+        buildExpression(node.left)(data) - buildExpression(node.right)(data)
+      );
+    };
+  } else if (node.operator == '*') {
+    return (data: DataTable): number => {
+      return (
+        buildExpression(node.left)(data) * buildExpression(node.right)(data)
+      );
+    };
+  } else if (node.operator == '/') {
+    return (data: DataTable): number => {
+      return (
+        buildExpression(node.left)(data) / buildExpression(node.right)(data)
+      );
+    };
+  } else if (node.operator == 'NEGATE') {
+    return (data: DataTable): number => {
+      return -buildExpression(node.left)(data);
+    };
+  }
+  throw 'Uknown operator: ' + node.operator;
 };

@@ -463,9 +463,12 @@ export class AriaOpsDataSource extends DataSourceApi<
     const q = { advancedMode: true, queryText: query.query, refId: '' };
     console.log('findMetricQuery', q);
     const compiledQuery = compileQuery(q, options.scopedVars);
+    if (!compiledQuery.query) {
+      throw "Expressions aren't allowed for metric queries";
+    }
     const resp = await this.post<ResourceRequest, ResourceResponse>(
       'resources/query?pageSize=1000',
-      compiledQuery.resourceQuery
+      compiledQuery.query.resourceQuery
     );
     return resp.resourceList.map((r: Resource): MetricFindValue => {
       return { text: r.resourceKey.name, value: r.resourceKey.name };
@@ -481,6 +484,7 @@ export class AriaOpsDataSource extends DataSourceApi<
 
     const data: DataFrame[] = [];
     for (const target of options.targets) {
+      console.log('Target', target);
       if (target.hide) {
         continue;
       }
@@ -500,21 +504,24 @@ export class AriaOpsDataSource extends DataSourceApi<
       }
 
       const compiled = compileQuery(query, options.scopedVars);
-      const resources = await this.getResourcesWithRq(compiled.resourceQuery);
-      const chunk =
-        resources && resources.size > 0
-          ? await this.getMetrics(
-              query.refId,
-              resources,
-              compiled.metrics,
-              from,
-              to,
-              maxDataPoints || 10000,
-              compiled.aggregation,
-              compiled.slidingWindow
-            )
-          : [];
-      chunk.forEach((d) => data.push(d));
+      if (compiled.query) {
+        const q = compiled.query;
+        const resources = await this.getResourcesWithRq(q.resourceQuery);
+        const chunk =
+          resources && resources.size > 0
+            ? await this.getMetrics(
+                query.refId,
+                resources,
+                q.metrics,
+                from,
+                to,
+                maxDataPoints || 10000,
+                q.aggregation,
+                q.slidingWindow
+              )
+            : [];
+        chunk.forEach((d) => data.push(d));
+      }
     }
     return { data };
   }
