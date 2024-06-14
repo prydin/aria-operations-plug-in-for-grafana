@@ -32,7 +32,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import { Stats } from 'aggregator';
 import { fill } from 'lodash';
-import { compileQuery } from 'queryparser/compiler';
+import { buildExpression, compileQuery } from 'queryparser/compiler';
 import {
   GaussianEstimator,
   SlidingAverage,
@@ -43,7 +43,13 @@ import {
   SlidingSum,
   SortedBag,
 } from 'smoother';
-import { AggregationSpec, Query, SlidingWindowSpec } from 'types';
+import {
+  AggregationSpec,
+  ExpressionData,
+  ExpressionNode,
+  Query,
+  SlidingWindowSpec,
+} from 'types';
 
 const aggregations = [
   'avg',
@@ -294,6 +300,21 @@ const simpleAggregationSpec: AggregationSpec = {
 const testCompile = (queryText: string): Query => {
   return compileQuery({ queryText, advancedMode: true, refId: 'dummy' }, {})
     .query!;
+};
+
+const testCompileExpr = (queryText: string): ExpressionNode => {
+  return compileQuery({ queryText, advancedMode: true, refId: 'dummy' }, {})
+    .expression!;
+};
+
+const testExpression = (
+  expression: string,
+  data: ExpressionData,
+  expected: number
+) => {
+  var expr = testCompileExpr(expression);
+  var f = buildExpression(expr);
+  expect(f(data, '')).toBe(expected);
 };
 
 describe('Query parser', () => {
@@ -639,5 +660,95 @@ describe('Sliding functions', () => {
   test('Gaussian', () => {
     const g = new GaussianEstimator(300000, 8640000, { duration: 60000 });
     console.log(g.h);
+  });
+});
+
+describe('Expression', () => {
+  test('Constant expression', () => {
+    testExpression('expr(1)', {}, 1);
+  });
+  test('Negated constant expression', () => {
+    testExpression('expr(-1)', {}, -1);
+  });
+  test('Constant addition', () => {
+    testExpression('expr(1 +1)', {}, 2);
+  });
+  test('Constant subtractionition', () => {
+    testExpression('expr(43 - 1)', {}, 42);
+  });
+
+  test('Constant double addition', () => {
+    testExpression('expr(1 + 2 + 3)', {}, 6);
+  });
+
+  test('Constant multiplication', () => {
+    testExpression('expr(2*4)', {}, 8);
+  });
+  test('Constant dvision', () => {
+    testExpression('expr(16 / 2)', {}, 8);
+  });
+
+  test('Constant double multiplication', () => {
+    testExpression('expr(2 * 3 * 4)', {}, 24);
+  });
+
+  test('Constant mixed arithmetic 1', () => {
+    testExpression('expr(1 + 2 * 3)', {}, 7);
+  });
+
+  test('Constant mixed arithmetic 2', () => {
+    testExpression('expr(2 * 2 + 2 * 3)', {}, 10);
+  });
+
+  test('Constant parenteses 1', () => {
+    testExpression('expr(3 * (2 + 1))', {}, 9);
+  });
+
+  test('Constant parenteses 2', () => {
+    testExpression('expr((1+ 2) * (2 + 1))', {}, 9);
+  });
+
+  test('Constant kitchen sink', () => {
+    testExpression(
+      'expr((45 - 12) * (2 + 1 * (10/5)))',
+      {},
+      (45 - 12) * (2 + 1 * (10 / 5))
+    );
+  });
+
+  const vars = {
+    'v1/': 1,
+    'v2/': 2,
+    'v3/': 3,
+    'v4/': 4,
+    'v5/': 5,
+  };
+
+  test('Variable', () => {
+    testExpression('expr(v1)', vars, 1);
+  });
+
+  test('Variable negation', () => {
+    testExpression('expr(-v1)', vars, -1);
+  });
+
+  test('Variable complex negation', () => {
+    testExpression('expr(v2 - -v1)', vars, 3);
+  });
+
+  test('Variable addition', () => {
+    testExpression('expr(v1 + v2)', vars, 3);
+  });
+
+  test('Variable subtraction', () => {
+    testExpression('expr(v2 - v1)', vars, 1);
+  });
+
+  test('Variable kitchen sink', () => {
+    testExpression(
+      'expr((v4 - v2) * (v2 + v3 * (v4 / v2)))',
+      vars,
+      (4 - 2) * (2 + 3 * (4 / 2))
+    );
   });
 });

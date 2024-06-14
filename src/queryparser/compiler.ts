@@ -30,7 +30,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-import { DataFrame, ScopedVars } from '@grafana/data';
+import { ScopedVars } from '@grafana/data';
 import {
   AriaOpsQuery,
   ResourceRequest,
@@ -41,7 +41,7 @@ import {
   AggregationSpec,
   SlidingWindowSpec,
   ExpressionEvaluator,
-  DataTable,
+  ExpressionData,
 } from '../types';
 
 import { getTemplateSrv } from '@grafana/runtime';
@@ -159,40 +159,49 @@ export const compileQuery = (
       ? tmplSrv.replace(query.queryText)
       : query.queryText;
     console.log('interpolatedQ', interpolatedQ);
-    const pq = parser.parse(interpolatedQ);
-    console.log('pq', pq);
-
-    /// Handle type
-    const types: string[] = pq.type;
-    for (const type of types) {
-      const parts = type.split(':');
-      resourceQuery.adapterKind?.push(parts[0]);
-      resourceQuery.resourceKind?.push(parts[1]);
-    }
-
-    // Handle instance filters by calling the resolver functions
-    const seenBefore = new Set<string>();
-    for (const predicate of pq.instances) {
-      if (seenBefore.has(predicate.type)) {
-        throw `Each filter is only allowed once. Offending filter: ${predicate.type}`;
+    const root = parser.parse(interpolatedQ);
+    const pq = root.query;
+    // const expr = root.expr;
+    console.log('root', root);
+    if (pq) {
+      // It's a query
+      /// Handle type
+      const types: string[] = pq.type;
+      for (const type of types) {
+        const parts = type.split(':');
+        resourceQuery.adapterKind?.push(parts[0]);
+        resourceQuery.resourceKind?.push(parts[1]);
       }
-      seenBefore.add(predicate.type);
-      resolvers[predicate.type as string](predicate.arg);
-    }
 
-    // Handle metrics
-    if (!pq.metrics && (pq.aggregation || pq.slidingWindow)) {
-      throw 'Aggregation/sliding window without .metrics() clause';
-    }
-    const metrics = pq.metrics;
+      // Handle instance filters by calling the resolver functions
+      const seenBefore = new Set<string>();
+      for (const predicate of pq.instances) {
+        if (seenBefore.has(predicate.type)) {
+          throw `Each filter is only allowed once. Offending filter: ${predicate.type}`;
+        }
+        seenBefore.add(predicate.type);
+        resolvers[predicate.type as string](predicate.arg);
+      }
 
-    // Handle aggregations and sliding windows
-    const aggregation: AggregationSpec = pq.aggregation;
-    const slidingWindow: SlidingWindowSpec = pq.slidingWindow;
-    return {
-      query: { resourceQuery, metrics, aggregation, slidingWindow },
-    };
+      // Handle metrics
+      if (!pq.metrics && (pq.aggregation || pq.slidingWindow)) {
+        throw 'Aggregation/sliding window without .metrics() clause';
+      }
+      const metrics = pq.metrics;
+
+      // Handle aggregations and sliding windows
+      const aggregation: AggregationSpec = pq.aggregation;
+      const slidingWindow: SlidingWindowSpec = pq.slidingWindow;
+      return {
+        query: { resourceQuery, metrics, aggregation, slidingWindow },
+      };
+    } else if (root.expr) {
+      return { expression: root.expr };
+    } else {
+      throw 'Internal error: Both expression and query are empty';
+    }
   } else {
+    // Not advanced mode
     if (!query.resourceId) {
       throw 'No resource specified';
     }
@@ -220,39 +229,51 @@ export const buildTextQuery = (query: AriaOpsQuery): string => {
   return s;
 };
 
-const buildExpression = (node: any): ExpressionEvaluator => {
+const nullEvaluator = (data: ExpressionData, path: string): number => NaN;
+
+export const buildExpression = (node: any): ExpressionEvaluator => {
+  console.log('node', node);
   if (node.constant) {
-    return (data: DataTable): number => {
+    console.log('constant', node);
+    return (data: ExpressionData): number => {
       return node.constant;
     };
-  } else if (node.operator == '+') {
-    return (data: DataTable): number => {
-      return (
-        buildExpression(node.left)(data) + buildExpression(node.right)(data)
-      );
+  } else if (node.metric) {
+    return (data: ExpressionData, path: string) => {
+      const d = data[node.metric + '/' + path];
+      console.log('Lookup', node.metric + '/' + path, d);
+      return d ? d : NaN;
     };
-  } else if (node.operator == '-') {
-    return (data: DataTable): number => {
-      return (
-        buildExpression(node.left)(data) - buildExpression(node.right)(data)
-      );
-    };
-  } else if (node.operator == '*') {
-    return (data: DataTable): number => {
-      return (
-        buildExpression(node.left)(data) * buildExpression(node.right)(data)
-      );
-    };
-  } else if (node.operator == '/') {
-    return (data: DataTable): number => {
-      return (
-        buildExpression(node.left)(data) / buildExpression(node.right)(data)
-      );
-    };
-  } else if (node.operator == 'NEGATE') {
-    return (data: DataTable): number => {
-      return -buildExpression(node.left)(data);
-    };
+  } else {
+    const l = node.left ? buildExpression(node.left) : nullEvaluator;
+    const r = node.right ? buildExpression(node.right) : nullEvaluator;
+    if (!node.operator) {
+      return (data: ExpressionData, path: string): number => {
+        return l(data, path);
+      };
+    }
+    if (node.operator === '+') {
+      return (data: ExpressionData, path: string): number => {
+        return l(data, path) + r(data, path);
+      };
+    } else if (node.operator === '-') {
+      return (data: ExpressionData, path: string): number => {
+        return l(data, path) - r(data, path);
+      };
+    } else if (node.operator === '*') {
+      return (data: ExpressionData, path: string): number => {
+        return l(data, path) * r(data, path);
+      };
+    } else if (node.operator === '/') {
+      return (data: ExpressionData, path: string): number => {
+        return l(data, path) / r(data, path);
+      };
+    } else if (node.operator === 'NEGATE') {
+      console.log('NEGATE', node);
+      return (data: ExpressionData, path: string): number => {
+        return -r(data, path);
+      };
+    }
   }
   throw 'Uknown operator: ' + node.operator;
 };

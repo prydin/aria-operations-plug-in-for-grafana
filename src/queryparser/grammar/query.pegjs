@@ -31,8 +31,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 Expression = 
-  "expr" LP Additive RP /
-  Query
+  "expr" LP expr: Additive RP { return { expr } } /
+  query: Query { return { query }}
 
 Query = 
   _ type: TypeSpec Dot 
@@ -141,8 +141,9 @@ TagFilter = type: "whereTags" LP arg: IdentifierList RP { return { type, arg }}
 MetricSelector = Dot "metrics" LP metrics: IdentifierList _ RP { return metrics }
 
 Characters = [A-Za-z0-9_:|.-]+ { return text() }
+StartCharacter = [A-Za-z_] { return text() }
 
-Identifier = identifier: ( LiteralString / Characters ) { return identifier }
+Identifier = start: StartCharacter rest: ( LiteralString / Characters ) { return start + rest }
 IdentifierList = first: Identifier theRest: IdentifierNode* { return [ first, ...theRest ] }
 IdentifierNode = Comma data: Identifier { return data }
 
@@ -155,28 +156,25 @@ Regexp = Quote chars: (Unescaped / "\\")+ Quote { return chars.join("") }
 
 // Metric arthimetic
 Additive = 
-  left: Multiplicative operator: ("+" / "-") Multiplicative { return { left, operator, right }} /
+  left: Multiplicative _ operator: ("+" / "-") _ right: Additive { return { left, operator, right }} /
   left: Multiplicative { return { left } }
 Multiplicative = 
-  left: Unary operator: ( "*" / "/" ) right: Multiplicative { return { left, operator, right }} /
-  left: Unary { return { left }} /
-  left: LP Additive RP { return { left }}
+  left: Unary _ operator: ( "*" / "/" ) _ right: Multiplicative { return { left, operator, right }} /
+  left: Unary { return left } 
 Unary = 
-  "-" left: ExpressionAtom { return { operator: "NEGATE", left } } /
-  left: ExpressionAtom { return left }
-ExpressionAtom = left: Identifier { return { metric: left } } / 
-  left: Number { return { constant: left } }
+  "-" _ right: Unary { return { operator: "NEGATE", right } } /
+  constant: Number { return { constant } } /
+  metric: Identifier { return { metric } } / 
+  LP expr: Additive RP { return expr }
 
-Dot = _ "." _
-Comma = _ "," _
-LP = _ "(" _
-RP = _ ")" _
-LCURLY = _ "{" _
-RCURLY = _ "}" _ 
+Dot =   _ "." _
+Comma   = _ "," _
+LP      = _ "(" _
+RP      = _ ")" _
 
 Number ="number" Integer / Float
-Integer "integer" = _ DIGIT+ { return parseInt(text(), 10); }
-Float "number" = _ DIGIT + ("." DIGIT +)* { return parseFloat(text()) }
+Integer "integer" =  _ "-"? DIGIT+ { return parseInt(text(), 10); }
+Float "number" = _ "-"? DIGIT + ("." DIGIT +)* { return parseFloat(text()) }
 Boolean = _ value: (True / False) _ { return value }
 True = "true" { return true }
 False = "false" { return false }
