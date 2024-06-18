@@ -42,6 +42,7 @@ import {
   SlidingWindowSpec,
   ExpressionEvaluator,
   ExpressionData,
+  ValueGetter,
 } from '../types';
 
 import { getTemplateSrv } from '@grafana/runtime';
@@ -229,7 +230,7 @@ export const buildTextQuery = (query: AriaOpsQuery): string => {
   return s;
 };
 
-const nullEvaluator = (data: ExpressionData, path: string): number => NaN;
+const nullEvaluator = (getter: ValueGetter): number => NaN;
 
 export const buildExpression = (node: any): ExpressionEvaluator => {
   console.log('node', node);
@@ -239,39 +240,37 @@ export const buildExpression = (node: any): ExpressionEvaluator => {
       return node.constant;
     };
   } else if (node.metric) {
-    return (data: ExpressionData, path: string) => {
-      const d = data[node.metric + '/' + path];
-      console.log('Lookup', node.metric + '/' + path, d);
-      return d ? d : NaN;
+    return (getter: ValueGetter) => {
+      return getter(node.metric);
     };
   } else {
     const l = node.left ? buildExpression(node.left) : nullEvaluator;
     const r = node.right ? buildExpression(node.right) : nullEvaluator;
     if (!node.operator) {
-      return (data: ExpressionData, path: string): number => {
-        return l(data, path);
+      return (getter: ValueGetter): number => {
+        return l(getter);
       };
     }
     if (node.operator === '+') {
-      return (data: ExpressionData, path: string): number => {
-        return l(data, path) + r(data, path);
+      return (getter: ValueGetter): number => {
+        return l(getter) + r(getter);
       };
     } else if (node.operator === '-') {
-      return (data: ExpressionData, path: string): number => {
-        return l(data, path) - r(data, path);
+      return (getter: ValueGetter): number => {
+        return l(getter) - r(getter);
       };
     } else if (node.operator === '*') {
-      return (data: ExpressionData, path: string): number => {
-        return l(data, path) * r(data, path);
+      return (getter: ValueGetter): number => {
+        return l(getter) * r(getter);
       };
     } else if (node.operator === '/') {
-      return (data: ExpressionData, path: string): number => {
-        return l(data, path) / r(data, path);
+      return (getter: ValueGetter): number => {
+        return l(getter) / r(getter);
       };
     } else if (node.operator === 'NEGATE') {
       console.log('NEGATE', node);
-      return (data: ExpressionData, path: string): number => {
-        return -r(data, path);
+      return (getter: ValueGetter): number => {
+        return -r(getter);
       };
     }
   }

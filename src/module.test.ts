@@ -49,6 +49,7 @@ import {
   ExpressionNode,
   Query,
   SlidingWindowSpec,
+  ValueGetter,
 } from 'types';
 
 const aggregations = [
@@ -309,12 +310,12 @@ const testCompileExpr = (queryText: string): ExpressionNode => {
 
 const testExpression = (
   expression: string,
-  data: ExpressionData,
+  getter: ValueGetter,
   expected: number
 ) => {
   var expr = testCompileExpr(expression);
   var f = buildExpression(expr);
-  expect(f(data, '')).toBe(expected);
+  expect(f(getter)).toBe(expected);
 };
 
 describe('Query parser', () => {
@@ -663,49 +664,61 @@ describe('Sliding functions', () => {
   });
 });
 
+const vars: { [key: string]: number } = {
+  v1: 1,
+  v2: 2,
+  v3: 3,
+  v4: 4,
+  v5: 5,
+};
+
+const getter = (key: string): number => {
+  return vars[key];
+};
+
 describe('Expression', () => {
   test('Constant expression', () => {
-    testExpression('expr(1)', {}, 1);
+    testExpression('expr(1)', getter, 1);
   });
   test('Negated constant expression', () => {
-    testExpression('expr(-1)', {}, -1);
+    testExpression('expr(-1)', getter, -1);
   });
   test('Constant addition', () => {
-    testExpression('expr(1 +1)', {}, 2);
+    testExpression('expr(1 +1)', getter, 2);
   });
   test('Constant subtractionition', () => {
-    testExpression('expr(43 - 1)', {}, 42);
+    testExpression('expr(43 - 1)', getter, 42);
   });
 
   test('Constant double addition', () => {
-    testExpression('expr(1 + 2 + 3)', {}, 6);
+    testExpression('expr(1 + 2 + 3)', getter, 6);
   });
 
   test('Constant multiplication', () => {
-    testExpression('expr(2*4)', {}, 8);
+    testExpression('expr(2*4)', getter, 8);
   });
   test('Constant dvision', () => {
-    testExpression('expr(16 / 2)', {}, 8);
+    testExpression('expr(16 / 2)', getter, 8);
   });
 
   test('Constant double multiplication', () => {
-    testExpression('expr(2 * 3 * 4)', {}, 24);
+    testExpression('expr(2 * 3 * 4)', getter, 24);
   });
 
   test('Constant mixed arithmetic 1', () => {
-    testExpression('expr(1 + 2 * 3)', {}, 7);
+    testExpression('expr(1 + 2 * 3)', getter, 7);
   });
 
   test('Constant mixed arithmetic 2', () => {
-    testExpression('expr(2 * 2 + 2 * 3)', {}, 10);
+    testExpression('expr(2 * 2 + 2 * 3)', getter, 10);
   });
 
   test('Constant parenteses 1', () => {
-    testExpression('expr(3 * (2 + 1))', {}, 9);
+    testExpression('expr(3 * (2 + 1))', getter, 9);
   });
 
   test('Constant parenteses 2', () => {
-    testExpression('expr((1+ 2) * (2 + 1))', {}, 9);
+    testExpression('expr((1+ 2) * (2 + 1))', getter, 9);
   });
 
   test('Constant kitchen sink', () => {
@@ -716,39 +729,46 @@ describe('Expression', () => {
     );
   });
 
-  const vars = {
-    'v1/': 1,
-    'v2/': 2,
-    'v3/': 3,
-    'v4/': 4,
-    'v5/': 5,
-  };
+  test('Internal sanity check', () => {
+    // Check getter for variables v1 through v5
+    for (let i = 1; i <= vars.length; ++i) {
+      expect(getter(`v${i}`)).toBe(i);
+    }
+  });
 
   test('Variable', () => {
-    testExpression('expr(v1)', vars, 1);
+    testExpression('expr(v1)', getter, 1);
   });
 
   test('Variable negation', () => {
-    testExpression('expr(-v1)', vars, -1);
+    testExpression('expr(-v1)', getter, -1);
   });
 
   test('Variable complex negation', () => {
-    testExpression('expr(v2 - -v1)', vars, 3);
+    testExpression('expr(v2 - -v1)', getter, 3);
   });
 
   test('Variable addition', () => {
-    testExpression('expr(v1 + v2)', vars, 3);
+    testExpression('expr(v1 + v2)', getter, 3);
   });
 
   test('Variable subtraction', () => {
-    testExpression('expr(v2 - v1)', vars, 1);
+    testExpression('expr(v2 - v1)', getter, 1);
   });
 
-  test('Variable kitchen sink', () => {
+  test('Variable kitchen sink 1', () => {
     testExpression(
       'expr((v4 - v2) * (v2 + v3 * (v4 / v2)))',
-      vars,
+      getter,
       (4 - 2) * (2 + 3 * (4 / 2))
+    );
+  });
+
+  test('Variable kitchen sink 2', () => {
+    testExpression(
+      'expr((v2 + v4)*(v2 + v4) - v2*v2+2*v2*v4+v4*v4)',
+      getter,
+      0
     );
   });
 });
