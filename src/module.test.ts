@@ -30,7 +30,9 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+import { ArrayVector } from '@grafana/data';
 import { Stats } from 'aggregator';
+import { findTSIndex } from 'expr_eval';
 import { fill } from 'lodash';
 import { buildExpression, compileQuery } from 'queryparser/compiler';
 import {
@@ -45,7 +47,6 @@ import {
 } from 'smoother';
 import {
   AggregationSpec,
-  ExpressionData,
   ExpressionNode,
   Query,
   SlidingWindowSpec,
@@ -680,6 +681,7 @@ describe('Expression', () => {
   test('Constant expression', () => {
     testExpression('expr(1)', getter, 1);
   });
+
   test('Negated constant expression', () => {
     testExpression('expr(-1)', getter, -1);
   });
@@ -724,7 +726,7 @@ describe('Expression', () => {
   test('Constant kitchen sink', () => {
     testExpression(
       'expr((45 - 12) * (2 + 1 * (10/5)))',
-      {},
+      getter,
       (45 - 12) * (2 + 1 * (10 / 5))
     );
   });
@@ -733,6 +735,18 @@ describe('Expression', () => {
     // Check getter for variables v1 through v5
     for (let i = 1; i <= vars.length; ++i) {
       expect(getter(`v${i}`)).toBe(i);
+    }
+  });
+
+  test('Timestamp binary search', () => {
+    const timestamps: number[] = [];
+    const v = new ArrayVector<number>(timestamps);
+    const MAX = 10;
+    for (let i = 0; i < MAX; ++i) {
+      timestamps.push(i);
+    }
+    for (let i = 0; i < MAX; ++i) {
+      expect(findTSIndex(v, i)).toBe(i);
     }
   });
 

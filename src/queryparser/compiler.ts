@@ -41,7 +41,6 @@ import {
   AggregationSpec,
   SlidingWindowSpec,
   ExpressionEvaluator,
-  ExpressionData,
   ValueGetter,
 } from '../types';
 
@@ -110,8 +109,6 @@ export const compileQuery = (
     resourceStatus: [],
   };
 
-  console.log('scopedVars', scopedVars);
-
   type Resolver = (args: any) => void;
 
   const resolvers: KeyValue<Resolver> = {
@@ -159,11 +156,9 @@ export const compileQuery = (
     const interpolatedQ = tmplSrv
       ? tmplSrv.replace(query.queryText)
       : query.queryText;
-    console.log('interpolatedQ', interpolatedQ);
     const root = parser.parse(interpolatedQ);
     const pq = root.query;
     // const expr = root.expr;
-    console.log('root', root);
     if (pq) {
       // It's a query
       /// Handle type
@@ -233,10 +228,8 @@ export const buildTextQuery = (query: AriaOpsQuery): string => {
 const nullEvaluator = (getter: ValueGetter): number => NaN;
 
 export const buildExpression = (node: any): ExpressionEvaluator => {
-  console.log('node', node);
   if (node.constant) {
-    console.log('constant', node);
-    return (data: ExpressionData): number => {
+    return (getter: ValueGetter): number => {
       return node.constant;
     };
   } else if (node.metric) {
@@ -268,7 +261,6 @@ export const buildExpression = (node: any): ExpressionEvaluator => {
         return l(getter) / r(getter);
       };
     } else if (node.operator === 'NEGATE') {
-      console.log('NEGATE', node);
       return (getter: ValueGetter): number => {
         return -r(getter);
       };

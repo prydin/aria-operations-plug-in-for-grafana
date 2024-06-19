@@ -1,6 +1,5 @@
 import {
   DataFrame,
-  Field,
   FieldType,
   Labels,
   MutableDataFrame,
@@ -103,18 +102,22 @@ export const evaulateExpression = (
   return result;
 };
 
-const findTSIndex = (timestamps: Vector<number>, ts: number): number => {
-  let step = timestamps.length / 2;
-  let pos = step;
+export const findTSIndex = (timestamps: Vector<number>, ts: number): number => {
+  // Exported for testability
+
+  console.log('findTS', ts);
+  let pos = Math.floor(timestamps.length >> 1);
+  let step = (pos + 1) >> 1;
   while (step > 0) {
     if (timestamps.get(pos) === ts) {
       return pos;
     }
     if (timestamps.get(pos) > ts) {
-      pos -= step;
+      pos -= step + 1;
     } else {
-      pos += step;
+      pos += step - 1;
     }
+    step = step >> 1;
   }
   // Couldn't find it.
   return NaN;

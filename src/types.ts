@@ -30,12 +30,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-import {
-  DataFrame,
-  DataQuery,
-  DataSourceJsonData,
-  Vector,
-} from '@grafana/data';
+import { DataQuery, DataSourceJsonData } from '@grafana/data';
 
 export interface AriaOpsOptions extends DataSourceJsonData {
   isSaaS: boolean;
@@ -83,14 +78,18 @@ export interface SlidingWindowSpec {
   params: { duration: number; shift?: boolean };
 }
 
+// Expression evaluation types
+export type ValueGetter = (key: string) => number;
+
+export type ExpressionEvaluator = (getter: ValueGetter) => number;
+
 export interface ExpressionNode {
   left: ExpressionNode;
   right: ExpressionNode;
   evaulator: ExpressionEvaluator;
 }
 
-export type ExpressionEvaluator = (getter: ValueGetter) => number;
-
+// Query types
 export interface Query {
   resourceQuery: ResourceRequest;
   metrics: string[];
@@ -226,5 +225,3 @@ export interface AuthSourceResponse {
 export interface AriaOpsVariableQuery {
   query: string;
 }
-
-export type ValueGetter = (key: string) => number;
