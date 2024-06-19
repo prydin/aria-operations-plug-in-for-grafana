@@ -20,8 +20,7 @@ interface ValueStore {
 export const evaulateExpression = (
   expr: ExpressionEvaluator,
   data: DataFrame[],
-  resultRefId: string,
-  resultName: string
+  resultRefId: string
 ): DataFrame[] => {
   // Collect list of timestamps. We can pick a metric at random, since a specific
   // timestamp needs to be present in all series in order to produce a valid result.
@@ -72,7 +71,7 @@ export const evaulateExpression = (
     const labels = metricInstances[frameKey];
     const frame = new MutableDataFrame({
       refId: resultRefId,
-      name: resultName,
+      name: 'calculated',
       fields: [
         { name: 'Time', type: FieldType.time },
         { name: 'Value', type: FieldType.number, labels },
@@ -105,20 +104,21 @@ export const evaulateExpression = (
 export const findTSIndex = (timestamps: Vector<number>, ts: number): number => {
   // Exported for testability
 
-  console.log('findTS', ts);
-  let pos = Math.floor(timestamps.length >> 1);
-  let step = (pos + 1) >> 1;
-  while (step > 0) {
-    if (timestamps.get(pos) === ts) {
-      return pos;
+  let high = timestamps.length - 1;
+  let low = 0;
+  while (low <= high) {
+    const mid = Math.floor(low + (high - low) / 2);
+    const pivot = timestamps.get(mid);
+    if (pivot == ts) {
+      return mid;
     }
-    if (timestamps.get(pos) > ts) {
-      pos -= step + 1;
+    if (pivot < ts) {
+      low = mid + 1;
     } else {
-      pos += step - 1;
+      high = mid - 1;
     }
-    step = step >> 1;
   }
+
   // Couldn't find it.
   return NaN;
 };

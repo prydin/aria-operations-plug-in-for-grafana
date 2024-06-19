@@ -1,4 +1,4 @@
-export const dualDataFrame = `
+export const dualDataFrameSrc = `
 {
   "series": [
     {
@@ -5737,3 +5737,4 @@ export const dualDataFrame = `
   "logsResult": null
 }
 `;
+export const dualDataFrame = JSON.parse(dualDataFrameSrc).series;

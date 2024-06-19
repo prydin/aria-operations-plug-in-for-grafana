@@ -32,7 +32,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import { ArrayVector } from '@grafana/data';
 import { Stats } from 'aggregator';
-import { findTSIndex } from 'expr_eval';
+import { evaulateExpression, findTSIndex } from 'expr_eval';
 import { fill } from 'lodash';
 import { buildExpression, compileQuery } from 'queryparser/compiler';
 import {
@@ -45,6 +45,7 @@ import {
   SlidingSum,
   SortedBag,
 } from 'smoother';
+import { dualDataFrame } from 'testdata/dataframes';
 import {
   AggregationSpec,
   ExpressionNode,
@@ -493,8 +494,10 @@ describe('Sliced aggregations', () => {
         s.add(fill(Array(data.length), i), data, key);
         for (const frame of s.toFrames('dummy', simpleAggregationSpec, null)) {
           const f = frame.fields[1];
-          expect(f.labels!['foo']).toBe('bar');
-          expect(f.labels!['bar']).toBe('foo');
+          expect(f.labels![0][0]).toBe('foo');
+          expect(f.labels![0][1]).toBe('bar');
+          expect(f.labels![1][0]).toBe('bar');
+          expect(f.labels![1][1]).toBe('foo');
           expect(f.values.get(0)).toBe(aggResults[agg]);
         }
       }
@@ -731,6 +734,13 @@ describe('Expression', () => {
     );
   });
 
+  test('Full eval constant', () => {
+    const expr = testCompileExpr('expr(1)');
+    const evaluator = buildExpression(expr);
+    const frames = evaulateExpression(evaluator, dualDataFrame, 'X');
+    console.log('frames', frames);
+  });
+
   test('Internal sanity check', () => {
     // Check getter for variables v1 through v5
     for (let i = 1; i <= vars.length; ++i) {
@@ -741,7 +751,7 @@ describe('Expression', () => {
   test('Timestamp binary search', () => {
     const timestamps: number[] = [];
     const v = new ArrayVector<number>(timestamps);
-    const MAX = 10;
+    const MAX = 1000;
     for (let i = 0; i < MAX; ++i) {
       timestamps.push(i);
     }
