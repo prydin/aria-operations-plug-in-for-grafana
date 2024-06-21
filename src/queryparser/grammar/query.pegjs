@@ -143,7 +143,7 @@ MetricSelector = Dot "metrics" LP metrics: IdentifierList _ RP { return metrics 
 Characters = [A-Za-z0-9_:|.-]+ { return text() }
 StartCharacter = [A-Za-z_] { return text() }
 
-Identifier = start: StartCharacter rest: ( LiteralString / Characters ) { return start + rest }
+Identifier = start: StartCharacter rest: ( LiteralString / Characters )? { return start + (rest ? rest : "")}
 IdentifierList = first: Identifier theRest: IdentifierNode* { return [ first, ...theRest ] }
 IdentifierNode = Comma data: Identifier { return data }
 

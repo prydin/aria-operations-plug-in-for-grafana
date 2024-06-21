@@ -30,7 +30,13 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-import { ArrayVector } from '@grafana/data';
+import {
+  ArrayVector,
+  DataFrame,
+  FieldType,
+  Labels,
+  MutableDataFrame,
+} from '@grafana/data';
 import { Stats } from 'aggregator';
 import { evaulateExpression, findTSIndex } from 'expr_eval';
 import { fill } from 'lodash';
@@ -734,13 +740,6 @@ describe('Expression', () => {
     );
   });
 
-  test('Full eval constant', () => {
-    const expr = testCompileExpr('expr(1)');
-    const evaluator = buildExpression(expr);
-    const frames = evaulateExpression(evaluator, dualDataFrame, 'X');
-    console.log('frames', frames);
-  });
-
   test('Internal sanity check', () => {
     // Check getter for variables v1 through v5
     for (let i = 1; i <= vars.length; ++i) {
@@ -794,5 +793,102 @@ describe('Expression', () => {
       getter,
       0
     );
+  });
+
+  const START_TS = 1718904959999;
+
+  const generateTestDataFrame = (): DataFrame[] => {
+    const frames: DataFrame[] = [];
+
+    const N_SAMPLES = 10;
+
+    const series = ['A', 'B'];
+    const metrics = ['metric1', 'metric2'];
+    const instances = ['inst1', 'inst2', 'inst3', 'inst4'];
+
+    for (const i in series) {
+      for (const instance of instances) {
+        const labels: Labels = {
+          resourceName: instance,
+        };
+        const frame = new MutableDataFrame({
+          refId: series[i],
+          name: metrics[i],
+          fields: [
+            { name: 'Time', type: FieldType.time },
+            { name: 'Value', type: FieldType.number, labels },
+          ],
+        });
+        for (let s = 0; s < N_SAMPLES; ++s) {
+          frame.add({ Time: START_TS + s * 300000, Value: s });
+        }
+        frames.push(frame);
+      }
+    }
+    return frames;
+  };
+
+  const fullEval = (
+    expr: string,
+    fn: (x: number, y: number) => number
+  ): DataFrame[] => {
+    const data = generateTestDataFrame();
+    const e = testCompileExpr(expr);
+    const evaluator = buildExpression(e);
+    const frames = evaulateExpression(evaluator, data, 'X');
+    expect(frames.length).toBe(data.length / 2);
+    for (const frame of frames) {
+      expect(frame.fields.length).toBe(2);
+      let tsFound = false;
+      let valuesFound = false;
+      for (const field of frame.fields) {
+        if (field.name === 'Time') {
+          let ts = START_TS;
+          for (const v of field.values.toArray()) {
+            expect(v).toBe(ts);
+            ts += 300000;
+            tsFound = true;
+          }
+        } else if (field.name === 'Value') {
+          valuesFound = true;
+        }
+      }
+      expect(valuesFound).toBe(true);
+      expect(tsFound).toBe(true);
+    }
+
+    // Check results
+
+    const a = data[0];
+    const b = data[1];
+    for (const result of frames) {
+      const aValues = a.fields[1].values;
+      const bValues = b.fields[1].values;
+      const rValues = result.fields[1].values;
+      for (let i = 0; i < rValues.length; ++i) {
+        expect(rValues.get(i)).toBe(fn(aValues.get(i), bValues.get(i)));
+      }
+    }
+    return frames;
+  };
+
+  test('Full eval constant', () => {
+    const frames = fullEval('expr(1)', () => 1);
+    console.log('frames', frames);
+  });
+
+  test('Full eval constant add', () => {
+    const frames = fullEval('expr(1+1)', () => 2);
+    console.log('frames', frames);
+  });
+
+  test('Full eval var add', () => {
+    const frames = fullEval('expr(A+B)', (x, y) => x + y);
+    console.log('frames', frames);
+  });
+
+  test('Full eval var complex', () => {
+    const frames = fullEval('expr((A+B)*(A+B))', (x, y) => (x + y) * (x + y));
+    console.log('frames', frames);
   });
 });
