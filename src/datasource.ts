@@ -36,9 +36,10 @@ import {
   DataSourceApi,
   DataSourceInstanceSettings,
   MutableDataFrame,
-  FieldType,
   Labels,
   DataFrame,
+  MetricFindValue,
+  FieldType,
 } from '@grafana/data';
 
 import { FetchResponse, getBackendSrv } from '@grafana/runtime';
@@ -68,11 +69,12 @@ import {
   AuthSourceResponse,
   ResourceStats,
   KeyNamePair,
+  AriaOpsVariableQuery,
 } from './types';
 import { lastValueFrom } from 'rxjs';
-import { compileQuery } from 'queryparser/compiler';
 import { Stats } from 'aggregator';
 import { Smoother, smootherFactories } from 'smoother';
+import { compileQuery } from 'queryparser/compiler';
 
 type Resolver = { (token: string): void };
 type Rejecter = { (reason: string): void };
@@ -450,6 +452,26 @@ export class AriaOpsDataSource extends DataSourceApi<
     });
   }
 
+  async metricFindQuery(
+    query: AriaOpsVariableQuery,
+    options?: any
+  ): Promise<MetricFindValue[]> {
+    // Avoid error messages by returning an empty array for empty queries
+    if (!query?.query || query.query === '') {
+      return [];
+    }
+    const q = { advancedMode: true, queryText: query.query, refId: '' };
+    console.log('findMetricQuery', q);
+    const compiledQuery = compileQuery(q, options.scopedVars);
+    const resp = await this.post<ResourceRequest, ResourceResponse>(
+      'resources/query?pageSize=1000',
+      compiledQuery.resourceQuery
+    );
+    return resp.resourceList.map((r: Resource): MetricFindValue => {
+      return { text: r.resourceKey.name, value: r.resourceKey.name };
+    });
+  }
+
   async query(
     options: DataQueryRequest<AriaOpsQuery>
   ): Promise<DataQueryResponse> {
@@ -459,10 +481,13 @@ export class AriaOpsDataSource extends DataSourceApi<
 
     const data: DataFrame[] = [];
     for (const target of options.targets) {
+      console.log('Target', target);
       if (target.hide) {
         continue;
       }
       const query = defaults(target, defaultQuery);
+
+      console.log('Query', query);
 
       // Skip empty targets (would generate errors otherwise)
       if (
@@ -475,20 +500,19 @@ export class AriaOpsDataSource extends DataSourceApi<
         continue;
       }
 
-      const compiled = compileQuery(query);
-      const resources = await this.getResourcesWithRq(compiled.resourceQuery);
-      console.log('Resources', resources);
+      const q = compileQuery(query, options.scopedVars);
+      const resources = await this.getResourcesWithRq(q.resourceQuery);
       const chunk =
         resources && resources.size > 0
           ? await this.getMetrics(
               query.refId,
               resources,
-              compiled.metrics,
+              q.metrics,
               from,
               to,
               maxDataPoints || 10000,
-              compiled.aggregation,
-              compiled.slidingWindow
+              q.aggregation,
+              q.slidingWindow
             )
           : [];
       chunk.forEach((d) => data.push(d));

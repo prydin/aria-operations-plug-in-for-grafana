@@ -308,7 +308,7 @@ const simpleAggregationSpec: AggregationSpec = {
 };
 
 const testCompile = (queryText: string): CompiledQuery => {
-  return compileQuery({ queryText, advancedMode: true, refId: 'dummy' });
+  return compileQuery({ queryText, advancedMode: true, refId: 'dummy' }, {});
 };
 
 describe('Query parser', () => {
@@ -409,7 +409,7 @@ describe('Query parser', () => {
 
   test('Quoted spaces()', () => {
     const q = testCompile(
-      'resource(VMWARE:VirtualMachine).all().metrics("lots of spaces")'
+      'resource(VMWARE:VirtualMachine).all().metrics(`lots of spaces`)'
     );
     expect(q).toStrictEqual(quotedSpacesQueryResult);
   });

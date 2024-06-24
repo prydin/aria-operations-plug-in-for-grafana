@@ -30,45 +30,47 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-export const LANG_ID = 'aria-operations';
+import React, { useState } from 'react';
+import { AriaOpsVariableQuery } from 'types';
+import { AriaOpsDataSource } from 'datasource';
+import { QueryTextEditor } from './QueryTextEditor';
 
-export const KEYWORDS = [
-  'resource',
-  'expr',
-  'all',
-  'regex',
-  'name',
-  'id',
-  'whereProperties',
-  'whereMetrics',
-  'metrics',
-  'not',
-  'and',
-  'or',
-  'contains',
-  'not',
-  'exists',
-  'starts_with',
-  'ends_with',
-  'whereHealth',
-  'whereState',
-  'whereStatus',
-  'whereTags',
-  'avg',
-  'stddev',
-  'sum',
-  'min',
-  'max',
-  'count',
-  'variance',
-  'percentile',
-  'mavg',
-  'mmax',
-  'mmin',
-  'mmedian',
-  'mstddev',
-  'mvariance',
-  'msum',
-  'mexpavg',
-  'mgaussian',
-];
+interface VariableQueryProps {
+  datasource: AriaOpsDataSource;
+  query: AriaOpsVariableQuery;
+  onChange: (query: AriaOpsVariableQuery, definition: string) => void;
+}
+
+export const VariableQueryEditor = ({
+  onChange,
+  query,
+  datasource,
+}: VariableQueryProps) => {
+  const [state, setState] = useState(query);
+
+  console.log('State', state);
+
+  const saveQuery = () => {
+    onChange(state, state.query);
+  };
+
+  const onQueryTextChange = (content: string) => {
+    setState({
+      ...state,
+      query: content,
+    });
+  };
+
+  return (
+    <>
+      <div className="gf-form">
+        <QueryTextEditor
+          datasource={datasource}
+          query={{ queryText: query.query }}
+          onChange={onQueryTextChange}
+          onBlur={saveQuery}
+        />
+      </div>
+    </>
+  );
+};

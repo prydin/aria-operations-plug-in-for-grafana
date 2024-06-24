@@ -31,11 +31,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 Query = 
-_ type: TypeSpec Dot 
-instances: InstanceSelectors 
-_ metrics: MetricSelector 
-aggregation: (Aggregation)? 
-slidingWindow: (SlidingWindow)? { return { type, instances, metrics, slidingWindow, aggregation }}
+  _ type: TypeSpec Dot 
+  instances: InstanceSelectors 
+  _ metrics: (MetricSelector)? 
+  aggregation: (Aggregation)? 
+  slidingWindow: (SlidingWindow)? { return { type, instances, metrics, slidingWindow, aggregation }}
 
 TypeSpec = "resource" LP resourceType: IdentifierList RP { return resourceType }
 
@@ -66,7 +66,9 @@ Function = UnaryFunction / BinaryFunction
 UnaryFunction = name: UnaryFunctionName  LP arg: Identifier RP { return { name: name.toUpperCase(), arg: [ arg ] } }
 BinaryFunction = name: BinaryFunctionName LP  arg0: Identifier Comma arg1: LiteralValue RP { return { name: name.toUpperCase(), arg: [ arg0, arg1 ] } }
 InfixExpression = left: Identifier _ operator: Operator _ right: LiteralValue { return { name: operator, arg: [ left, right ] }}
-LiteralValue = LiteralString / Number
+LiteralValue = LiteralString / Number / LP list: LiteralValueList RP  { return list }
+LiteralValueList = first: LiteralValue theRest: LiteralValueNode* { return [ first, ...theRest ] }
+LiteralValueNode = Comma data: LiteralValue { return data }
 
 Aggregation = TwoParamAggregation / OneParamAggregation
 OneParamAggregation = Dot type: OneParamAggregationOp LP properties: IdentifierList? RP { return { type, properties } }
@@ -103,13 +105,15 @@ TimeUnit =
   "w" { return 7 * 24 * 60 * 60 * 1000 } /
   "y" { return 365 * 24 * 60 * 60 * 1000 }
 
-Operator = OpEQ / OpNE / OpLT / OpGT / OpLT_EQ / OpGT_EQ
+Operator = OpEQ / OpNE / OpLT / OpGT / OpLT_EQ / OpGT_EQ / OpIN / OpNOT_IN
 OpEQ = "=" { return "EQ" }
 OpNE = "!=" { return "NE" }
 OpLT = "<" { return "LT" }
 OpGT = ">" { return "GT" }
 OpLT_EQ = "<=" { return "LT_EQ" }
 OpGT_EQ = ">="{ return "GT_EQ" }
+OpIN = "in" { return "IN" }
+OpNOT_IN = "not in" { return "NOT_IN" }
 
 UnaryFunctionName = 
     ("not exists" /
@@ -132,9 +136,13 @@ TagFilter = type: "whereTags" LP arg: IdentifierList RP { return { type, arg }}
 
 MetricSelector = Dot "metrics" LP metrics: IdentifierList _ RP { return metrics }
 
-Characters = [A-Za-z0-9_:|.-]+ { return text() }
+IDCharacters = [A-Za-z0-9_:|.-]+ { return text() }
+IDQuotedCharacters = [A-Za-z0-9_:|.\- ,$]+ { return text() }
+IDStartCharacter = [A-Za-z_] { return text() }
 
-Identifier = identifier: ( LiteralString / Characters ) { return identifier }
+Identifier = 
+    start: IDStartCharacter rest: IDCharacters? { return start + (rest ? rest : "")} /
+    BackTick chars: IDQuotedCharacters BackTick { return chars }
 IdentifierList = first: Identifier theRest: IdentifierNode* { return [ first, ...theRest ] }
 IdentifierNode = Comma data: Identifier { return data }
 
@@ -145,15 +153,27 @@ RegexpList = first: Regexp theRest: RegexpNode* { return [ first, ...theRest ]}
 RegexpNode = Comma data: Regexp { return data }
 Regexp = Quote chars: (Unescaped / "\\")+ Quote { return chars.join("") }
 
+// Metric arthimetic
+Additive = 
+  left: Multiplicative _ operator: ("+" / "-") _ right: Additive { return { left, operator, right }} /
+  left: Multiplicative { return { left } }
+Multiplicative = 
+  left: Unary _ operator: ( "*" / "/" ) _ right: Multiplicative { return { left, operator, right }} /
+  left: Unary { return left } 
+Unary = 
+  "-" _ right: Unary { return { operator: "NEGATE", right } } /
+  constant: Number { return { constant } } /
+  metric: Identifier { return { metric } } / 
+  LP expr: Additive RP { return expr }
 
-Dot = _ "." _
-Comma = _ "," _
-LP = _ "(" _
-RP = _ ")" _
+Dot =   _ "." _
+Comma   = _ "," _
+LP      = _ "(" _
+RP      = _ ")" _
 
 Number ="number" Integer / Float
-Integer "integer" = _ DIGIT+ { return parseInt(text(), 10); }
-Float "number" = _ DIGIT + ("." DIGIT +)* { return parseFloat(text()) }
+Integer "integer" =  _ "-"? DIGIT+ { return parseInt(text(), 10); }
+Float "number" = _ "-"? DIGIT + ("." DIGIT +)* { return parseFloat(text()) }
 Boolean = _ value: (True / False) _ { return value }
 True = "true" { return true }
 False = "false" { return false }
@@ -186,6 +206,9 @@ Escape
 Quote
   = '"'
 
+BackTick
+  = "`"
+
 Unescaped
   = [^\0-\x1F\x22\x5C]
 
@@ -193,4 +216,4 @@ Unescaped
 
 // See RFC 4234, Appendix B (http://tools.ietf.org/html/rfc4234).
 DIGIT  = [0-9]
-HEXDIG = [0-9a-f]i
+HEXDIG = [0-9a-f]

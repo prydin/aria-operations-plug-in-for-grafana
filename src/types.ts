@@ -78,6 +78,7 @@ export interface SlidingWindowSpec {
   params: { duration: number; shift?: boolean };
 }
 
+// Query types
 export interface CompiledQuery {
   resourceQuery: ResourceRequest;
   metrics: string[];
@@ -203,4 +204,8 @@ export interface ResourcePropertiesResponse {
 
 export interface AuthSourceResponse {
   sources: KeyNamePair[];
+}
+
+export interface AriaOpsVariableQuery {
+  query: string;
 }
