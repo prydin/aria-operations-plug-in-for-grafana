@@ -280,7 +280,7 @@ export class AriaOpsCompletionItemProvider
       label,
       range,
       detail,
-      insertText: label,
+      insertText: label.includes(' ') ? '"' + label + '"' : label, // Quote strings containing spaces
       kind: this.monaco.languages.CompletionItemKind.Function,
     };
   }
