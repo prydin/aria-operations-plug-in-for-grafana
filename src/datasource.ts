@@ -72,9 +72,10 @@ import {
   AriaOpsVariableQuery,
 } from './types';
 import { lastValueFrom } from 'rxjs';
-import { compileQuery } from 'queryparser/compiler';
+import { buildExpression, compileQuery } from 'queryparser/compiler';
 import { Stats } from 'aggregator';
 import { Smoother, smootherFactories } from 'smoother';
+import { evaulateExpression } from 'expr_eval';
 
 type Resolver = { (token: string): void };
 type Rejecter = { (reason: string): void };
@@ -521,6 +522,10 @@ export class AriaOpsDataSource extends DataSourceApi<
               )
             : [];
         chunk.forEach((d) => data.push(d));
+      } else if (compiled.expression) {
+        const fn = buildExpression(compiled.expression);
+        const result = evaulateExpression(fn, data, query.refId);
+        result.forEach((d) => data.push(d));
       }
     }
     return { data };

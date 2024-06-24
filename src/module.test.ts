@@ -51,7 +51,6 @@ import {
   SlidingSum,
   SortedBag,
 } from 'smoother';
-import { dualDataFrame } from 'testdata/dataframes';
 import {
   AggregationSpec,
   ExpressionNode,
