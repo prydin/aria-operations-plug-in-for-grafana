@@ -35,3 +35,4 @@ e2e-results/
 
 # Generated files
 src/queryparser/parser.js
+out/
