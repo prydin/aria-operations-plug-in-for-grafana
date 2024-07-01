@@ -153,19 +153,6 @@ RegexpList = first: Regexp theRest: RegexpNode* { return [ first, ...theRest ]}
 RegexpNode = Comma data: Regexp { return data }
 Regexp = Quote chars: (Unescaped / "\\")+ Quote { return chars.join("") }
 
-// Metric arthimetic
-Additive = 
-  left: Multiplicative _ operator: ("+" / "-") _ right: Additive { return { left, operator, right }} /
-  left: Multiplicative { return { left } }
-Multiplicative = 
-  left: Unary _ operator: ( "*" / "/" ) _ right: Multiplicative { return { left, operator, right }} /
-  left: Unary { return left } 
-Unary = 
-  "-" _ right: Unary { return { operator: "NEGATE", right } } /
-  constant: Number { return { constant } } /
-  metric: Identifier { return { metric } } / 
-  LP expr: Additive RP { return expr }
-
 Dot =   _ "." _
 Comma   = _ "," _
 LP      = _ "(" _
