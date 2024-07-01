@@ -16,10 +16,10 @@ Unfortunately, this plugin is currently not compatible with Grafana Cloud.
 ## Quick Start
 
 1. Download the desired release (latest release is always strongly recommended) from [here.](../../releases). The file name should be `vmware-ariaoperations-datasource-<version>.zip`
-3. Unzip the zip file in your plugin directory (as configured)
-4. Restart the Grafana backend
-5. Create a data source with the Aria Operations plugin.
-6. Fill in user, password and an optional authentication source. If you are using self-signed certs, you may want to check the "Skip TLS Verify" box. Keep in mind that this is unsafe in a non-trusted environment.
+2. Unzip the zip file in your plugin directory (as configured)
+3. Restart the Grafana backend
+4. Create a data source with the Aria Operations plugin.
+5. Fill in user, password and an optional authentication source. If you are using self-signed certs, you may want to check the "Skip TLS Verify" box. Keep in mind that this is unsafe in a non-trusted environment.
 
 ## Features
 
@@ -183,6 +183,23 @@ Note that if aggregations are used, moving window functions must be applied afte
 
 Lag is specified using a quantity and a time unit. Available units are `s`, `m`, `h`, `d`, `w`, `y` for second, minute, hour, day and year.
 
+### Variables in queries
+
+The query language supports variable substitutions and variable queries. The substitution follows general Grafana rules. For example, this query would replace the
+variable "esxiName" with whatever value was chosen by the user through dashboard variables.
+
+`resource(VMWARE:HostSystem).name("${esxiName}").metrics(cpu|demandmhz)`
+
+#### Variable queries
+
+The plugin supports variable queries, i.e. queries used to populate dropdowns for variables. These follow the regular query language syntax of the plugin, except that they lack the "metric" clause. For example:
+
+`resource(VMWARE:HostSystem).whereProperties(summary|parentCluster = "Some Cluster")`
+
+Variable queries can contain references to other variables to form chained queries. For example:
+
+`resource(VMWARE:HostSystem).whereProperties(summary|parentCluster = "${clusterName}")`
+
 ### Example queries
 
 Get CPU demand for all hosts
@@ -211,7 +228,7 @@ resource(VMWARE:VirtualMachine).
 Get CPU demand for all hosts and smooth the graph using a moving median with a 1 hour lag
 
 ```
-resource(VMWARE:HostSystem).all().metrics(cpu|demandmhz).mmedian(lag)
+resource(VMWARE:HostSystem).all().metrics(cpu|demandmhz).mmedian(1h)
 ```
 
 ### Known issues

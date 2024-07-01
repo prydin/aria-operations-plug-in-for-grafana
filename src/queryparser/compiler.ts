@@ -30,6 +30,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+import { ScopedVars } from '@grafana/data';
 import {
   AriaOpsQuery,
   ResourceRequest,
@@ -40,6 +41,8 @@ import {
   AggregationSpec,
   SlidingWindowSpec,
 } from '../types';
+
+import { getTemplateSrv } from '@grafana/runtime';
 
 // The generated parser is pure JavaScript, so we need to be a little lax on our linting.
 //
@@ -89,7 +92,10 @@ export const makeFilter = (args: any): FilterSpec => {
   return spec;
 };
 
-export const compileQuery = (query: AriaOpsQuery): CompiledQuery => {
+export const compileQuery = (
+  query: AriaOpsQuery,
+  scopedVars: ScopedVars
+): CompiledQuery => {
   const resourceQuery: ResourceRequest = {
     adapterKind: [],
     regex: [],
@@ -144,10 +150,12 @@ export const compileQuery = (query: AriaOpsQuery): CompiledQuery => {
     },
   };
   if (query.advancedMode) {
-    const pq = parser.parse(query.queryText);
-
-    /// Handle type
-    const types: string[] = pq.type;
+    const tmplSrv = getTemplateSrv();
+    const interpolatedQ = tmplSrv
+      ? tmplSrv.replace(query.queryText)
+      : query.queryText;
+    const root = parser.parse(interpolatedQ);
+    const types: string[] = root.type;
     for (const type of types) {
       const parts = type.split(':');
       resourceQuery.adapterKind?.push(parts[0]);
@@ -156,7 +164,7 @@ export const compileQuery = (query: AriaOpsQuery): CompiledQuery => {
 
     // Handle instance filters by calling the resolver functions
     const seenBefore = new Set<string>();
-    for (const predicate of pq.instances) {
+    for (const predicate of root.instances) {
       if (seenBefore.has(predicate.type)) {
         throw `Each filter is only allowed once. Offending filter: ${predicate.type}`;
       }
@@ -165,16 +173,17 @@ export const compileQuery = (query: AriaOpsQuery): CompiledQuery => {
     }
 
     // Handle metrics
-    if (!pq.metrics) {
-      throw 'Missing .metrics() clause';
+    if (!root.metrics && (root.aggregation || root.slidingWindow)) {
+      throw 'Aggregation/sliding window without .metrics() clause';
     }
-    const metrics = pq.metrics;
+    const metrics = root.metrics;
 
     // Handle aggregations and sliding windows
-    const aggregation: AggregationSpec = pq.aggregation;
-    const slidingWindow: SlidingWindowSpec = pq.slidingWindow;
+    const aggregation: AggregationSpec = root.aggregation;
+    const slidingWindow: SlidingWindowSpec = root.slidingWindow;
     return { resourceQuery, metrics, aggregation, slidingWindow };
   } else {
+    // Not advanced mode
     if (!query.resourceId) {
       throw 'No resource specified';
     }

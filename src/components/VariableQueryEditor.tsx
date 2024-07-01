@@ -30,18 +30,48 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-import { DataSourcePlugin } from '@grafana/data';
-import { AriaOpsDataSource } from './datasource';
-import { ConfigEditor } from './components/ConfigEditor';
-import { QueryEditor } from './components/QueryEditor';
-import { AriaOpsQuery, AriaOpsOptions } from './types';
-import { VariableQueryEditor } from 'components/VariableQueryEditor';
+import React, { useState } from 'react';
+import { AriaOpsVariableQuery } from 'types';
+import { AriaOpsDataSource } from 'datasource';
+import { QueryTextEditor } from './QueryTextEditor';
 
-export const plugin = new DataSourcePlugin<
-  AriaOpsDataSource,
-  AriaOpsQuery,
-  AriaOpsOptions
->(AriaOpsDataSource)
-  .setConfigEditor(ConfigEditor)
-  .setVariableQueryEditor(VariableQueryEditor)
-  .setQueryEditor(QueryEditor);
+interface VariableQueryProps {
+  datasource: AriaOpsDataSource;
+  query: AriaOpsVariableQuery;
+  onChange: (query: AriaOpsVariableQuery, definition: string) => void;
+}
+
+export const VariableQueryEditor = ({
+  onChange,
+  query,
+  datasource,
+}: VariableQueryProps) => {
+  const [state, setState] = useState(query);
+
+  console.log('State', state);
+
+  const saveQuery = () => {
+    onChange(state, state.query);
+  };
+
+  const onQueryTextChange = (content: string) => {
+    setState({
+      ...state,
+      query: content,
+    });
+  };
+
+  return (
+    <>
+      <div className="gf-form">
+        <QueryTextEditor
+          advancedMode={true}
+          datasource={datasource}
+          query={{ queryText: query.query }}
+          onChange={onQueryTextChange}
+          onBlur={saveQuery}
+        />
+      </div>
+    </>
+  );
+};

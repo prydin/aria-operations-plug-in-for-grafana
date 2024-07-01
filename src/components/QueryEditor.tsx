@@ -33,8 +33,6 @@ import React, { ChangeEvent, PureComponent } from 'react';
 import {
   ActionMeta,
   LegacyForms,
-  Monaco,
-  ReactMonacoEditor,
   Select,
   monacoTypes,
   InputActionMeta,
@@ -44,11 +42,9 @@ import { EditorRow, EditorRows } from '@grafana/experimental';
 import { AriaOpsDataSource } from '../datasource';
 import { AriaOpsOptions, AriaOpsQuery } from '../types';
 import { mapToSelectable } from 'utils';
-import { monacoHighlighter } from 'queryparser/monaco/highlight';
 import { buildTextQuery } from 'queryparser/compiler';
-import { AriaOpsCompletionItemProvider } from 'queryparser/monaco/completion';
 import { debounce } from 'lodash';
-import { LANG_ID } from 'queryparser/constants';
+import { QueryTextEditor } from './QueryTextEditor';
 
 const { FormField } = LegacyForms;
 
@@ -201,21 +197,8 @@ export class QueryEditor extends PureComponent<Props, State> {
     });
   }
 
-  onMonacoMount = (
-    editor: monacoTypes.editor.IStandaloneCodeEditor,
-    monaco: Monaco
-  ) => {
-    if (!monaco.languages.getLanguages().some((lang) => lang.id === LANG_ID)) {
-      monaco.languages.register({ id: LANG_ID });
-      monaco.languages.setMonarchTokensProvider(LANG_ID, monacoHighlighter);
-      monaco.languages.registerCompletionItemProvider(
-        LANG_ID,
-        new AriaOpsCompletionItemProvider(this.props.datasource, monaco)
-      );
-    }
-  };
-
   render() {
+    const props = this.props;
     const {
       resourceId,
       metric,
@@ -223,7 +206,7 @@ export class QueryEditor extends PureComponent<Props, State> {
       resourceKind,
       queryText,
       advancedMode,
-    } = this.props.query;
+    } = props.query;
 
     return (
       <div className="gf-form">
@@ -273,13 +256,11 @@ export class QueryEditor extends PureComponent<Props, State> {
             />
           </EditorRow>
           <EditorRow>
-            <ReactMonacoEditor
-              onChange={debounce(this.onQueryTextChange, 300)}
-              value={queryText}
-              height={200}
-              onMount={this.onMonacoMount}
-              language="aria-operations"
-              options={{ readOnly: !advancedMode, minimap: { enabled: false } }}
+            <QueryTextEditor
+              datasource={this.props.datasource}
+              query={{ queryText }}
+              onChange={this.onQueryTextChange}
+              advancedMode={advancedMode}
             />
           </EditorRow>
         </EditorRows>

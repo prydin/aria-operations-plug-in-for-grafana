@@ -199,6 +199,22 @@ const simpleWhereHealthQueryResult: CompiledQuery = {
   slidingWindow: null as any,
 };
 
+const quotedSpacesQueryResult: CompiledQuery = {
+  resourceQuery: {
+    adapterKind: ['VMWARE'],
+    name: [],
+    regex: [],
+    resourceHealth: [],
+    resourceId: [],
+    resourceKind: ['VirtualMachine'],
+    resourceState: [],
+    resourceStatus: [],
+  },
+  metrics: ['lots of spaces'],
+  aggregation: null as any,
+  slidingWindow: null as any,
+};
+
 const simpleWhereStateQueryResult: CompiledQuery = {
   resourceQuery: {
     adapterKind: ['VMWARE'],
@@ -292,7 +308,7 @@ const simpleAggregationSpec: AggregationSpec = {
 };
 
 const testCompile = (queryText: string): CompiledQuery => {
-  return compileQuery({ queryText, advancedMode: true, refId: 'dummy' });
+  return compileQuery({ queryText, advancedMode: true, refId: 'dummy' }, {});
 };
 
 describe('Query parser', () => {
@@ -391,6 +407,13 @@ describe('Query parser', () => {
     expect(q).toStrictEqual(simpleWhereTagsQueryResult);
   });
 
+  test('Quoted spaces()', () => {
+    const q = testCompile(
+      'resource(VMWARE:VirtualMachine).all().metrics(`lots of spaces`)'
+    );
+    expect(q).toStrictEqual(quotedSpacesQueryResult);
+  });
+
   test('Simple aggregation', () => {
     for (const aggregation of aggregations) {
       const q = testCompile(
@@ -469,8 +492,10 @@ describe('Sliced aggregations', () => {
         s.add(fill(Array(data.length), i), data, key);
         for (const frame of s.toFrames('dummy', simpleAggregationSpec, null)) {
           const f = frame.fields[1];
-          expect(f.labels!['foo']).toBe('bar');
-          expect(f.labels!['bar']).toBe('foo');
+          expect(f.labels![0][0]).toBe('foo');
+          expect(f.labels![0][1]).toBe('bar');
+          expect(f.labels![1][0]).toBe('bar');
+          expect(f.labels![1][1]).toBe('foo');
           expect(f.values.get(0)).toBe(aggResults[agg]);
         }
       }
