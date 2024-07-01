@@ -260,6 +260,7 @@ export class QueryEditor extends PureComponent<Props, State> {
               datasource={this.props.datasource}
               query={{ queryText }}
               onChange={this.onQueryTextChange}
+              advancedMode={advancedMode}
             />
           </EditorRow>
         </EditorRows>

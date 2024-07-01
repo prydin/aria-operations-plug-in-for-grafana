@@ -65,6 +65,7 @@ export const VariableQueryEditor = ({
     <>
       <div className="gf-form">
         <QueryTextEditor
+          advancedMode={true}
           datasource={datasource}
           query={{ queryText: query.query }}
           onChange={onQueryTextChange}

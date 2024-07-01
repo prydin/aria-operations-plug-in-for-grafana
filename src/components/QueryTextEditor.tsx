@@ -37,8 +37,6 @@ import { AriaOpsCompletionItemProvider } from 'queryparser/monaco/completion';
 import { monacoHighlighter } from 'queryparser/monaco/highlight';
 import React, { PureComponent } from 'react';
 
-// type Props = QueryEditorProps<AriaOpsDataSource, AriaOpsQuery, AriaOpsOptions>;
-
 export interface SimlpeQuery {
   queryText?: string;
 }
@@ -46,6 +44,7 @@ export interface SimlpeQuery {
 interface Props {
   datasource: AriaOpsDataSource;
   query: SimlpeQuery;
+  advancedMode: boolean;
   onChange: (value: string) => void;
   onBlur?: () => void;
 }
@@ -93,6 +92,10 @@ export class QueryTextEditor extends PureComponent<Props> {
         height={200}
         onMount={this.onMonacoMount}
         language="aria-operations"
+        options={{
+          readOnly: !this.props.advancedMode,
+          minimap: { enabled: false },
+        }}
       />
     );
   }
