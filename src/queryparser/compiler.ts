@@ -92,6 +92,18 @@ export const makeFilter = (args: any): FilterSpec => {
   return spec;
 };
 
+const escapeRegexp = (s: string): string => {
+  var out = "";
+  var special = ".\/*+[]{}()"
+  for(const ch of s) {
+    if(special.includes(ch)) {
+      out += "\\";
+    } 
+    out += ch;
+  }  
+  return out; 
+}
+
 export const compileQuery = (
   query: AriaOpsQuery,
   scopedVars: ScopedVars
@@ -119,7 +131,12 @@ export const compileQuery = (
       resourceQuery.regex = args;
     },
     name: (args: any) => {
-      resourceQuery.name = args;
+      if(args.length > 1) {
+        // Multiple names aren't supported, so run it as a regexp instead.
+        resourceQuery.regex = [ ".*(" + args.map((p: string) => escapeRegexp(p)).join("|") + ").*" ]
+      } else {
+        resourceQuery.name = args;
+      }
     },
     id: (args: any) => {
       resourceQuery.resourceId = args;
@@ -154,6 +171,7 @@ export const compileQuery = (
     const interpolatedQ = tmplSrv
       ? tmplSrv.replace(query.queryText)
       : query.queryText;
+    console.log("Interpolated", interpolatedQ)
     const root = parser.parse(interpolatedQ);
     const types: string[] = root.type;
     for (const type of types) {
@@ -181,6 +199,7 @@ export const compileQuery = (
     // Handle aggregations and sliding windows
     const aggregation: AggregationSpec = root.aggregation;
     const slidingWindow: SlidingWindowSpec = root.slidingWindow;
+    console.log("ResourceQuery", resourceQuery);
     return { resourceQuery, metrics, aggregation, slidingWindow };
   } else {
     // Not advanced mode

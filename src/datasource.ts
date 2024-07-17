@@ -481,7 +481,7 @@ export class AriaOpsDataSource extends DataSourceApi<
 
     const data: DataFrame[] = [];
     for (const target of options.targets) {
-      console.log('Target', target);
+      console.log('Target1', target);
       if (target.hide) {
         continue;
       }
