@@ -72,6 +72,18 @@ export const makeFilter = (args: any): FilterSpec => {
       }
       spec.conjunctionOperator = p.conjunctive.toUpperCase();
     }
+    if(p.name === "IN") {
+      // The IN operator isn't (yet) supported in Aria Ops, so we need to 
+      // translate in into a set of comparisons linked with an "OR" conjunctive.
+      if(spec.conjunctionOperator && spec.conjunctionOperator !== "OR") {
+        throw "The IN operator is only supported with an OR conjunctive operator"
+      }
+      spec.conjunctionOperator = "OR";
+      for(let i = 1; i < p.arg[1].length; ++i) {
+        spec.conditions.push( {operator: "EQ", key: p.arg[0], stringValue: p.arg[1][i]})
+      }
+      continue;
+    }
     const c: Condition = {
       operator: p.name,
       key: p.arg[0],
@@ -94,7 +106,7 @@ export const makeFilter = (args: any): FilterSpec => {
 
 const escapeRegexp = (s: string): string => {
   var out = "";
-  var special = ".\/*+[]{}()"
+  var special = ".\/*+[]{}()$^"
   for(const ch of s) {
     if(special.includes(ch)) {
       out += "\\";
