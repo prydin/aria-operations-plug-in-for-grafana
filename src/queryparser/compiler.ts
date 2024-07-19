@@ -79,8 +79,8 @@ export const makeFilter = (args: any): FilterSpec => {
         throw "The IN operator is only supported with an OR conjunctive operator"
       }
       spec.conjunctionOperator = "OR";
-      for(let i = 1; i < p.arg[1].length; ++i) {
-        spec.conditions.push( {operator: "EQ", key: p.arg[0], stringValue: p.arg[1][i]})
+      for(const arg of expandArgs(p.arg[1])) {
+        spec.conditions.push( {operator: "EQ", key: p.arg[0], stringValue: arg })
       }
       continue;
     }
@@ -93,7 +93,7 @@ export const makeFilter = (args: any): FilterSpec => {
       if (typeof v === 'number') {
         c.doubleValue = v;
       } else {
-        c.stringValue = v;
+        c.stringValue = expandArgs(v);
       }
     }
     spec.conditions.push(c);
@@ -114,6 +114,24 @@ const escapeRegexp = (s: string): string => {
     out += ch;
   }  
   return out; 
+}
+
+const expandArgs = (args: any): any => {
+  console.log("Expandargs", args)
+  if(!Array.isArray(args)) {
+    return args;
+  }
+  const expanded: any[] = [];
+  for(const arg of args) {
+    console.log("arg", arg)
+    if(typeof arg === "string" && arg.startsWith('{') && arg.endsWith('}')) {
+      console.log("Matching arg", arg)
+      expanded.push(...arg.slice(1, arg.length - 1).split(",").map((s: string) => s.trim()))
+    } else {
+      expanded.push(arg);
+    }
+  }
+  return expanded;
 }
 
 export const compileQuery = (
@@ -143,6 +161,7 @@ export const compileQuery = (
       resourceQuery.regex = args;
     },
     name: (args: any) => {
+      args = expandArgs(args);
       if(args.length > 1) {
         // Multiple names aren't supported, so run it as a regexp instead.
         resourceQuery.regex = [ ".*(" + args.map((p: string) => escapeRegexp(p)).join("|") + ").*" ]
@@ -160,13 +179,13 @@ export const compileQuery = (
       resourceQuery.statConditions = makeFilter(args);
     },
     whereHealth: (args: any) => {
-      resourceQuery.resourceHealth = args;
+      resourceQuery.resourceHealth = expandArgs(args);
     },
     whereState: (args: any) => {
-      resourceQuery.resourceState = args;
+      resourceQuery.resourceState = expandArgs(args);
     },
     whereStatus: (args: any) => {
-      resourceQuery.resourceStatus = args;
+      resourceQuery.resourceStatus = expandArgs(args)
     },
     whereTags: (args: any) => {
       resourceQuery.resourceTag = args.map((tag: string) => {

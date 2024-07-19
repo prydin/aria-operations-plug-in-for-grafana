@@ -301,6 +301,46 @@ const slidingWindowResultTemplate: CompiledQuery = {
   slidingWindow: simpleSlidingWindowSpec,
 };
 
+const healthListQueryResult: CompiledQuery = {
+  resourceQuery: {
+    adapterKind: ['VMWARE'],
+    name: [],
+    regex: [],
+    resourceHealth: ["RED", "GREEN", "YELLOW"],
+    resourceId: [],
+    resourceKind: ['VirtualMachine'],
+    resourceState: [],
+    resourceStatus: [],
+  },
+  metrics: ['cpu|demandmhz'],
+  aggregation: null as any,
+  slidingWindow: null as any,
+};
+
+const inQueryResult: CompiledQuery = {
+  resourceQuery: {
+    adapterKind: ['VMWARE'],
+    name: [],
+    regex: [],
+    resourceHealth: [],
+    resourceId: [],
+    resourceKind: ['VirtualMachine'],
+    resourceState: [],
+    resourceStatus: [],
+    propertyConditions: {
+      conditions: [
+        { key: 'foo', operator: 'EQ', stringValue: "fee" },
+        { key: 'foo', operator: 'EQ', stringValue: "foo" },
+        { key: 'foo', operator: 'EQ', stringValue: "fum" }
+      ],
+      conjunctionOperator: 'OR',
+    },
+  },
+  metrics: ['cpu|demandmhz'],
+  aggregation: null as any,
+  slidingWindow: null as any,
+};
+
 const simpleAggregationSpec: AggregationSpec = {
   type: 'avg',
   parameter: 50.0,
@@ -413,6 +453,27 @@ describe('Query parser', () => {
     );
     expect(q).toStrictEqual(quotedSpacesQueryResult);
   });
+
+  test('Multiple match query', () => {
+    const q = testCompile(
+      'resource(VMWARE:VirtualMachine).whereHealth(RED, GREEN, YELLOW).metrics(`cpu|demandmhz`)'
+    );
+    expect(q).toStrictEqual(healthListQueryResult);
+  })
+
+  test('Multiple match quoted query', () => {
+    const q = testCompile(
+      'resource(VMWARE:VirtualMachine).whereHealth("{RED, GREEN, YELLOW}").metrics(`cpu|demandmhz`)'
+    );
+    expect(q).toStrictEqual(healthListQueryResult);
+  })
+
+  test('IN operator query', () => {
+    const q = testCompile(
+      'resource(VMWARE:VirtualMachine).whereProperties(foo in ("fee", "foo", "fum")).metrics(`cpu|demandmhz`)'
+    );
+    expect(q).toStrictEqual(inQueryResult);
+  })
 
   test('Simple aggregation', () => {
     for (const aggregation of aggregations) {
