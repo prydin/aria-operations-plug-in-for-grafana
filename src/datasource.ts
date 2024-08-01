@@ -70,6 +70,8 @@ import {
   ResourceStats,
   KeyNamePair,
   AriaOpsVariableQuery,
+  OrTerm,
+  Condition,
 } from './types';
 import { lastValueFrom } from 'rxjs';
 import { Stats } from 'aggregator';
@@ -209,6 +211,59 @@ export class AriaOpsDataSource extends DataSourceApi<
     );
   }
 
+  async getResourcesWithOrTerms(request: ResourceRequest, orTerms: OrTerm, 
+    fetchFunction: (rq: ResourceRequest) => Promise<Map<string, string>>): Promise<Map<string, string>> {
+    // Build a helper map of condition properties
+    const conditionMap = new Map<string, number>();
+    const conditions = request.propertyConditions?.conditions || [];
+    for (let idx = 0; idx < conditions.length; idx++) {
+      const condition = conditions[idx];
+      conditionMap.set(condition.key, idx);
+    }
+
+    // Run the resource query once per orTerm
+    const resources = new Map<string, string>();
+    const orIndices = []
+    const orKeys = Object.keys(orTerms);
+    for (const _ in orKeys) {
+      orIndices.push(0);
+    }
+
+    // Construct a new request based on the orKeys
+    for (const idx in orIndices) {
+      const key = orKeys[idx];
+      const conditionIdx = conditionMap.get(key);
+      if (conditionIdx === undefined) {
+        throw `Property ${key} not found in resource query`;
+      }
+      const condition = conditions[conditionIdx];
+      const value = orTerms[key][orIndices[idx]];
+      condition.stringValue = value;
+      const partialResult = await fetchFunction(request);
+      for (const [k, v] of partialResult) {
+        resources.set(k, v);
+      }
+    }
+
+    // Enumerate every combination of orKeys
+    let done = false;
+    while (!done) {
+      // Increment the orIndices
+      done = true;
+      for (let i = orKeys.length - 1; i >= 0; i--) {
+        orIndices[i]++;
+        if (orIndices[i] < orTerms[orKeys[i]].length) {
+          done = false;
+          break;
+        }
+        orIndices[i] = 0;
+      }
+      // Falling out of the loop means we've exhausted all combinations
+    }
+    return resources
+  }
+
+
   async getAdapterKinds(): Promise<Map<string, string>> {
     const resp = await this.get<AdapterKindResponse>('adapterkinds');
     return new Map(resp.adapter_kind.map((a: KeyNamePair) => [a.key, a.name]));
@@ -227,10 +282,10 @@ export class AriaOpsDataSource extends DataSourceApi<
   ): Promise<Map<string, string>> {
     const resp = await this.get<ResourceKindAttributeResponse>(
       'adapterkinds/' +
-        adapterKind +
-        '/resourcekinds/' +
-        resourceKind +
-        '/statkeys'
+      adapterKind +
+      '/resourcekinds/' +
+      resourceKind +
+      '/statkeys'
     );
     return new Map(
       resp.resourceTypeAttributes.map((a: ResourceKindAttribute) => [
@@ -246,10 +301,10 @@ export class AriaOpsDataSource extends DataSourceApi<
   ): Promise<Map<string, string>> {
     const resp = await this.get<ResourceKindAttributeResponse>(
       'adapterkinds/' +
-        adapterKind +
-        '/resourcekinds/' +
-        resourceKind +
-        '/properties'
+      adapterKind +
+      '/resourcekinds/' +
+      resourceKind +
+      '/properties'
     );
     return new Map(
       resp.resourceTypeAttributes.map((a: ResourceKindAttribute) => [
@@ -343,11 +398,11 @@ export class AriaOpsDataSource extends DataSourceApi<
     // TODO: Extend time window if there is a smoother that needs time shifting
     const smootherFactory = smootherSpec
       ? () =>
-          smootherFactories[smootherSpec.type](
-            interval * 60000,
-            end - begin,
-            smootherSpec.params
-          )
+        smootherFactories[smootherSpec.type](
+          interval * 60000,
+          end - begin,
+          smootherSpec.params
+        )
       : null;
     const extenedEnd = smootherSpec?.params?.shift
       ? smootherSpec.params.duration
@@ -505,15 +560,15 @@ export class AriaOpsDataSource extends DataSourceApi<
       const chunk =
         resources && resources.size > 0
           ? await this.getMetrics(
-              query.refId,
-              resources,
-              q.metrics,
-              from,
-              to,
-              maxDataPoints || 10000,
-              q.aggregation,
-              q.slidingWindow
-            )
+            query.refId,
+            resources,
+            q.metrics,
+            from,
+            to,
+            maxDataPoints || 10000,
+            q.aggregation,
+            q.slidingWindow
+          )
           : [];
       chunk.forEach((d) => data.push(d));
     }
@@ -539,8 +594,8 @@ export class AriaOpsDataSource extends DataSourceApi<
           typeof e === 'string'
             ? e
             : e instanceof Error
-            ? e.message
-            : 'Unspecified error',
+              ? e.message
+              : 'Unspecified error',
       };
     }
     return {

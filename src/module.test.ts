@@ -43,7 +43,7 @@ import {
   SlidingSum,
   SortedBag,
 } from 'smoother';
-import { AggregationSpec, CompiledQuery, SlidingWindowSpec } from 'types';
+import { AggregationSpec, CompiledQuery, OrTerm, SlidingWindowSpec } from 'types';
 
 const aggregations = [
   'avg',
@@ -81,6 +81,7 @@ const simpleAllQueryResult: CompiledQuery = {
     resourceStatus: [],
   },
   metrics: ['cpu|demandmhz'],
+  orTerms: {},
   aggregation: null as any,
   slidingWindow: null as any,
 };
@@ -97,6 +98,7 @@ const simpleNameQueryResult: CompiledQuery = {
     resourceStatus: [],
   },
   metrics: ['cpu|demandmhz'],
+  orTerms: {},
   aggregation: null as any,
   slidingWindow: null as any,
 };
@@ -113,6 +115,7 @@ const simpleRegexQueryResult: CompiledQuery = {
     resourceStatus: [],
   },
   metrics: ['cpu|demandmhz'],
+  orTerms: {},
   aggregation: null as any,
   slidingWindow: null as any,
 };
@@ -136,6 +139,7 @@ const simpleWherePropertiesQueryResult: CompiledQuery = {
     },
   },
   metrics: ['cpu|demandmhz'],
+  orTerms: {},
   aggregation: null as any,
   slidingWindow: null as any,
 };
@@ -156,6 +160,7 @@ const negatedWherePropertiesQueryResult: CompiledQuery = {
     },
   },
   metrics: ['cpu|demandmhz'],
+  orTerms: {},
   aggregation: null as any,
   slidingWindow: null as any,
 };
@@ -179,6 +184,7 @@ const simpleWhereMetricsQueryResult: CompiledQuery = {
     },
   },
   metrics: ['cpu|demandmhz'],
+  orTerms: {},
   aggregation: null as any,
   slidingWindow: null as any,
 };
@@ -195,6 +201,7 @@ const simpleWhereHealthQueryResult: CompiledQuery = {
     resourceStatus: [],
   },
   metrics: ['cpu|demandmhz'],
+  orTerms: {},
   aggregation: null as any,
   slidingWindow: null as any,
 };
@@ -211,6 +218,7 @@ const quotedSpacesQueryResult: CompiledQuery = {
     resourceStatus: [],
   },
   metrics: ['lots of spaces'],
+  orTerms: {},
   aggregation: null as any,
   slidingWindow: null as any,
 };
@@ -227,6 +235,7 @@ const simpleWhereStateQueryResult: CompiledQuery = {
     resourceStatus: [],
   },
   metrics: ['cpu|demandmhz'],
+  orTerms: {},
   aggregation: null as any,
   slidingWindow: null as any,
 };
@@ -243,6 +252,7 @@ const simpleWhereStatusQueryResult: CompiledQuery = {
     resourceStatus: ['RUNNING'],
   },
   metrics: ['cpu|demandmhz'],
+  orTerms: {},
   aggregation: null as any,
   slidingWindow: null as any,
 };
@@ -260,6 +270,7 @@ const simpleWhereTagsQueryResult: CompiledQuery = {
     resourceTag: [{ category: 'foo', name: 'bar' }],
   },
   metrics: ['cpu|demandmhz'],
+  orTerms: {},
   aggregation: null as any,
   slidingWindow: null as any,
 };
@@ -276,6 +287,7 @@ const aggregationResultTemplate: CompiledQuery = {
     resourceStatus: [],
   },
   metrics: ['cpu|demandmhz'],
+  orTerms: {},
   aggregation: null as any,
   slidingWindow: null as any,
 };
@@ -297,6 +309,7 @@ const slidingWindowResultTemplate: CompiledQuery = {
     resourceStatus: [],
   },
   metrics: ['cpu|demandmhz'],
+  orTerms: {},
   aggregation: null as any,
   slidingWindow: simpleSlidingWindowSpec,
 };
@@ -313,6 +326,7 @@ const healthListQueryResult: CompiledQuery = {
     resourceStatus: [],
   },
   metrics: ['cpu|demandmhz'],
+  orTerms: {},
   aggregation: null as any,
   slidingWindow: null as any,
 };
@@ -337,6 +351,79 @@ const inQueryResult: CompiledQuery = {
     },
   },
   metrics: ['cpu|demandmhz'],
+  orTerms: {},
+  aggregation: null as any,
+  slidingWindow: null as any,
+};
+
+const inWithAndQueryResult: CompiledQuery = {
+  resourceQuery: {
+    adapterKind: ['VMWARE'],
+    name: [],
+    regex: [],
+    resourceHealth: [],
+    resourceId: [],
+    resourceKind: ['VirtualMachine'],
+    resourceState: [],
+    resourceStatus: [],
+    propertyConditions: {
+      conditions: [
+        { key: 'foo', operator: 'EQ', stringValue: "fee" },
+        { key: 'bar', operator: 'EQ', stringValue: "bar" },
+      ],
+      conjunctionOperator: 'AND',
+    },
+  },
+  metrics: ['cpu|demandmhz'],
+  orTerms: {
+    "foo": ["foo", "fum"],
+    "bar": ["baz", "boo"]
+  },
+  aggregation: null as any,
+  slidingWindow: null as any,
+};
+
+const inWithOrQueryResult: CompiledQuery = {
+  resourceQuery: {
+    adapterKind: ['VMWARE'],
+    name: [],
+    regex: [],
+    resourceHealth: [],
+    resourceId: [],
+    resourceKind: ['VirtualMachine'],
+    resourceState: [],
+    resourceStatus: [],
+    propertyConditions: {
+      conditions: [
+        { key: 'foo', operator: 'EQ', stringValue: "fee" },
+        { key: 'foo', operator: 'EQ', stringValue: "foo" },
+        { key: 'foo', operator: 'EQ', stringValue: "fum" },
+        { key: 'bar', operator: 'EQ', stringValue: "bar" },
+        { key: 'bar', operator: 'EQ', stringValue: "baz" },
+        { key: 'bar', operator: 'EQ', stringValue: "boo" },
+      ],
+      conjunctionOperator: 'OR',
+    },
+  },
+  metrics: ['cpu|demandmhz'],
+  orTerms: {},
+  aggregation: null as any,
+  slidingWindow: null as any,
+};
+
+const multiNameQueryResult: CompiledQuery = {
+  resourceQuery: {
+    adapterKind: ['VMWARE'],
+    name: [],
+    regex: [".*(fee|foo|fum).*"],
+    resourceHealth: [],
+    resourceId: [],
+    resourceKind: ['VirtualMachine'],
+    resourceState: [],
+    resourceStatus: []
+  },
+  metrics: ['cpu|demandmhz'],
+  orTerms: {},
   aggregation: null as any,
   slidingWindow: null as any,
 };
@@ -473,6 +560,41 @@ describe('Query parser', () => {
       'resource(VMWARE:VirtualMachine).whereProperties(foo in ("fee", "foo", "fum")).metrics(`cpu|demandmhz`)'
     );
     expect(q).toStrictEqual(inQueryResult);
+  })
+
+  test('IN operator with AND query', () => {
+    const q = testCompile(
+      'resource(VMWARE:VirtualMachine).whereProperties(foo in ("fee", "foo", "fum") and bar in ("bar", "baz", "boo")).metrics(`cpu|demandmhz`)'
+    );
+    expect(q).toStrictEqual(inWithAndQueryResult);
+  })
+
+  test('IN operator with OR query', () => {
+    const q = testCompile(
+      'resource(VMWARE:VirtualMachine).whereProperties(foo in ("fee", "foo", "fum") or bar in ("bar", "baz", "boo")).metrics(`cpu|demandmhz`)'
+    );
+    expect(q).toStrictEqual(inWithOrQueryResult);
+  })
+
+  test('IN operator quoted query', () => {
+    const q = testCompile(
+      'resource(VMWARE:VirtualMachine).whereProperties(foo in ("{fee, foo, fum}")).metrics(`cpu|demandmhz`)'
+    );
+    expect(q).toStrictEqual(inQueryResult);
+  })
+
+  test('Multi name query', () => {
+    const q = testCompile(
+      'resource(VMWARE:VirtualMachine).name("fee", "foo", "fum").metrics(`cpu|demandmhz`)'
+    );
+    expect(q).toStrictEqual(multiNameQueryResult);
+  })
+
+  test('Multi name quoted query', () => {
+    const q = testCompile(
+      'resource(VMWARE:VirtualMachine).name("{fee, foo, fum}").metrics(`cpu|demandmhz`)'
+    );
+    expect(q).toStrictEqual(multiNameQueryResult);
   })
 
   test('Simple aggregation', () => {

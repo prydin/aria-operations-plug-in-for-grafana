@@ -79,7 +79,7 @@ FilterConditions =
 
 TermNode = 
   _ conjunctive: ("and" / "or") _ 
-  term: Term { return { ...term, conjunctive } }
+  term: Term { return { ...term, conjunctive: conjunctive.toUpperCase() } }
 
 Term = Function / InfixExpression
 
