@@ -43,7 +43,7 @@ import {
   SlidingSum,
   SortedBag,
 } from 'smoother';
-import { AggregationSpec, CompiledQuery, OrTerm, SlidingWindowSpec } from 'types';
+import { AggregationSpec, CompiledQuery, SlidingWindowSpec } from 'types';
 
 const aggregations = [
   'avg',
@@ -565,6 +565,13 @@ describe('Query parser', () => {
   test('IN operator with AND query', () => {
     const q = testCompile(
       'resource(VMWARE:VirtualMachine).whereProperties(foo in ("fee", "foo", "fum") and bar in ("bar", "baz", "boo")).metrics(`cpu|demandmhz`)'
+    );
+    expect(q).toStrictEqual(inWithAndQueryResult);
+  })
+
+  test('Alt. IN operator with AND query', () => {
+    const q = testCompile(
+      'resource(VMWARE:VirtualMachine).whereProperties(summary|parentHost in ("vcfesxi-2.cmbu.local", "vcfesxi-3.cmbu.local") and summary|parentCluster in ("wld01-clu01", "sc2vc04-m01-cl01")).metrics(cpu|demandmhz).avg(summary|parentHost)'
     );
     expect(q).toStrictEqual(inWithAndQueryResult);
   })

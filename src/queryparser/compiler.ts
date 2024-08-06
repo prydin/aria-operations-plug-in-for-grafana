@@ -112,13 +112,19 @@ export const makeFilter = (args: any, orTerms: OrTerm): FilterSpec => {
         // miultiple queries.
         if (spec.conjunctionOperator && spec.conjunctionOperator !== "OR") {
           const key = p.arg[0];
+          // The first term can be handled as a normal EQ, but the following
+          // terms need to be added to the orTerms map.
+          const argValues = expandArgs(p.arg[1]);
+          spec.conditions.push({ operator: "EQ", key: key, stringValue: argValues[0] })
+
+          // If there's only one value, we can skip the orTerms map
+          if (argValues.length === 1) {
+            continue;
+          }
           if (!orTerms[key]) {
             orTerms[key] = [];
           }
-          // The first term can be handled as a normal EQ, but the following
-          // terms need to be added to the orTerms map.
-          spec.conditions.push({ operator: "EQ", key: p.arg[0], stringValue: p.arg[1][0] })
-          for (const arg of expandArgs(p.arg[1]).slice(1)) {
+          for (const arg of argValues) {
             orTerms[key].push(arg);
           }
         }
@@ -132,8 +138,8 @@ export const makeFilter = (args: any, orTerms: OrTerm): FilterSpec => {
 };
 
 const escapeRegexp = (s: string): string => {
-  var out = "";
-  var special = ".\/*+[]{}()$^"
+  let out = "";
+  const special = ".\/*+[]{}()$^"
   for (const ch of s) {
     if (special.includes(ch)) {
       out += "\\";
@@ -173,7 +179,7 @@ export const compileQuery = (
     resourceStatus: [],
   };
 
-  var orTerms: OrTerm = {};
+  const orTerms: OrTerm = {};
 
   type Resolver = (args: any) => void;
 
@@ -255,7 +261,7 @@ export const compileQuery = (
     // Handle aggregations and sliding windows
     const aggregation: AggregationSpec = root.aggregation;
     const slidingWindow: SlidingWindowSpec = root.slidingWindow;
-    console.log("ResourceQuery", resourceQuery);
+
     return { resourceQuery, orTerms, metrics, aggregation, slidingWindow };
   } else {
     // Not advanced mode

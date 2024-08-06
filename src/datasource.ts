@@ -71,7 +71,6 @@ import {
   KeyNamePair,
   AriaOpsVariableQuery,
   OrTerm,
-  Condition,
 } from './types';
 import { lastValueFrom } from 'rxjs';
 import { Stats } from 'aggregator';
@@ -211,8 +210,20 @@ export class AriaOpsDataSource extends DataSourceApi<
     );
   }
 
-  async getResourcesWithOrTerms(request: ResourceRequest, orTerms: OrTerm, 
-    fetchFunction: (rq: ResourceRequest) => Promise<Map<string, string>>): Promise<Map<string, string>> {
+  async getResourcesWithOrTerms(request: ResourceRequest, orTerms: OrTerm): Promise<Map<string, string>> {
+    // Fetch the first set of data using the standard resource query
+    console.log('getResourcesWithOrTerms', JSON.stringify(request), orTerms);
+    const resources = await this.getResourcesWithRq(request);
+
+    // Any orTerms? If not, we're done
+    if (orTerms && Object.keys(orTerms).length === 0) {
+      return await this.getResourcesWithRq(request);
+    }
+
+    // Make a copy of the request so we don't destroy the original
+    // while we're iterating over the orTerms.
+    request = JSON.parse(JSON.stringify(request));
+
     // Build a helper map of condition properties
     const conditionMap = new Map<string, number>();
     const conditions = request.propertyConditions?.conditions || [];
@@ -221,44 +232,55 @@ export class AriaOpsDataSource extends DataSourceApi<
       conditionMap.set(condition.key, idx);
     }
 
-    // Run the resource query once per orTerm
-    const resources = new Map<string, string>();
+    // We maintain counters for each orTerm such that we can enumerate all combinations.
+    // Think of it as an arbitrary radix number system where each digit can have a different base.
+    // We start with all counters at 0.
     const orIndices = []
     const orKeys = Object.keys(orTerms);
     for (const _ in orKeys) {
       orIndices.push(0);
     }
 
-    // Construct a new request based on the orKeys
-    for (const idx in orIndices) {
-      const key = orKeys[idx];
-      const conditionIdx = conditionMap.get(key);
-      if (conditionIdx === undefined) {
-        throw `Property ${key} not found in resource query`;
+    let done = false;
+    while (!done) {
+      // Construct a new request based on the orKeys
+      for (const idx in orIndices) {
+        console.log('idx', idx);
+        const key = orKeys[idx];
+        const conditionIdx = conditionMap.get(key);
+        if (conditionIdx === undefined) {
+          throw `Property ${key} not found in resource query`;
+        }
+        const condition = conditions[conditionIdx];
+        const value = orTerms[key][orIndices[idx]];
+        condition.stringValue = value;
+        console.log('condition', condition);
       }
-      const condition = conditions[conditionIdx];
-      const value = orTerms[key][orIndices[idx]];
-      condition.stringValue = value;
-      const partialResult = await fetchFunction(request);
+      console.log('orTerm query', JSON.stringify(request));
+      const partialResult = await this.getResourcesWithRq(request);
+      console.log('partialResult', partialResult);
       for (const [k, v] of partialResult) {
         resources.set(k, v);
       }
-    }
 
-    // Enumerate every combination of orKeys
-    let done = false;
-    while (!done) {
-      // Increment the orIndices
-      done = true;
-      for (let i = orKeys.length - 1; i >= 0; i--) {
-        orIndices[i]++;
-        if (orIndices[i] < orTerms[orKeys[i]].length) {
-          done = false;
-          break;
+      // Enumerate every combination of orKeys
+      done = true; // Will be reset to false if we still have combinations left to try
+      for(;;) {
+        // Increment the orIndices
+        console.log("otTerms", orTerms);
+        for (let i = 0; i < orIndices.length; i++) {
+          orIndices[i]++;
+          if (orIndices[i] < orTerms[orKeys[i]].length) {
+            done = false;
+            console.log("Breaking out", orIndices);
+            break;
+          }
+          orIndices[i] = 0;
         }
-        orIndices[i] = 0;
+        // Falling out of the loop means we've exhausted all combinations
+        
+        break;
       }
-      // Falling out of the loop means we've exhausted all combinations
     }
     return resources
   }
@@ -556,7 +578,8 @@ export class AriaOpsDataSource extends DataSourceApi<
       }
 
       const q = compileQuery(query, options.scopedVars);
-      const resources = await this.getResourcesWithRq(q.resourceQuery);
+      console.log('Compiled Query adter compile', JSON.stringify(q), query);
+      const resources = await this.getResourcesWithOrTerms(q.resourceQuery, q.orTerms || {});
       const chunk =
         resources && resources.size > 0
           ? await this.getMetrics(
