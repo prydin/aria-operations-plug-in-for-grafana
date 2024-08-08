@@ -81,6 +81,7 @@ export interface SlidingWindowSpec {
 // Query types
 export interface CompiledQuery {
   resourceQuery: ResourceRequest;
+  orTerms?: OrTerm;
   metrics: string[];
   aggregation?: AggregationSpec;
   slidingWindow?: SlidingWindowSpec;
@@ -130,6 +131,10 @@ export interface Resource {
 
 export interface ResourceResponse {
   resourceList: Resource[];
+}
+
+export interface OrTerm {
+  [ key: string ]: string[];
 }
 
 export interface KeyNamePair {

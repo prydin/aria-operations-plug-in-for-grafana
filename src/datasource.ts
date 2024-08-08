@@ -70,6 +70,7 @@ import {
   ResourceStats,
   KeyNamePair,
   AriaOpsVariableQuery,
+  OrTerm,
 } from './types';
 import { lastValueFrom } from 'rxjs';
 import { Stats } from 'aggregator';
@@ -209,6 +210,88 @@ export class AriaOpsDataSource extends DataSourceApi<
     );
   }
 
+  async getResourcesWithOrTerms(request: ResourceRequest, orTerms: OrTerm): Promise<Map<string, string>> {
+    // Fetch the first set of data using the standard resource query
+    const resources = await this.getResourcesWithRq(request);
+
+    // Any orTerms? If not, we're done
+    if (orTerms && Object.keys(orTerms).length === 0) {
+      return await this.getResourcesWithRq(request);
+    }
+
+    // Make a copy of the request so we don't destroy the original
+    // while we're iterating over the orTerms.
+    request = JSON.parse(JSON.stringify(request));
+
+    // Build a helper map of condition properties
+    const conditionMap = new Map<string, number>();
+    const conditions = request.propertyConditions?.conditions || [];
+    for (let idx = 0; idx < conditions.length; idx++) {
+      const condition = conditions[idx];
+      conditionMap.set(condition.key, idx);
+    }
+
+    // We maintain counters for each orTerm such that we can enumerate all combinations.
+    // Think of it as an arbitrary radix number system where each digit can have a different base.
+    // We start with all counters at 0.
+    const orIndices = []
+    const orKeys = Object.keys(orTerms);
+    for (const _ in orKeys) {
+      orIndices.push(0);
+    }
+
+    let qNeeded = 0;
+    let done = false;
+    const promises: Array<Promise<Map<string, string>>> = [];
+    while (!done) {
+      // Construct a new request based on the orKeys
+      for (const idx in orIndices) {
+        const key = orKeys[idx];
+        const conditionIdx = conditionMap.get(key);
+        if (conditionIdx === undefined) {
+          throw `Property ${key} not found in resource query`;
+        }
+        const condition = conditions[conditionIdx];
+        const value = orTerms[key][orIndices[idx]];
+        condition.stringValue = value;
+      }
+      console.log("Querying with or-terms", JSON.stringify(request));
+
+      // Kick off queries asynchronously and wait for all of them at the end.
+      // This should hopefully force some concurrency.
+      promises.push(this.getResourcesWithRq(request).then((partialResult): Map<string, string> => {
+        console.log("Records returned", partialResult.size);
+        for (const [k, v] of partialResult) {
+          resources.set(k, v);
+        }
+        return partialResult
+      }));
+      qNeeded++;
+
+      // Wait for all promises to resolve before we continue
+      await Promise.all(promises);
+
+      // Enumerate every combination of orKeys
+      done = true; // Will be reset to false if we still have combinations left to try
+      for(;;) {
+        // Increment the orIndices
+        for (let i = 0; i < orIndices.length; i++) {
+          orIndices[i]++;
+          if (orIndices[i] < orTerms[orKeys[i]].length) {
+            done = false;
+            break;
+          }
+          orIndices[i] = 0;
+        }
+        // Falling out of the loop means we've exhausted all combinations
+        break;
+      }
+    }
+    console.log("Extra queries needed due to or-terms", qNeeded);
+    return resources
+  }
+
+
   async getAdapterKinds(): Promise<Map<string, string>> {
     const resp = await this.get<AdapterKindResponse>('adapterkinds');
     return new Map(resp.adapter_kind.map((a: KeyNamePair) => [a.key, a.name]));
@@ -227,10 +310,10 @@ export class AriaOpsDataSource extends DataSourceApi<
   ): Promise<Map<string, string>> {
     const resp = await this.get<ResourceKindAttributeResponse>(
       'adapterkinds/' +
-        adapterKind +
-        '/resourcekinds/' +
-        resourceKind +
-        '/statkeys'
+      adapterKind +
+      '/resourcekinds/' +
+      resourceKind +
+      '/statkeys'
     );
     return new Map(
       resp.resourceTypeAttributes.map((a: ResourceKindAttribute) => [
@@ -246,10 +329,10 @@ export class AriaOpsDataSource extends DataSourceApi<
   ): Promise<Map<string, string>> {
     const resp = await this.get<ResourceKindAttributeResponse>(
       'adapterkinds/' +
-        adapterKind +
-        '/resourcekinds/' +
-        resourceKind +
-        '/properties'
+      adapterKind +
+      '/resourcekinds/' +
+      resourceKind +
+      '/properties'
     );
     return new Map(
       resp.resourceTypeAttributes.map((a: ResourceKindAttribute) => [
@@ -343,11 +426,11 @@ export class AriaOpsDataSource extends DataSourceApi<
     // TODO: Extend time window if there is a smoother that needs time shifting
     const smootherFactory = smootherSpec
       ? () =>
-          smootherFactories[smootherSpec.type](
-            interval * 60000,
-            end - begin,
-            smootherSpec.params
-          )
+        smootherFactories[smootherSpec.type](
+          interval * 60000,
+          end - begin,
+          smootherSpec.params
+        )
       : null;
     const extenedEnd = smootherSpec?.params?.shift
       ? smootherSpec.params.duration
@@ -463,13 +546,12 @@ export class AriaOpsDataSource extends DataSourceApi<
     const q = { advancedMode: true, queryText: query.query, refId: '' };
     console.log('findMetricQuery', q);
     const compiledQuery = compileQuery(q, options.scopedVars);
-    const resp = await this.post<ResourceRequest, ResourceResponse>(
-      'resources/query?pageSize=1000',
-      compiledQuery.resourceQuery
-    );
-    return resp.resourceList.map((r: Resource): MetricFindValue => {
-      return { text: r.resourceKey.name, value: r.resourceKey.name };
+    const resources = await this.getResourcesWithOrTerms(compiledQuery.resourceQuery, compiledQuery.orTerms || {});
+    const response: MetricFindValue[] = [];
+    resources.forEach((name, id) => {
+      response.push({ text: name, value: name });
     });
+    return response;
   }
 
   async query(
@@ -481,7 +563,6 @@ export class AriaOpsDataSource extends DataSourceApi<
 
     const data: DataFrame[] = [];
     for (const target of options.targets) {
-      console.log('Target', target);
       if (target.hide) {
         continue;
       }
@@ -501,19 +582,20 @@ export class AriaOpsDataSource extends DataSourceApi<
       }
 
       const q = compileQuery(query, options.scopedVars);
-      const resources = await this.getResourcesWithRq(q.resourceQuery);
+      console.log('Compiled Query adter compile', JSON.stringify(q), query);
+      const resources = await this.getResourcesWithOrTerms(q.resourceQuery, q.orTerms || {});
       const chunk =
         resources && resources.size > 0
           ? await this.getMetrics(
-              query.refId,
-              resources,
-              q.metrics,
-              from,
-              to,
-              maxDataPoints || 10000,
-              q.aggregation,
-              q.slidingWindow
-            )
+            query.refId,
+            resources,
+            q.metrics,
+            from,
+            to,
+            maxDataPoints || 10000,
+            q.aggregation,
+            q.slidingWindow
+          )
           : [];
       chunk.forEach((d) => data.push(d));
     }
@@ -539,8 +621,8 @@ export class AriaOpsDataSource extends DataSourceApi<
           typeof e === 'string'
             ? e
             : e instanceof Error
-            ? e.message
-            : 'Unspecified error',
+              ? e.message
+              : 'Unspecified error',
       };
     }
     return {

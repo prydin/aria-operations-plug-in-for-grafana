@@ -48,8 +48,6 @@ export const VariableQueryEditor = ({
 }: VariableQueryProps) => {
   const [state, setState] = useState(query);
 
-  console.log('State', state);
-
   const saveQuery = () => {
     onChange(state, state.query);
   };

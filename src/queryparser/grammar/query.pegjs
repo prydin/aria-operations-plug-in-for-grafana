@@ -40,7 +40,9 @@ Query =
 TypeSpec = "resource" LP resourceType: IdentifierList RP { return resourceType }
 
 InstanceSelectors = instanceSelector: InstanceFilterChain { return instanceSelector }
-InstanceFilterChain = first: InstanceFilter theRest: (InstanceFilterNode*) { return [ first, ...theRest ]} 
+InstanceFilterChain = 
+  first: InstanceFilter 
+  theRest: (InstanceFilterNode*) { return [ first, ...theRest ]} 
 InstanceFilterNode = Dot data: InstanceFilter { return data }
 InstanceFilter = 
 	All / 
@@ -54,24 +56,63 @@ InstanceFilter =
     ComplexInstanceFilter
     
 All = type: "all" LP RP { return { type, arg: [] } }
-InstanceId = type: "id" LP arg: LiteralStringList RP { return { type, arg } }
-InstanceName = type: "name" LP arg: LiteralStringList RP { return { type, arg } }
-InstanceRegex = type: "regex" LP arg: RegexpList RP { return { type, arg } }
-ComplexInstanceFilter = type: ("whereProperties" / "whereMetrics") LP arg: FilterConditions RP { return { type, arg } }
 
-FilterConditions = first: Term _ theRest: TermNode* { return [ first, ...theRest ] }
-TermNode = _ conjunctive: ("and" / "or") _ term: Term { return { ...term, conjunctive } }
+InstanceId = 
+  type: "id" LP 
+  arg: LiteralStringList RP { return { type, arg } }
+
+InstanceName = 
+  type: "name" LP 
+  arg: LiteralStringList RP { return { type, arg } }
+
+InstanceRegex = 
+  type: "regex" LP 
+  arg: RegexpList RP { return { type, arg } }
+
+ComplexInstanceFilter = 
+  type: ("whereProperties" / "whereMetrics")  LP 
+  arg: FilterConditions RP { return { type, arg } }
+
+FilterConditions = 
+  first: Term _ 
+  theRest: TermNode* { return [ first, ...theRest ] }
+
+TermNode = 
+  _ conjunctive: ("and" / "or") _ 
+  term: Term { return { ...term, conjunctive: conjunctive.toUpperCase() } }
+
 Term = Function / InfixExpression
+
 Function = UnaryFunction / BinaryFunction
-UnaryFunction = name: UnaryFunctionName  LP arg: Identifier RP { return { name: name.toUpperCase(), arg: [ arg ] } }
-BinaryFunction = name: BinaryFunctionName LP  arg0: Identifier Comma arg1: LiteralValue RP { return { name: name.toUpperCase(), arg: [ arg0, arg1 ] } }
-InfixExpression = left: Identifier _ operator: Operator _ right: LiteralValue { return { name: operator, arg: [ left, right ] }}
-LiteralValue = LiteralString / Number / LP list: LiteralValueList RP  { return list }
-LiteralValueList = first: LiteralValue theRest: LiteralValueNode* { return [ first, ...theRest ] }
+
+UnaryFunction = 
+  name: UnaryFunctionName LP 
+  arg: Identifier RP { return { name: name.toUpperCase(), arg: [ arg ] } }
+
+BinaryFunction = 
+  name: BinaryFunctionName LP  
+  arg0: Identifier Comma 
+  arg1: LiteralValue RP { return { name: name.toUpperCase(), arg: [ arg0, arg1 ] } }
+
+InfixExpression = 
+  left: Identifier _ 
+  operator: Operator _ 
+  right: LiteralValue { return { name: operator, arg: [ left, right ] }}
+
+LiteralValue = 
+  LiteralString / Number / LP 
+  list: LiteralValueList RP  { return list }
+
+LiteralValueList = 
+  first: LiteralValue 
+  theRest: LiteralValueNode* { return [ first, ...theRest ] }
 LiteralValueNode = Comma data: LiteralValue { return data }
 
 Aggregation = TwoParamAggregation / OneParamAggregation
-OneParamAggregation = Dot type: OneParamAggregationOp LP properties: IdentifierList? RP { return { type, properties } }
+OneParamAggregation = 
+  Dot type: OneParamAggregationOp LP 
+  properties: IdentifierList? RP { return { type, properties } }
+
 OneParamAggregationOp = 
     "avg" /
     "min" /
@@ -80,11 +121,21 @@ OneParamAggregationOp =
     "count" /
     "variance" /
     "stddev"
-TwoParamAggregation = Dot type: TwoParamAggregationOp LP parameter: Number properties: (Comma identifiers: IdentifierList {return identifiers})? RP { return { type, parameter, properties } }
+TwoParamAggregation = 
+  Dot type: TwoParamAggregationOp LP 
+  parameter: Number 
+  properties: (Comma 
+    identifiers: IdentifierList {return identifiers})? RP { return { type, parameter, properties } }
+
 TwoParamAggregationOp = 
     "percentile"
 
-SlidingWindow = Dot type: SlidingWindowOp LP duration: TimeSpec shift: (Comma value: Boolean { return value }) ? RP { return { type, params: { duration, shift }}}
+SlidingWindow = 
+  Dot type: SlidingWindowOp LP 
+  duration: TimeSpec 
+  shift: (Comma value: Boolean { return value }) ? RP { return { type, params: { duration, shift }}}
+  
+
 SlidingWindowOp = 
   "mavg" /
   "mstddev" /
@@ -96,7 +147,10 @@ SlidingWindowOp =
   "mexpavg" /
   "mgaussian"
 
-TimeSpec = timequantity: Number timeunit: TimeUnit { return timequantity * timeunit }
+TimeSpec = 
+  timequantity: Number 
+  timeunit: TimeUnit { return timequantity * timeunit }
+
 TimeUnit = 
   "s" { return 1000 } /
   "m" { return 60 * 1000 } /
@@ -129,28 +183,59 @@ BinaryFunctionName =
     "regex" / 
     "not regex") { return text().replace(" ", "_").toUpperCase()}
     
-StateFilter = type: "whereState" LP arg: IdentifierList RP { return { type, arg }}
-StatusFilter = type: "whereStatus" LP arg: IdentifierList RP { return { type, arg }}
-HealthFilter = type: "whereHealth" LP arg: IdentifierList RP { return { type, arg }}
-TagFilter = type: "whereTags" LP arg: IdentifierList RP { return { type, arg }}
+StateFilter = 
+  type: "whereState" LP 
+  arg: SymbolList RP { return { type, arg }}
 
-MetricSelector = Dot "metrics" LP metrics: IdentifierList _ RP { return metrics }
+StatusFilter = 
+  type: "whereStatus" LP 
+  arg: SymbolList RP { return { type, arg }}
+
+HealthFilter = 
+  type: "whereHealth" LP 
+  arg: SymbolList RP { return { type, arg }}
+
+TagFilter = 
+  type: "whereTags" LP 
+  arg: SymbolList RP { return { type, arg }}
+
+MetricSelector = 
+  Dot "metrics" LP 
+  metrics: IdentifierList _ RP { return metrics }
 
 IDCharacters = [A-Za-z0-9_:|.-]+ { return text() }
+
 IDQuotedCharacters = [A-Za-z0-9_:|.\- ,$]+ { return text() }
+
 IDStartCharacter = [A-Za-z_] { return text() }
 
 Identifier = 
-    start: IDStartCharacter rest: IDCharacters? { return start + (rest ? rest : "")} /
-    BackTick chars: IDQuotedCharacters BackTick { return chars }
-IdentifierList = first: Identifier theRest: IdentifierNode* { return [ first, ...theRest ] }
+    start: IDStartCharacter 
+    rest: IDCharacters? { return start + (rest ? rest : "")} /
+      BackTick chars: IDQuotedCharacters BackTick { return chars }
+
+IdentifierList = 
+  first: Identifier 
+  theRest: IdentifierNode* { return [ first, ...theRest ] }
+
 IdentifierNode = Comma data: Identifier { return data }
 
-LiteralStringList = first: LiteralString theRest: LiteralStringNode* { return [ first, ...theRest ] }
+SymbolList = 
+  first: (Identifier / LiteralString) 
+  theRest: (IdentifierNode* / LiteralStringNode*) { return [ first, ...theRest ] }
+
+LiteralStringList = 
+  first: LiteralString theRest: LiteralStringNode* { return [ first, ...theRest ] }
+
 LiteralStringNode = Comma data: LiteralString { return data }
 
-RegexpList = first: Regexp theRest: RegexpNode* { return [ first, ...theRest ]}
+
+RegexpList = 
+  first: Regexp 
+  theRest: RegexpNode* { return [ first, ...theRest ]}
+
 RegexpNode = Comma data: Regexp { return data }
+
 Regexp = Quote chars: (Unescaped / "\\")+ Quote { return chars.join("") }
 
 Dot =   _ "." _

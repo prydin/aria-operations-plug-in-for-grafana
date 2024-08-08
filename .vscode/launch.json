@@ -1,0 +1,46 @@
+{
+  // Use IntelliSense to learn about possible attributes.
+  // Hover to view descriptions of existing attributes.
+  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Launch Program",
+      "program": "${workspaceFolder}/src/module.test.ts",
+      "preLaunchTask": "tsc: build - tsconfig.json",
+      "outFiles": [
+        "${workspaceFolder}/out/**/*.js"
+      ]
+    },
+    {
+      "type": "node",
+      "request": "attach",
+      "name": "Attach to remote",
+      "address": "localhost",
+      "port": 9229
+    },
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Jest Tests",
+      "program": "${workspaceRoot}/node_modules/jest/bin/jest.js",
+      "args": [
+        "-i"
+      ],
+      "preLaunchTask": "tsc: build - tsconfig.json",
+      "internalConsoleOptions": "openOnSessionStart",
+      "outFiles": [
+        "${workspaceRoot}/dist/**/*"
+      ],
+      "envFile": "${workspaceRoot}/.env"
+    },
+    {
+      "type": "chrome",
+      "name": "Run query in Chrome",
+      "request": "launch",
+      "url": "http://localhost:3000/explore?orgId=1&left=%7B%22datasource%22:%226Mn66WuIz%22,%22queries%22:%5B%7B%22refId%22:%22A%22,%22datasource%22:%7B%22type%22:%22vmware-ariaoperations-datasource%22,%22uid%22:%226Mn66WuIz%22%7D,%22advancedMode%22:true,%22queryText%22:%22resource%28VMWARE:VirtualMachine%29.whereProperties%28summary%7CparentHost%20in%20%28%5C%22vcfesxi-2.cmbu.local%5C%22,%20%5C%22vcfesxi-3.cmbu.local%5C%22%29%20and%20summary%7CparentCluster%20in%20%28%5C%22wld01-clu01%5C%22,%20%5C%22sc2vc04-m01-cl01%5C%22%29%29.metrics%28cpu%7Cdemandmhz%29.avg%28summary%7CparentHost%29%22%7D%5D,%22range%22:%7B%22from%22:%22now-1h%22,%22to%22:%22now%22%7D%7D"
+    }
+  ]
+}

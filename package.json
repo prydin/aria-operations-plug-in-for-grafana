@@ -1,6 +1,6 @@
 {
   "name": "pontusrydin-ariaoperations-datasource",
-  "version": "1.1.2",
+  "version": "1.2.1",
   "description": "Plugin for running queries against VMware aria operations",
   "scripts": {
     "build": "peggy src/queryparser/grammar/query.pegjs -o ./src/queryparser/parser.js; webpack -c ./.config/webpack/webpack.config.ts --env production",
