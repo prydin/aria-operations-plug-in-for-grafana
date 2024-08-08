@@ -212,7 +212,6 @@ export class AriaOpsDataSource extends DataSourceApi<
 
   async getResourcesWithOrTerms(request: ResourceRequest, orTerms: OrTerm): Promise<Map<string, string>> {
     // Fetch the first set of data using the standard resource query
-    console.log('getResourcesWithOrTerms', JSON.stringify(request), orTerms);
     const resources = await this.getResourcesWithRq(request);
 
     // Any orTerms? If not, we're done
@@ -241,11 +240,12 @@ export class AriaOpsDataSource extends DataSourceApi<
       orIndices.push(0);
     }
 
+    let qNeeded = 0;
     let done = false;
+    const promises: Array<Promise<Map<string, string>>> = [];
     while (!done) {
       // Construct a new request based on the orKeys
       for (const idx in orIndices) {
-        console.log('idx', idx);
         const key = orKeys[idx];
         const conditionIdx = conditionMap.get(key);
         if (conditionIdx === undefined) {
@@ -254,34 +254,40 @@ export class AriaOpsDataSource extends DataSourceApi<
         const condition = conditions[conditionIdx];
         const value = orTerms[key][orIndices[idx]];
         condition.stringValue = value;
-        console.log('condition', condition);
       }
-      console.log('orTerm query', JSON.stringify(request));
-      const partialResult = await this.getResourcesWithRq(request);
-      console.log('partialResult', partialResult);
-      for (const [k, v] of partialResult) {
-        resources.set(k, v);
-      }
+      console.log("Querying with or-terms", JSON.stringify(request));
+
+      // Kick off queries asynchronously and wait for all of them at the end.
+      // This should hopefully force some concurrency.
+      promises.push(this.getResourcesWithRq(request).then((partialResult): Map<string, string> => {
+        console.log("Records returned", partialResult.size);
+        for (const [k, v] of partialResult) {
+          resources.set(k, v);
+        }
+        return partialResult
+      }));
+      qNeeded++;
+
+      // Wait for all promises to resolve before we continue
+      await Promise.all(promises);
 
       // Enumerate every combination of orKeys
       done = true; // Will be reset to false if we still have combinations left to try
       for(;;) {
         // Increment the orIndices
-        console.log("otTerms", orTerms);
         for (let i = 0; i < orIndices.length; i++) {
           orIndices[i]++;
           if (orIndices[i] < orTerms[orKeys[i]].length) {
             done = false;
-            console.log("Breaking out", orIndices);
             break;
           }
           orIndices[i] = 0;
         }
         // Falling out of the loop means we've exhausted all combinations
-        
         break;
       }
     }
+    console.log("Extra queries needed due to or-terms", qNeeded);
     return resources
   }
 
@@ -540,13 +546,12 @@ export class AriaOpsDataSource extends DataSourceApi<
     const q = { advancedMode: true, queryText: query.query, refId: '' };
     console.log('findMetricQuery', q);
     const compiledQuery = compileQuery(q, options.scopedVars);
-    const resp = await this.post<ResourceRequest, ResourceResponse>(
-      'resources/query?pageSize=1000',
-      compiledQuery.resourceQuery
-    );
-    return resp.resourceList.map((r: Resource): MetricFindValue => {
-      return { text: r.resourceKey.name, value: r.resourceKey.name };
+    const resources = await this.getResourcesWithOrTerms(compiledQuery.resourceQuery, compiledQuery.orTerms || {});
+    const response: MetricFindValue[] = [];
+    resources.forEach((name, id) => {
+      response.push({ text: name, value: name });
     });
+    return response;
   }
 
   async query(

@@ -115,6 +115,7 @@ export const makeFilter = (args: any, orTerms: OrTerm): FilterSpec => {
           // The first term can be handled as a normal EQ, but the following
           // terms need to be added to the orTerms map.
           const argValues = expandArgs(p.arg[1]);
+          console.log("argValues", argValues);
           spec.conditions.push({ operator: "EQ", key: key, stringValue: argValues[0] })
 
           // If there's only one value, we can skip the orTerms map
@@ -234,6 +235,7 @@ export const compileQuery = (
     const interpolatedQ = tmplSrv
       ? tmplSrv.replace(query.queryText)
       : query.queryText;
+    console.log("interpolatedQ", interpolatedQ);
     const root = parser.parse(interpolatedQ);
     const types: string[] = root.type;
     for (const type of types) {

@@ -356,6 +356,31 @@ const inQueryResult: CompiledQuery = {
   slidingWindow: null as any,
 };
 
+const inWithSpacesQueryResult: CompiledQuery = {
+  resourceQuery: {
+    adapterKind: ['VMWARE'],
+    name: [],
+    regex: [],
+    resourceHealth: [],
+    resourceId: [],
+    resourceKind: ['VirtualMachine'],
+    resourceState: [],
+    resourceStatus: [],
+    propertyConditions: {
+      conditions: [
+        { key: 'foo', operator: 'EQ', stringValue: "fee fee 1" },
+        { key: 'foo', operator: 'EQ', stringValue: "foo foo 2" },
+        { key: 'foo', operator: 'EQ', stringValue: "fum fum 3" }
+      ],
+      conjunctionOperator: 'OR',
+    },
+  },
+  metrics: ['cpu|demandmhz'],
+  orTerms: {},
+  aggregation: null as any,
+  slidingWindow: null as any,
+};
+
 const inWithAndQueryResult: CompiledQuery = {
   resourceQuery: {
     adapterKind: ['VMWARE'],
@@ -376,8 +401,8 @@ const inWithAndQueryResult: CompiledQuery = {
   },
   metrics: ['cpu|demandmhz'],
   orTerms: {
-    "foo": ["foo", "fum"],
-    "bar": ["baz", "boo"]
+    "foo": ["fee", "foo", "fum"],
+    "bar": ["bar", "baz", "boo"]
   },
   aggregation: null as any,
   slidingWindow: null as any,
@@ -569,12 +594,13 @@ describe('Query parser', () => {
     expect(q).toStrictEqual(inWithAndQueryResult);
   })
 
-  test('Alt. IN operator with AND query', () => {
+  test('IN operator with AND quoted query', () => {
     const q = testCompile(
-      'resource(VMWARE:VirtualMachine).whereProperties(summary|parentHost in ("vcfesxi-2.cmbu.local", "vcfesxi-3.cmbu.local") and summary|parentCluster in ("wld01-clu01", "sc2vc04-m01-cl01")).metrics(cpu|demandmhz).avg(summary|parentHost)'
+      'resource(VMWARE:VirtualMachine).whereProperties(foo in ("{fee, foo, fum}") and bar in ("{bar, baz, boo}")).metrics(`cpu|demandmhz`)'
     );
     expect(q).toStrictEqual(inWithAndQueryResult);
   })
+
 
   test('IN operator with OR query', () => {
     const q = testCompile(
@@ -588,6 +614,13 @@ describe('Query parser', () => {
       'resource(VMWARE:VirtualMachine).whereProperties(foo in ("{fee, foo, fum}")).metrics(`cpu|demandmhz`)'
     );
     expect(q).toStrictEqual(inQueryResult);
+  })
+
+  test('IN operator quoted query', () => {
+    const q = testCompile(
+      'resource(VMWARE:VirtualMachine).whereProperties(foo in ("{fee fee 1, foo foo 2, fum fum 3}")).metrics(`cpu|demandmhz`)'
+    );
+    expect(q).toStrictEqual(inWithSpacesQueryResult);
   })
 
   test('Multi name query', () => {
