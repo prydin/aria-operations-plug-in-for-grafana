@@ -223,6 +223,22 @@ const quotedSpacesQueryResult: CompiledQuery = {
   slidingWindow: null as any,
 };
 
+const quotedSpacesQueryResult: CompiledQuery = {
+  resourceQuery: {
+    adapterKind: ['VMWARE'],
+    name: [],
+    regex: [],
+    resourceHealth: [],
+    resourceId: [],
+    resourceKind: ['VirtualMachine'],
+    resourceState: [],
+    resourceStatus: [],
+  },
+  metrics: ['lots of spaces'],
+  aggregation: null as any,
+  slidingWindow: null as any,
+};
+
 const simpleWhereStateQueryResult: CompiledQuery = {
   resourceQuery: {
     adapterKind: ['VMWARE'],
@@ -636,7 +652,6 @@ describe('Query parser', () => {
     );
     expect(q).toStrictEqual(multiNameQueryResult);
   })
-
   test('Simple aggregation', () => {
     for (const aggregation of aggregations) {
       const q = testCompile(

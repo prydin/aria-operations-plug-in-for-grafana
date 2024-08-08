@@ -210,7 +210,6 @@ Example
 
 `resource(VMWARE:HostSystem).whereProperties(summary|parentCluster in ("${listOfClusters}"))`
 
-
 ### Example queries
 
 Get CPU demand for all hosts

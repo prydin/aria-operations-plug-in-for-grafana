@@ -165,6 +165,7 @@ const expandArgs = (args: any): any => {
   return expanded;
 }
 
+
 export const compileQuery = (
   query: AriaOpsQuery,
   scopedVars: ScopedVars
@@ -263,7 +264,6 @@ export const compileQuery = (
     // Handle aggregations and sliding windows
     const aggregation: AggregationSpec = root.aggregation;
     const slidingWindow: SlidingWindowSpec = root.slidingWindow;
-
     return { resourceQuery, orTerms, metrics, aggregation, slidingWindow };
   } else {
     // Not advanced mode

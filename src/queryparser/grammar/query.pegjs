@@ -106,7 +106,6 @@ LiteralValue =
 LiteralValueList = 
   first: LiteralValue 
   theRest: LiteralValueNode* { return [ first, ...theRest ] }
-
 LiteralValueNode = Comma data: LiteralValue { return data }
 
 Aggregation = TwoParamAggregation / OneParamAggregation
@@ -169,7 +168,6 @@ OpLT_EQ = "<=" { return "LT_EQ" }
 OpGT_EQ = ">="{ return "GT_EQ" }
 OpIN = "in" { return "IN" }
 OpNOT_IN = "not in" { return "NOT_IN" }
-
 
 UnaryFunctionName = 
     ("not exists" /
