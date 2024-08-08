@@ -98,6 +98,7 @@ Valid comparison operators are as follows
 | >= | Greater than or equal (only valid for numbers) |
 | < | Less than (only valid for numbers) |
 | <= | Less than or equal (only valid for numbers) |
+| in | True if the variable matches any of the strings in the following list on the format `("one", "two", "three")` |
 
 #### Built-in functions
 
@@ -199,6 +200,16 @@ The plugin supports variable queries, i.e. queries used to populate dropdowns fo
 Variable queries can contain references to other variables to form chained queries. For example:
 
 `resource(VMWARE:HostSystem).whereProperties(summary|parentCluster = "${clusterName}")`
+
+#### Multiselect query variables
+
+The plugin supports queries stemming from dashboard variable multiselect. To use a multiselect variable, simply put it in a filter that support lists (such as `whereHealth`) or in an `in` 
+property condition. 
+
+Example
+
+`resource(VMWARE:HostSystem).whereProperties(summary|parentCluster in ("${listOfClusters}"))`
+
 
 ### Example queries
 
