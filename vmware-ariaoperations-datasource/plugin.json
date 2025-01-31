@@ -1,0 +1,61 @@
+{
+  "$schema": "https://raw.githubusercontent.com/grafana/grafana/master/docs/sources/developers/plugins/plugin.schema.json",
+  "type": "datasource",
+  "name": "Aria Operations",
+  "id": "vmware-ariaoperations-datasource",
+  "metrics": true,
+  "info": {
+    "description": "Plugin for running queries against VMmware aria operations",
+    "author": {
+      "name": "Pontus Rydin"
+    },
+    "keywords": ["datasource"],
+    "logos": {
+      "small": "img/logo.svg",
+      "large": "img/logo.svg"
+    },
+    "links": [],
+    "screenshots": [],
+    "version": "1.2.1",
+    "updated": "2024-08-08"
+  },
+  "dependencies": {
+    "grafanaDependency": "^9.2.5",
+    "plugins": []
+  },
+  "routes": [
+    {
+      "path": "aria-operations/suite-api/api/auth/token/acquire-withsource",
+      "url": "https://{{.JsonData.host}}/suite-api/api/auth/token/acquire",
+      "method": "POST",
+      "body": {
+        "username": "{{.JsonData.username}}",
+        "authSource": "{{.JsonData.authSource}}",
+        "password": "{{.SecureJsonData.password}}"
+      }
+    },
+    {
+      "path": "aria-operations/suite-api/api/auth/token/acquire",
+      "url": "https://{{.JsonData.host}}/suite-api/api/auth/token/acquire",
+      "method": "POST",
+      "body": {
+        "username": "{{.JsonData.username}}",
+        "password": "{{.SecureJsonData.password}}"
+      }
+    },
+    {
+      "path": "aria-operations/suite-api/api/csp/authorize",
+      "url": "https://console.cloud.vmware.com/csp/gateway/am/api/auth/api-tokens/authorize",
+      "urlParams": [
+        { 
+          "name": "api_token", 
+          "content": "{{.SecureJsonData.password}}"
+        }
+      ]
+    },
+    {
+      "path": "aria-operations",
+      "url": "https://{{.JsonData.host}}/"
+    }
+  ]
+}

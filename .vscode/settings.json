@@ -1,0 +1,5 @@
+{
+    "go.testEnvVars": {
+        "ARIA_TEST_CONFIG": "/Users/pontusrydin/ariatest.json",
+    }
+}

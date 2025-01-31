@@ -1,0 +1,257 @@
+formatVersion: 1
+name: Aria Assembler Opencart Lab using Fixed Networks
+version: 1
+# Input section collects inputs from user at deploy time
+inputs:
+  size:
+    type: string
+    enum:
+      - small
+      - medium
+      - large
+    description: Size of Nodes - uses Flavor mapping
+    default: small
+    title: Node Size
+  clusterSize:
+    type: string
+    enum:
+      - small
+      - medium
+      - large
+    description: Front End Cluster Size
+    default: medium
+    title: Front End Cluster Size
+resources:
+  OC-Apache-Auto:
+    type: Cloud.Machine
+    dependsOn:
+      - OC-MySQL-Auto
+    properties:
+      flavor: ${input.size}
+      image: Ubuntu
+      name: ${self.resourceName}
+      tags:
+        - key: OC Deployment
+          value: ${env.deploymentId}
+        - key: Application-Tier
+          value: Apache
+        - key: Application-Name
+          value: ${env.deploymentName}
+      count: '${input.clusterSize== "small" ? 1 : (input.clusterSize == "medium" ? 2 : 4)}'
+      cloudConfig: |
+        repo_update: true
+        repo_upgrade: all
+        apt_source:
+          - source: deb http://archive.ubuntu.com/ubuntu main universe multiverse restricted
+
+        packages:
+          - apache2
+          - php
+          - php-mysql
+          - libapache2-mod-php
+          - php-cli
+          - php-common
+          - php-intl
+          - php-gd
+          - php-mbstring
+          - php-xml
+          - php-zip
+          - php-curl
+          - php-xmlrpc
+          - mysql-server-5.7
+          - unzip
+          - open-vm-tools
+
+        users:
+          - name: ocuser
+            sudo: ['ALL=(ALL) NOPASSWD:ALL']
+            groups: sudo
+            shell: /bin/bash
+
+        write_files:
+          - path: /etc/hosts
+            content: 127.0.0.1 ${self.resourceName}
+            append: true
+          - path: /etc/apache2/ports.conf
+            content: |
+             listen 8080
+             listen 80
+            #append: true
+
+        runcmd:
+          - systemctl restart apache2
+          - USER=ocuser
+          - PASS=VMware123!
+          - echo $USER:$PASS | /usr/sbin/chpasswd
+          - sed -i "s/PasswordAuthentication no/PasswordAuthentication yes/g" /etc/ssh/sshd_config
+          - service ssh reload
+          - hostnamectl set-hostname ${self.resourceName}
+          - git clone https://github.com/jsenicka/opencart-demo.git /tmp/opencart
+          - sleep 30
+          - mv /tmp/opencart /var/www/
+          - chown -R www-data.www-data /var/www/opencart
+          - chmod -R 775 /var/www/opencart
+          - tee /etc/apache2/sites-available/opencart.conf > /dev/null << EOF
+          - <VirtualHost *:80>
+          -   ServerName www.opencart.vcf.local
+          -   DocumentRoot /var/www/opencart
+          -   <Directory /var/www/opencart/>
+          -     AllowOverride All
+          -     allow from all
+          -   </Directory>
+          - </VirtualHost>
+          - <VirtualHost *:8080>
+          -   ServerName www.opencart.vcf.local
+          -   DocumentRoot /var/www/opencart
+          -   <Directory /var/www/opencart/>
+          -     AllowOverride All
+          -     allow from all
+          -   </Directory>
+          - </VirtualHost>
+          - EOF
+          - cd /etc/apache2/sites-available/
+          - a2ensite opencart.conf
+          - a2dissite 000-default.conf
+          - systemctl reload apache2
+          - systemctl restart apache2
+          - echo "[client]" >> /etc/mysql/mysql.conf.d/mysqld.cnf
+          - echo "user=ocuser" >> /etc/mysql/mysql.conf.d/mysqld.cnf
+          - echo "password=$PASS" >> /etc/mysql/mysql.conf.d/mysqld.cnf
+          - export onpremip=$(ip route get 8.8.8.8 | awk -F"src " 'NR==1{split($2,a," ");print a[1]}')
+          - MySQLip=${resource.OC-MySQL-Auto.networks[0].address}
+          - export ip4=$onpremip
+          - sed -i "s/MOAD Electronic Super Store/Holodeck Aria Assembler Fixed Network Lab/g" /var/www/opencart/install/opencart.sql
+          - mysql -u $USER -h $MySQLip -e 'source /var/www/opencart/install/opencart.sql'
+          - mysql -u $USER -h $MySQLip -e "INSERT INTO oc_user (user_id,user_group_id,username,password,salt,firstname,lastname,email,image,code,ip,status,date_added) VALUES (1,1,'admin','5feaa046f6927df3d744007ec1491dba838f672e','c4wnfrq9J','demo','user','admin@admin.com','none','none','none',1,'2019-01-31 06:29:09')" opencart
+          - sed -i "s/frontendiphere/$ip4/g" /var/www/opencart/config.php
+          - sed -i "s/dbiphere/$MySQLip/g" /var/www/opencart/config.php
+          - sed -i "s/usernamehere/$USER/g" /var/www/opencart/config.php
+          - sed -i "s/passwordhere/$PASS/g" /var/www/opencart/config.php
+          - sed -i "s/frontendiphere/$ip4/g" /var/www/opencart/admin/config.php
+          - sed -i "s/dbiphere/$MySQLip/g" /var/www/opencart/admin/config.php
+          - sed -i "s/usernamehere/$USER/g" /var/www/opencart/admin/config.php
+          - sed -i "s/passwordhere/$PASS/g" /var/www/opencart/admin/config.php
+          - systemctl reload apache2
+          - systemctl restart apache2
+          - cd /tmp
+          - echo "ocuser ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+          - echo 'Cloud-init is done!' >> /tmp/finished.txt
+      constraints:
+        - tag: env:vsphere
+      networks:
+        - network: ${resource["OC-Web-Auto-Seg"].id}
+          securityGroups: []
+  OC-Auto-LB:
+    type: Cloud.NSX.LoadBalancer
+    properties:
+      routes:
+        - protocol: HTTP
+          port: 80
+          instanceProtocol: HTTP
+          instancePort: 80
+      network: ${resource["OC-Web-Auto-Seg"].id}
+      instances: ${resource["OC-Apache-Auto"][*].id}
+  # instances: '${resource.OC-Apache-Auto[*].id}'
+  OC-MySQL-Auto:
+    type: Cloud.Machine
+    properties:
+      flavor: ${input.size}
+      image: Ubuntu
+      tags:
+        - key: OC Deployment
+          value: ${env.deploymentId}
+        - key: Application-Tier
+          value: MySQL
+        - key: Application-Name
+          value: ${env.deploymentName}
+      name: ${self.resourceName}
+      networks:
+        - network: ${resource["OC-DB-Auto-Seg"].id}
+      cloudConfig: |
+        repo_update: true
+        repo_upgrade: all
+        apt_source:
+          - source: deb http://archive.ubuntu.com/ubuntu main universe multiverse restricted
+
+        packages:
+          - mysql-server-5.7
+          - mysql-client
+          - unzip
+          - open-vm-tools
+
+        users:
+          - name: ocuser
+            sudo: ['ALL=(ALL) NOPASSWD:ALL']
+            groups: sudo
+            shell: /bin/bash
+
+        write_files:
+          - path: /etc/cron.hourly/oc_cleanup
+            owner: root
+            permissions: '0777'
+            content: "mysql -u ocuser -D opencart -e 'delete from oc_session where oc_session.expire < DATE_SUB(NOW(), INTERVAL 360 DAY);'"
+          - path: /etc/cron.daily/mysqlslowlogs
+            owner: root
+            permissions: '0666'
+            content: |
+              /var/lib/mysql/mysql-slow.log {
+                 size 1G
+                 dateext
+                 compress
+                 missingok
+                 rotate 2
+                 notifempty
+                 delaycompress
+                 sharedscripts
+                 nocopytruncate
+                 create 660 mysql mysql
+                 postrotate
+                 /usr/bin/mysql -e 'select @@global.slow_query_log into @sq_log_save; set global slow_query_log=off; select sleep(5); FLUSH SLOW LOGS; select sleep(10); set global slow_query_log=@sq_log_save;'
+                 endscript
+                 rotate 150
+              }
+          - path: /etc/hosts
+            content: 127.0.0.1 ${self.name}
+            append: true
+
+        runcmd:
+          - export DEBIAN_Apache=noninteractive
+          - USER=ocuser
+          - PASS=VMware123!
+          - echo $USER:$PASS | /usr/sbin/chpasswd
+          - sed -i "s/PasswordAuthentication no/PasswordAuthentication yes/g" /etc/ssh/sshd_config
+          - service ssh reload
+          - hostnamectl set-hostname ${self.resourceName}
+          - echo "mysql-server-5.7 mysql-server/root_password password root" | sudo debconf-set-selections
+          - echo "mysql-server-5.7 mysql-server/root_password_again password root" | sudo debconf-set-selections
+          - echo "[client]" >> /etc/mysql/mysql.conf.d/mysqld.cnf
+          - echo "user=root" >> /etc/mysql/mysql.conf.d/mysqld.cnf
+          - echo "password=root" >> /etc/mysql/mysql.conf.d/mysqld.cnf
+          - echo "user=ocuser" >> /etc/mysql/mysql.conf.d/mysqld.cnf
+          - echo "password=$PASS" >> /etc/mysql/mysql.conf.d/mysqld.cnf
+          - sed -i 's/#slow/slow/g' /etc/mysql/mysql.conf.d/mysqld.cnf
+          - sed -i 's/#long_query_time/long_query_time/g' /etc/mysql/mysql.conf.d/mysqld.cnf
+          - sed -i 's/bind-address/#bind-address/g' /etc/mysql/mysql.conf.d/mysqld.cnf
+          - systemctl restart mysql
+          - mysql -u root -e "GRANT ALL ON *.* TO '$USER'@'%' IDENTIFIED BY '$PASS'"
+          - mysql -u root -e 'CREATE DATABASE opencart'
+          - mysql -u root -e 'USE opencart'
+          - mysql -u root -e 'flush privileges'
+          - cd /tmp
+          - echo 'Cloud-init is done!' >> /tmp/finished.txt
+      constraints:
+        - tag: env:vsphere
+  OC-Web-Auto-Seg:
+    type: Cloud.NSX.Network
+    properties:
+      networkType: existing
+      constraints:
+        - tag: oc-fixed-network:oc-web
+        - tag: DeploymentType:Holodeck
+  OC-DB-Auto-Seg:
+    type: Cloud.NSX.Network
+    properties:
+      networkType: existing
+      constraints:
+        - tag: oc-fixed-network:oc-db
+        - tag: DeploymentType:Holodeck
