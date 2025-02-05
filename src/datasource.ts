@@ -31,9 +31,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 import {
-  DataQueryRequest,
-  DataQueryResponse,
-  DataSourceApi,
   DataSourceInstanceSettings,
   MutableDataFrame,
   Labels,
@@ -42,17 +39,13 @@ import {
   FieldType,
 } from '@grafana/data';
 
-import { FetchResponse, getBackendSrv } from '@grafana/runtime';
+import { DataSourceWithBackend, FetchResponse, getBackendSrv } from '@grafana/runtime';
 import { catchError } from 'rxjs/operators';
 
-import /* eslint-disable-line @typescript-eslint/no-unused-vars */ _, {
-  defaults,
-} from 'lodash';
 
 import {
   AriaOpsQuery,
   AriaOpsOptions,
-  defaultQuery,
   ResourceRequest,
   AggregationSpec,
   SlidingWindowSpec,
@@ -109,7 +102,7 @@ class AriaOpsError extends Error {
   }
 }
 
-export class AriaOpsDataSource extends DataSourceApi<
+export class AriaOpsDataSource extends DataSourceWithBackend<
   AriaOpsQuery,
   AriaOpsOptions
 > {
@@ -554,9 +547,10 @@ export class AriaOpsDataSource extends DataSourceApi<
     return response;
   }
 
-  async query(
+  /*
+  old_query(
     options: DataQueryRequest<AriaOpsQuery>
-  ): Promise<DataQueryResponse> {
+  ): Observable<DataQueryResponse> {
     const { range, maxDataPoints } = options;
     const from = range.from.valueOf();
     const to = range.to.valueOf();
@@ -601,6 +595,7 @@ export class AriaOpsDataSource extends DataSourceApi<
     }
     return { data };
   }
+    
 
   async testDatasource() {
     // Sign in and list adapter kinds. If this works, the plugin can communicate with vR Ops and chances are
@@ -629,5 +624,5 @@ export class AriaOpsDataSource extends DataSourceApi<
       status: 'success',
       message: 'Success',
     };
-  }
-}
+  } */
+} 

@@ -35,7 +35,7 @@ func newAuthenticatedClient() (*AriaClient, error) {
 	}
 
 	client := NewAriaClient(config.Url, true)
-	if err = client.Authenticate(config.Username, config.Password, "LOCAL"); err != nil {
+	if err = client.RefreshAuthTokenIfNeeded(config.Username, config.Password, "LOCAL"); err != nil {
 		return nil, err
 	}
 	return client, nil
@@ -79,4 +79,20 @@ func TestGetAdapterKinds(t *testing.T) {
 		}
 	}
 	t.Error("VMWARE adapter kind not found")
+}
+
+// Test AriaClient.GetResourceKinds
+func TestGetResourceKinds(t *testing.T) {
+	var response ResourceKindResponse
+	client, err := newAuthenticatedClient()
+	require.NoError(t, err)
+	err = client.GetResourceKinds("VMWARE", &response)
+	require.NoError(t, err)
+	require.NotEmpty(t, response.ResourceKind)
+	for _, kind := range response.ResourceKind {
+		if kind.Key == "VirtualMachine" {
+			return
+		}
+	}
+	t.Error("VirtualMachine resource kind not found")
 }

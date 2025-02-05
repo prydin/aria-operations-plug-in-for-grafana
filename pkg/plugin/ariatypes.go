@@ -63,7 +63,7 @@ type AdapterKindResponse struct {
 }
 
 type ResourceKindResponse struct {
-	ResourceKind []KeyNamePair `json:"resourceKind,omitempty"` // TODO: respource-kind
+	ResourceKind []KeyNamePair `json:"resource-kind,omitempty"` // TODO: respource-kind
 }
 
 type ResourceKindAttribute struct {

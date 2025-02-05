@@ -4,6 +4,8 @@
   "name": "Aria Operations",
   "id": "vmware-ariaoperations-datasource",
   "metrics": true,
+  "backend": true,
+  "executable": "ariaops-plugin",
   "info": {
     "description": "Plugin for running queries against VMmware aria operations",
     "author": {

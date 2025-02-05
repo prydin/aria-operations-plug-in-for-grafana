@@ -4,14 +4,18 @@ import (
 	"crypto/tls"
 	json "encoding/json"
 	"fmt"
+	"sync"
+	"time"
 
 	resty "github.com/go-resty/resty/v2"
+	"github.com/grafana/grafana-plugin-sdk-go/backend"
 )
 
 type AriaClient struct {
-	rootURL string
-	token   string
-	rest    *resty.Client
+	mutex         sync.Mutex
+	rootURL       string
+	authTimestamp time.Time
+	rest          *resty.Client
 }
 
 func NewAriaClient(rootURL string, noVerify bool) *AriaClient {
@@ -63,15 +67,32 @@ func (a *AriaClient) get(url string, response any) error {
 	return nil
 }
 
+func (a *AriaClient) RefreshAuthTokenIfNeeded(username, password, authSource string) error {
+	a.mutex.Lock()
+	defer a.mutex.Unlock()
+
+	// Reauthenticate one every 10 minutes
+	backend.Logger.Debug("Revalidating auth token")
+	if time.Since(a.authTimestamp) > 10*time.Minute {
+		backend.Logger.Debug("Auth token expired. Reauthenticating")
+		if err := a.Authenticate(username, password, authSource); err != nil {
+			return err
+		}
+		backend.Logger.Debug("Reauhtentication was successful")
+	}
+	return nil
+}
+
 func (a *AriaClient) Authenticate(username, password, authSource string) error {
 	request := AuthRequest{Username: username, Password: password, AuthSource: authSource}
 	var authResponse AuthResponse
 	if err := a.post("/auth/token/acquire", &request, &authResponse); err != nil {
 		return err
 	}
-	a.token = authResponse.Token
+	token := authResponse.Token
 	a.rest.SetAuthScheme("vRealizeOpsToken")
-	a.rest.SetAuthToken(a.token)
+	a.rest.SetAuthToken(token)
+	a.authTimestamp = time.Now()
 	return nil
 }
 
@@ -81,4 +102,8 @@ func (a *AriaClient) GetResources(query *ResourceRequest, response *ResourceResp
 
 func (a *AriaClient) GetAdapterKinds(response *AdapterKindResponse) error {
 	return a.get("/adapterkinds", response)
+}
+
+func (a *AriaClient) GetResourceKinds(adapterKind string, response *ResourceKindResponse) error {
+	return a.get("/adapterkinds/"+adapterKind+"/resourcekinds", response)
 }
