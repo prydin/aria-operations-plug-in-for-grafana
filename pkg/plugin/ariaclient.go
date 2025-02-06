@@ -9,6 +9,7 @@ import (
 
 	resty "github.com/go-resty/resty/v2"
 	"github.com/grafana/grafana-plugin-sdk-go/backend"
+	"github.com/prydin/aria-operations-plug-in-for-grafana/pkg/models"
 )
 
 type AriaClient struct {
@@ -84,8 +85,8 @@ func (a *AriaClient) RefreshAuthTokenIfNeeded(username, password, authSource str
 }
 
 func (a *AriaClient) Authenticate(username, password, authSource string) error {
-	request := AuthRequest{Username: username, Password: password, AuthSource: authSource}
-	var authResponse AuthResponse
+	request := models.AuthRequest{Username: username, Password: password, AuthSource: authSource}
+	var authResponse models.AuthResponse
 	if err := a.post("/auth/token/acquire", &request, &authResponse); err != nil {
 		return err
 	}
@@ -96,14 +97,18 @@ func (a *AriaClient) Authenticate(username, password, authSource string) error {
 	return nil
 }
 
-func (a *AriaClient) GetResources(query *ResourceRequest, response *ResourceResponse) error {
+func (a *AriaClient) GetResources(query *models.ResourceRequest, response *models.ResourceResponse) error {
 	return a.post("/resources/query", query, response)
 }
 
-func (a *AriaClient) GetAdapterKinds(response *AdapterKindResponse) error {
+func (a *AriaClient) GetAdapterKinds(response *models.AdapterKindResponse) error {
 	return a.get("/adapterkinds", response)
 }
 
-func (a *AriaClient) GetResourceKinds(adapterKind string, response *ResourceKindResponse) error {
+func (a *AriaClient) GetResourceKinds(adapterKind string, response *models.ResourceKindResponse) error {
 	return a.get("/adapterkinds/"+adapterKind+"/resourcekinds", response)
+}
+
+func (a *AriaClient) GetMetrics(query *models.ResourceStatsRequest, response *models.ResourceStatsResponse) error {
+	return a.post("/resource/stats/query", query, response)
 }

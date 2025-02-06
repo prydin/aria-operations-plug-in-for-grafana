@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/grafana/grafana-plugin-sdk-go/backend"
@@ -123,7 +124,7 @@ func (d *Datasource) CheckHealth(_ context.Context, req *backend.CheckHealthRequ
 	}
 
 	// Try a simple API call
-	var apiResult AdapterKindResponse
+	var apiResult models.AdapterKindResponse
 	err = d.client.GetAdapterKinds(&apiResult)
 	if err != nil {
 		res.Status = backend.HealthStatusError
@@ -141,3 +142,102 @@ func (d *Datasource) CheckHealth(_ context.Context, req *backend.CheckHealthRequ
 		Message: "Success!",
 	}, nil
 }
+
+// Get metrics from the API
+func (d *Datasource) GetMetrics(
+	refID string,
+	resources map[string]string,
+	metrics []string,
+	begin int,
+	end int,
+	maxPoints int,
+	//aggregation models.AggregationSpec,
+	//smootherSpec models.SlidingWindowSpec,
+) ([]data.Frame, error) {
+	interval := int(math.Max(float64((end-begin)/(maxPoints*60000)), 5))
+	resourceIds := make([]string, len(resources))
+	for k := range resources {
+		resourceIds = append(resourceIds, k)
+	}
+	metricQuery := models.ResourceStatsRequest{
+		ResourceId:         resourceIds,
+		StatKey:            metrics,
+		Begin:              int64(begin),
+		End:                int64(end),
+		RollUpType:         "AVG",
+		IntervalType:       "MINUTES",
+		IntervalQuantifier: int64(interval),
+	}
+	var metricResponse models.ResourceStatsResponse
+	err := d.client.GetMetrics(&metricQuery, &metricResponse)
+	return nil, err
+}
+
+/*
+async getMetrics(
+    refId: string,
+    resources: Map<string, string>,
+    metrics: string[],
+    begin: number,
+    end: number,
+    maxPoints: number,
+    aggregation: AggregationSpec | undefined,
+    smootherSpec: SlidingWindowSpec | undefined
+  ): Promise<DataFrame[]> {
+    const interval = Math.max((end - begin) / (maxPoints * 60000), 5);
+
+    // TODO: Extend time window if there is a smoother that needs time shifting
+    const smootherFactory = smootherSpec
+      ? () =>
+        smootherFactories[smootherSpec.type](
+          interval * 60000,
+          end - begin,
+          smootherSpec.params
+        )
+      : null;
+    const extenedEnd = smootherSpec?.params?.shift
+      ? smootherSpec.params.duration
+      : 0;
+    const payload = {
+      resourceId: [...resources.keys()],
+      statKey: metrics,
+      begin: begin.toFixed(0),
+      end: (end + extenedEnd).toFixed(0),
+      rollUpType: 'AVG',
+      intervalType: 'MINUTES',
+      intervalQuantifier: interval.toFixed(0),
+    };
+    const resp = await this.post<ResourceStatsRequest, ResourceStatsResponse>(
+      'resources/stats/query',
+      payload
+    );
+    if (aggregation) {
+      let propertyMap = new Map<string, Map<string, string>>();
+      if (aggregation.properties) {
+        propertyMap = await this.getPropertiesForResources(
+          resp.values.map((r: ResourceStats) => r.resourceId),
+          aggregation.properties
+        );
+      }
+      const stats = new Stats(aggregation);
+      for (const r of resp.values) {
+        for (const envelope of r.stat_list.stat) {
+          const pm = propertyMap.get(r.resourceId) || new Map<string, string>();
+          pm.set('$statKey', envelope.statKey.key);
+          stats.add(envelope.timestamps, envelope.data, pm);
+        }
+      }
+      return stats.toFrames(refId, aggregation, smootherFactory);
+    }
+    return resp.values
+      .map((r: ResourceStats): DataFrame[] => {
+        return this.framesFromResourceMetrics(
+          refId,
+          resources,
+          r,
+          smootherFactory
+        );
+      })
+      .flat();
+  }
+*/

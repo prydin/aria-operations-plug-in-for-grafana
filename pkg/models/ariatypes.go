@@ -1,4 +1,4 @@
-package plugin
+package models
 
 type AuthRequest struct {
 	Username   string `json:"username,omitempty"`
@@ -97,7 +97,7 @@ type ResourceStatsRequest struct {
 	End                int64    `json:"end,omitempty"`
 	RollUpType         string   `json:"rollUpType,omitempty"`
 	IntervalType       string   `json:"intervalType,omitempty"`
-	IntervalQuantifier string   `json:"intervalQuantifier,omitempty"`
+	IntervalQuantifier int64    `json:"intervalQuantifier,omitempty"`
 }
 
 type ResourceStatsResponse struct {

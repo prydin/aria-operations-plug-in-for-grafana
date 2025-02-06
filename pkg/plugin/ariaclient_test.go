@@ -4,6 +4,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/prydin/aria-operations-plug-in-for-grafana/pkg/models"
 	"github.com/stretchr/testify/require"
 	yaml "gopkg.in/yaml.v2"
 )
@@ -52,10 +53,10 @@ func TestAuthenticate(t *testing.T) {
 
 // Test AriaClient.GetResources
 func TestGetResources(t *testing.T) {
-	var response ResourceResponse
+	var response models.ResourceResponse
 	client, err := newAuthenticatedClient()
 	require.NoError(t, err)
-	request := ResourceRequest{
+	request := models.ResourceRequest{
 		ResourceKind: []string{"VirtualMachine"},
 		Name:         []string{"VM_Workload_02"},
 	}
@@ -67,7 +68,7 @@ func TestGetResources(t *testing.T) {
 
 // Test AriaClient.GetAdapterKinds
 func TestGetAdapterKinds(t *testing.T) {
-	var response AdapterKindResponse
+	var response models.AdapterKindResponse
 	client, err := newAuthenticatedClient()
 	require.NoError(t, err)
 	err = client.GetAdapterKinds(&response)
@@ -83,7 +84,7 @@ func TestGetAdapterKinds(t *testing.T) {
 
 // Test AriaClient.GetResourceKinds
 func TestGetResourceKinds(t *testing.T) {
-	var response ResourceKindResponse
+	var response models.ResourceKindResponse
 	client, err := newAuthenticatedClient()
 	require.NoError(t, err)
 	err = client.GetResourceKinds("VMWARE", &response)
