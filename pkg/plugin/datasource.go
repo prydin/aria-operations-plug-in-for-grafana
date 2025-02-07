@@ -82,20 +82,41 @@ func (d *Datasource) query(_ context.Context, pCtx backend.PluginContext, query 
 	backend.Logger.Debug("Unmarshal", "query", qm)
 	backend.Logger.Debug("Unmarshal", "query", qm.AdvancedMode)
 
-	// create data frame response.
-	// For an overview on data frames and how grafana handles them:
-	// https://grafana.com/developers/plugin-tools/introduction/data-frames
-	frame := data.NewFrame("response")
+	// Compile the query model
+	cq, err := CompileQuery(&qm)
+	if err != nil {
+		return backend.ErrDataResponse(backend.StatusBadRequest, fmt.Sprintf("query compilation: %v", err.Error()))
+	}
 
-	// add fields.
-	frame.Fields = append(frame.Fields,
-		data.NewField("time", nil, []time.Time{query.TimeRange.From, query.TimeRange.To}),
-		data.NewField("values", nil, []int64{10, 20}),
-	)
+	// Get the resources
+	var resources models.ResourceResponse
+	err = d.client.GetResources(&cq.ResourceQuery, &resources)
 
-	// add the frames to the response.
-	response.Frames = append(response.Frames, frame)
+	// Get the metrics
+	resourceMap := make(map[string]string)
+	for _, resource := range resources.ResourceList {
+		resourceMap[resource.Identifier] = resource.ResourceKey.Name
+	}
 
+	err = d.GetMetrics(query.RefID, resourceMap, cq.Metrics, query.TimeRange, query.Interval, response.Frames)
+	if err != nil {
+		return backend.ErrDataResponse(backend.StatusBadRequest, fmt.Sprintf("querying metrics: %v", err.Error()))
+	}
+
+	/*
+		// create data frame response.
+		// For an overview on data frames and how grafana handles them:
+		// https://grafana.com/developers/plugin-tools/introduction/data-frames
+		frame := data.NewFrame("response")
+
+		// add fields.
+		frame.Fields = append(frame.Fields,
+			data.NewField("time", nil, []time.Time{query.TimeRange.From, query.TimeRange.To}),
+			data.NewField("values", nil, []int64{10, 20}),
+		)
+
+		// add the frames to the response.
+		response.Frames = append(response.Frames, frame) */
 	return response
 }
 
@@ -148,13 +169,11 @@ func (d *Datasource) GetMetrics(
 	refID string,
 	resources map[string]string,
 	metrics []string,
-	begin int,
-	end int,
-	maxPoints int,
+	timeRange backend.TimeRange,
+	interval time.Duration,
 	//aggregation models.AggregationSpec,
 	//smootherSpec models.SlidingWindowSpec,
-) ([]data.Frame, error) {
-	interval := int(math.Max(float64((end-begin)/(maxPoints*60000)), 5))
+	frames data.Frames) error {
 	resourceIds := make([]string, len(resources))
 	for k := range resources {
 		resourceIds = append(resourceIds, k)
@@ -162,18 +181,81 @@ func (d *Datasource) GetMetrics(
 	metricQuery := models.ResourceStatsRequest{
 		ResourceId:         resourceIds,
 		StatKey:            metrics,
-		Begin:              int64(begin),
-		End:                int64(end),
+		Begin:              timeRange.From.Unix(),
+		End:                timeRange.To.Unix(),
 		RollUpType:         "AVG",
 		IntervalType:       "MINUTES",
-		IntervalQuantifier: int64(interval),
+		IntervalQuantifier: int64(math.Max(interval.Minutes(), 5)),
 	}
 	var metricResponse models.ResourceStatsResponse
 	err := d.client.GetMetrics(&metricQuery, &metricResponse)
-	return nil, err
+	if err != nil {
+		return err
+	}
+	for _, resourceMetrics := range metricResponse.Values {
+		d.framesFromResourceMetrics(refID, resources, &resourceMetrics, frames)
+	}
+	return err
+}
+
+func (d *Datasource) framesFromResourceMetrics(refId string, resources map[string]string, resourceMetrics *models.ResourceStats, frames data.Frames) {
+	resId := resourceMetrics.ResourceId
+	for _, envelope := range resourceMetrics.StatList.Stat {
+		resName := "unknown"
+		if r, ok := resources[resId]; !ok {
+			resName = r
+		}
+		labels := map[string]string{"resourceName": resName}
+		frame := data.NewFrame(refId)
+		for i, ts := range envelope.Timestamps {
+			frame.Fields = append(frame.Fields,
+				data.NewField("time", nil, []time.Time{time.Unix(ts, 0)}),
+				data.NewField("values", labels, []float64{envelope.Data[i]}))
+		}
+		frames = append(frames, frame)
+	}
 }
 
 /*
+
+private framesFromResourceMetrics(
+    refId: string,
+    resources: Map<string, string>,
+    resourceMetric: ResourceStats,
+    smootherFactory: (() => Smoother) | null
+  ): DataFrame[] {
+    const frames: MutableDataFrame[] = [];
+    const resId = resourceMetric.resourceId;
+    for (const envelope of resourceMetric.stat_list.stat) {
+      const labels: Labels = {
+        resourceName: resources.get(resId) || 'unknown',
+      };
+      const frame = new MutableDataFrame({
+        refId: refId,
+        name: envelope.statKey.key,
+        fields: [
+          { name: 'Time', type: FieldType.time },
+          { name: 'Value', type: FieldType.number, labels: labels },
+        ],
+      });
+      frames.push(frame);
+      if (smootherFactory) {
+        const smoother = smootherFactory();
+        // Run samples through the smoother
+        envelope.timestamps.forEach((ts, i) => {
+          const point = smoother.pushAndGet(ts, envelope.data[i]);
+          frame.add({ Time: point.timestamp, Value: point.value });
+        });
+      } else {
+        // No smoother
+        envelope.timestamps.forEach((ts, i) => {
+          frame.add({ Time: envelope.timestamps[i], Value: envelope.data[i] });
+        });
+      }
+    }
+    return frames;
+  }
+
 async getMetrics(
     refId: string,
     resources: Map<string, string>,
