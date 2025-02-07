@@ -3,6 +3,7 @@ package plugin
 import (
 	"os"
 	"testing"
+	"time"
 
 	"github.com/prydin/aria-operations-plug-in-for-grafana/pkg/models"
 	"github.com/stretchr/testify/require"
@@ -96,4 +97,22 @@ func TestGetResourceKinds(t *testing.T) {
 		}
 	}
 	t.Error("VirtualMachine resource kind not found")
+}
+
+// Test AriaClient.GetMetrics
+func TestGetMetrics(t *testing.T) {
+	client, err := newAuthenticatedClient()
+	require.NoError(t, err)
+	query := models.ResourceStatsRequest{
+		ResourceId:         []string{"dd3f76cc-4c44-4e3b-913a-17af826d8d28"},
+		StatKey:            []string{"cpu|demandpct"},
+		Begin:              (time.Now().Unix() - 86400) * 1000,
+		End:                time.Now().Unix() * 1000,
+		IntervalType:       "MINUTES",
+		IntervalQuantifier: 5,
+		RollUpType:         "AVG",
+	}
+	response := models.ResourceStatsResponse{}
+	err = client.GetMetrics(&query, &response)
+	require.NoError(t, err)
 }

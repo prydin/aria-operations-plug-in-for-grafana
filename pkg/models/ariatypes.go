@@ -87,7 +87,7 @@ type ResourceStats struct {
 	ResourceId string `json:"resourceId,omitempty"`
 	StatList   struct {
 		Stat []Stat `json:"stat,omitempty"`
-	} `json:"statList,omitempty"` // TODO: stat-list
+	} `json:"stat-list,omitempty"`
 }
 
 type ResourceStatsRequest struct {

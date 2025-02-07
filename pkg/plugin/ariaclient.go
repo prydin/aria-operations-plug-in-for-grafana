@@ -110,5 +110,10 @@ func (a *AriaClient) GetResourceKinds(adapterKind string, response *models.Resou
 }
 
 func (a *AriaClient) GetMetrics(query *models.ResourceStatsRequest, response *models.ResourceStatsResponse) error {
-	return a.post("/resource/stats/query", query, response)
+	raw, err := json.Marshal(query)
+	if err != nil {
+		return err
+	}
+	backend.Logger.Debug("GetMetrics", "query", string(raw))
+	return a.post("/resources/stats/query", query, response)
 }

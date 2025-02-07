@@ -70,9 +70,7 @@ func (d *Datasource) QueryData(ctx context.Context, req *backend.QueryDataReques
 func (d *Datasource) query(_ context.Context, pCtx backend.PluginContext, query backend.DataQuery) backend.DataResponse {
 	var response backend.DataResponse
 
-	// backend.Logger.Debug("*********** Secrets", "secrets", pCtx.DataSourceInstanceSettings.DecryptedSecureJSONData)
-
-	// Unmarshal the JSON into our queryModel.
+	d.authenticate(pCtx)
 	var qm models.AriaOpsQuery
 
 	err := json.Unmarshal(query.JSON, &qm)
@@ -91,6 +89,9 @@ func (d *Datasource) query(_ context.Context, pCtx backend.PluginContext, query 
 	// Get the resources
 	var resources models.ResourceResponse
 	err = d.client.GetResources(&cq.ResourceQuery, &resources)
+	if err != nil {
+		return backend.ErrDataResponse(backend.StatusBadRequest, fmt.Sprintf("resource fetch: %v", err.Error()))
+	}
 
 	// Get the metrics
 	resourceMap := make(map[string]string)
@@ -98,10 +99,11 @@ func (d *Datasource) query(_ context.Context, pCtx backend.PluginContext, query 
 		resourceMap[resource.Identifier] = resource.ResourceKey.Name
 	}
 
-	err = d.GetMetrics(query.RefID, resourceMap, cq.Metrics, query.TimeRange, query.Interval, response.Frames)
+	frames, err := d.GetMetrics(query.RefID, resourceMap, cq.Metrics, query.TimeRange, query.Interval)
 	if err != nil {
 		return backend.ErrDataResponse(backend.StatusBadRequest, fmt.Sprintf("querying metrics: %v", err.Error()))
 	}
+	response.Frames = frames
 
 	/*
 		// create data frame response.
@@ -120,24 +122,27 @@ func (d *Datasource) query(_ context.Context, pCtx backend.PluginContext, query 
 	return response
 }
 
+func (d *Datasource) authenticate(pCtx backend.PluginContext) error {
+	pluginSettings, err := models.LoadPluginSettings(pCtx.DataSourceInstanceSettings)
+	if err != nil {
+		return err
+	}
+	password := models.LoadSecrets(pCtx.DataSourceInstanceSettings)["password"]
+	// backend.Logger.Debug("Secrets", "secrets", models.LoadSecrets(settings))
+	err = d.client.RefreshAuthTokenIfNeeded(pluginSettings.Username, password, pluginSettings.AuthSource)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 // CheckHealth handles health checks sent from Grafana to the plugin.
 // The main use case for these health checks is the test button on the
 // datasource configuration page which allows users to verify that
 // a datasource is working as expected.
 func (d *Datasource) CheckHealth(_ context.Context, req *backend.CheckHealthRequest) (*backend.CheckHealthResult, error) {
 	res := &backend.CheckHealthResult{}
-	settings := req.PluginContext.DataSourceInstanceSettings
-	pluginSettings, err := models.LoadPluginSettings(req.PluginContext.DataSourceInstanceSettings)
-
-	if err != nil {
-		res.Status = backend.HealthStatusError
-		res.Message = "Unable to load settings"
-		return res, nil
-	}
-
-	password := models.LoadSecrets(settings)["password"]
-	// backend.Logger.Debug("Secrets", "secrets", models.LoadSecrets(settings))
-	err = d.client.RefreshAuthTokenIfNeeded(pluginSettings.Username, password, pluginSettings.AuthSource)
+	err := d.authenticate(req.PluginContext)
 	if err != nil {
 		res.Status = backend.HealthStatusError
 		res.Message = fmt.Sprintf("Unable to authenticate: %s", err)
@@ -172,48 +177,59 @@ func (d *Datasource) GetMetrics(
 	timeRange backend.TimeRange,
 	interval time.Duration,
 	//aggregation models.AggregationSpec,
-	//smootherSpec models.SlidingWindowSpec,
-	frames data.Frames) error {
-	resourceIds := make([]string, len(resources))
+	//smootherSpec models.SlidingWindowSpec
+) (data.Frames, error) {
+	resourceIds := make([]string, 0)
 	for k := range resources {
 		resourceIds = append(resourceIds, k)
 	}
 	metricQuery := models.ResourceStatsRequest{
 		ResourceId:         resourceIds,
 		StatKey:            metrics,
-		Begin:              timeRange.From.Unix(),
-		End:                timeRange.To.Unix(),
+		Begin:              timeRange.From.UnixMilli(),
+		End:                timeRange.To.UnixMilli(),
 		RollUpType:         "AVG",
 		IntervalType:       "MINUTES",
 		IntervalQuantifier: int64(math.Max(interval.Minutes(), 5)),
 	}
-	var metricResponse models.ResourceStatsResponse
+	backend.Logger.Debug("get metrics", "query", metricQuery)
+	metricResponse := models.ResourceStatsResponse{}
 	err := d.client.GetMetrics(&metricQuery, &metricResponse)
+	backend.Logger.Debug("get metrics returned", "count", len(metricResponse.Values))
 	if err != nil {
-		return err
+		return nil, err
 	}
+	frames := make(data.Frames, 0)
 	for _, resourceMetrics := range metricResponse.Values {
-		d.framesFromResourceMetrics(refID, resources, &resourceMetrics, frames)
+		frames = append(frames, d.FramesFromResourceMetrics(refID, resources, &resourceMetrics)...)
 	}
-	return err
+	return frames, nil
 }
 
-func (d *Datasource) framesFromResourceMetrics(refId string, resources map[string]string, resourceMetrics *models.ResourceStats, frames data.Frames) {
+func (d *Datasource) FramesFromResourceMetrics(refId string, resources map[string]string, resourceMetrics *models.ResourceStats) data.Frames {
+	frames := make(data.Frames, 0)
 	resId := resourceMetrics.ResourceId
 	for _, envelope := range resourceMetrics.StatList.Stat {
 		resName := "unknown"
-		if r, ok := resources[resId]; !ok {
+		if r, ok := resources[resId]; ok {
 			resName = r
 		}
 		labels := map[string]string{"resourceName": resName}
-		frame := data.NewFrame(refId)
+		frame := data.NewFrame(envelope.StatKey.Key)
+		timestamps := make([]time.Time, len(envelope.Timestamps))
+		values := make([]float64, len(envelope.Timestamps))
 		for i, ts := range envelope.Timestamps {
-			frame.Fields = append(frame.Fields,
-				data.NewField("time", nil, []time.Time{time.Unix(ts, 0)}),
-				data.NewField("values", labels, []float64{envelope.Data[i]}))
+			timestamps[i] = time.Unix(ts/1000, 0)
+			values[i] = float64(envelope.Data[i])
 		}
+		frame.Fields = append(frame.Fields,
+			data.NewField("Time", nil, timestamps),
+			data.NewField("Value", labels, values))
 		frames = append(frames, frame)
+		backend.Logger.Debug("framesFromResourceMetrics", "field", len(frame.Fields))
 	}
+	backend.Logger.Debug("framesFromResourceMetrics", "frameCount", len(frames))
+	return frames
 }
 
 /*

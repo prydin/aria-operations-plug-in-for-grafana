@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestCompileQuery(t *testing.T) {
+func TestCompileSimpleQuery(t *testing.T) {
 	q := models.AriaOpsQuery{
 		ResourceId:   "12345",
 		Metric:       "cpu|demandmhz",
