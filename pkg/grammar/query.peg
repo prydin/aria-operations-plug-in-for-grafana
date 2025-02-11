@@ -1,0 +1,73 @@
+#go:build grammars
+# +build grammars
+
+package grammar
+
+type QueryParser Peg {
+    Query RawQuery;
+
+    currentList []string
+    currentText string
+}
+
+Query <- 
+    TypeSpec 
+    ( Dot Filter )+ 
+    Dot Metrics !.
+
+TypeSpec <- 
+    RESOURCE { p.currentList = make([]string, 0) } 
+    LP IdentifierList RP { p.Query.ResourceKinds = p.currentList }
+
+Filter <-
+      NAME { p.currentList = make([]string, 0) }
+      LP LiteralStringList RP { p.Query.Name = p.currentList } 
+    / REGEX { p.currentList = make([]string, 0) }
+      LP LiteralStringList RP { p.Query.Regex = p.currentList } 
+    / WHERE_HEALTH { p.currentList = make([]string, 0) }
+      LP IdentifierList RP { p.Query.Health = p.currentList }
+    / WHERE_STATUS { p.currentList = make([]string, 0) }
+      LP IdentifierList RP { p.Query.Status = p.currentList }
+    / WHERE_STATE { p.currentList = make([]string, 0) }
+      LP IdentifierList RP { p.Query.State = p.currentList }
+
+
+Metrics <- 
+    METRICS { p.currentList = make([]string, 0) } LP IdentifierList RP { p.Query.Metrics = p.currentList}
+
+# Identifiers    
+Identifier <-
+    IDStartCharacter IDCharacter* /
+    BackTick <IDQuotedCharacter+> BackTick
+
+IdentifierList <- 
+    <Identifier> { p.currentList = append(p.currentList, text)} 
+    (Comma <Identifier> { p.currentList = append(p.currentList, text)} )*
+
+LiteralStringList <- 
+    <LiteralString> { p.currentList = append(p.currentList, p.currentText )}
+    (Comma <LiteralString> { p.currentList = append(p.currentList, p.currentText) })*
+
+IDStartCharacter        <- [A-Za-z_]
+IDCharacter             <- [A-Za-z0-9_:|.\-]
+IDQuotedCharacter       <- [A-Za-z0-9_:|.\- ,$]
+LiteralString           <- Quote <LiteralChar*> { p.currentText = text } Quote 
+
+# Reserved words
+METRICS                 <- "metric"
+NAME                    <- "name"
+REGEX                   <- "regex"
+RESOURCE                <- "resource"
+WHERE_HEALTH            <- "whereHealth"
+WHERE_STATE             <- "whereState"
+WHERE_STATUS            <- "whereStatus"
+
+# Lexical tokens
+Quote                   <- '"'
+Comma                   <- _ ',' _
+BackTick                <- '`'
+Dot                     <- _ '.' _
+LP                      <- _ '(' _ 
+RP                      <- _ ')' _ 
+_                       <- [ \t\n\r]*
+LiteralChar             <- [^"^\n] 

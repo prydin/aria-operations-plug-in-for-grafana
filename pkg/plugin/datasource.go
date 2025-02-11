@@ -70,10 +70,13 @@ func (d *Datasource) QueryData(ctx context.Context, req *backend.QueryDataReques
 func (d *Datasource) query(_ context.Context, pCtx backend.PluginContext, query backend.DataQuery) backend.DataResponse {
 	var response backend.DataResponse
 
-	d.authenticate(pCtx)
+	err := d.authenticate(pCtx)
+	if err != nil {
+		return backend.ErrDataResponse(backend.StatusBadRequest, fmt.Sprintf("authentication: %v", err.Error()))
+	}
 	var qm models.AriaOpsQuery
 
-	err := json.Unmarshal(query.JSON, &qm)
+	err = json.Unmarshal(query.JSON, &qm)
 	if err != nil {
 		return backend.ErrDataResponse(backend.StatusBadRequest, fmt.Sprintf("json unmarshal: %v", err.Error()))
 	}
