@@ -6,8 +6,11 @@ package grammar
 type QueryParser Peg {
     Query RawQuery;
 
-    currentList []string
     currentText string
+    currentList []string
+    currentCondition Condition
+    currentConditions []Condition
+    currentConjunctive int    
 }
 
 Query <- 
@@ -20,16 +23,74 @@ TypeSpec <-
     LP IdentifierList RP { p.Query.ResourceKinds = p.currentList }
 
 Filter <-
-      NAME { p.currentList = make([]string, 0) }
-      LP LiteralStringList RP { p.Query.Name = p.currentList } 
-    / REGEX { p.currentList = make([]string, 0) }
-      LP LiteralStringList RP { p.Query.Regex = p.currentList } 
-    / WHERE_HEALTH { p.currentList = make([]string, 0) }
-      LP IdentifierList RP { p.Query.Health = p.currentList }
-    / WHERE_STATUS { p.currentList = make([]string, 0) }
-      LP IdentifierList RP { p.Query.Status = p.currentList }
-    / WHERE_STATE { p.currentList = make([]string, 0) }
-      LP IdentifierList RP { p.Query.State = p.currentList }
+    NAME { p.currentList = make([]string, 0) }
+    LP LiteralStringList RP { p.Query.Name = p.currentList } 
+  / REGEX { p.currentList = make([]string, 0) }
+    LP LiteralStringList RP { p.Query.Regex = p.currentList } 
+  / WHERE_HEALTH { p.currentList = make([]string, 0) }
+    LP IdentifierList RP { p.Query.Health = p.currentList }
+  / WHERE_STATUS { p.currentList = make([]string, 0) }
+    LP IdentifierList RP { p.Query.Status = p.currentList }
+  / WHERE_STATE { p.currentList = make([]string, 0) }
+    LP IdentifierList RP { p.Query.State = p.currentList }
+  / WHERE_METRICS { p.currentConditions = make([]Condition, 0) }
+    LP Conditions RP { p.Query.MetricsConditions = p.currentConditions }
+
+Conditions <- 
+    Term { p.currentConditions = append(p.currentConditions, p.currentCondition.withConjunction(AndConjuction)) }
+        (<Conjunctive> { p.currentConjunction = text == "OR" ? OrConjuctive : AndConjuctive }
+        Term { p.currentConditions = append(p.currentConditions, p.currentCondition) })*
+
+Term <- 
+    Function 
+  / InfixExpression
+
+Conjunctive <- 
+    AND
+  / OR
+
+Function <-
+    UnaryFunction
+  / BinaryFunction
+
+UnaryFunction <-
+    <UnaryFunctionName> { p.currentCondition.Operator = text} 
+    LP <Identifier> { p.currentCondition.Identifier = text } RP
+
+UnaryFunctionName <-
+    EXISTS
+  / NOT_EXISTS
+
+BinaryFunctionName <- 
+    CONTAINS
+  / STARTS_WITH
+  / ENDS_WITH
+  / REGEX
+  / NOT_CONTAINS
+  / NOT_STARTS_WITH
+  / NOT_ENDS_WITH
+  / NOT_REGEX
+  / IN
+  / NOT_IN
+
+Operator <-
+    EQ
+  / NE
+  / LT
+  / LTE
+  / GT
+  / GTE
+
+BinaryFunction <- 
+    <BinaryFunctionName> { p.currentCondition.Operator = text}  
+    LP <Identifier> { p.currentCondition.Identifier = text} Comma LiteralConditionValue RP
+
+InfixExpression <-
+    Identifier _ <Operator> { p.currentCondition.Operator = text } _ LiteralConditionValue
+
+LiteralConditionValue <-
+    <LiteralString> { p.currentCondition.StringValue = text }
+  / <Float> { p.currentCondition.DoubleValue = strconv.ParseFloat(text, 64) }
 
 
 Metrics <- 
@@ -62,12 +123,35 @@ WHERE_HEALTH            <- "whereHealth"
 WHERE_STATE             <- "whereState"
 WHERE_STATUS            <- "whereStatus"
 
+AND                     <- "and"
+OR                      <- "or"
+IN                      <- "in"
+NOT_IN                  <- "not in"
+CONTAINS                <- "contains"
+STARTS_WITH             <- "starts_with"
+ENDS_WITH               <- "ends_with"
+NOT_STARTS_WITH         <- "not starts_with"
+NOT_ENDS_WITH           <- "not ends_with"
+NOT_CONTAINS            <- "not contains"
+REGEX                   <- "regex"
+NOT_REGEX               <- "not regex"
+EXISTS                  <- "exists"
+NOT_EXISTS              <- "not exists"
+GT                      <- ">"
+LT                      <- "<"
+GTE                     <- ">="
+LTE                     <- "<="
+EQ                      <- "="
+NE                      <- "!="
+
 # Lexical tokens
 Quote                   <- '"'
 Comma                   <- _ ',' _
 BackTick                <- '`'
 Dot                     <- _ '.' _
-LP                      <- _ '(' _ 
-RP                      <- _ ')' _ 
+LP                      <- _ '(' _
+RP                      <- _ ')' _
 _                       <- [ \t\n\r]*
-LiteralChar             <- [^"^\n] 
+LiteralChar             <- [^"^\n]
+Float                   <- '-'? Digit+ ('.' Digit+)? ([Ee] [+\-]? Digit+)?
+Digit                   <- [0-9]

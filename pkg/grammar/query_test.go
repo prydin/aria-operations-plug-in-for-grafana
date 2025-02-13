@@ -70,3 +70,24 @@ func TestMultipleHealth(t *testing.T) {
 	require.Equal(t, "RED", q.Query.Health[0])
 	require.Equal(t, "YELLOW", q.Query.Health[1])
 }
+
+func TestSimpleState(t *testing.T) {
+	q := QueryParser{}
+	q.Buffer = "resource(VMWARE:VirtualMachine).whereState(RED).metric(cpu|demandmhz)"
+	require.NoError(t, q.Init())
+	require.NoError(t, q.Parse())
+	q.Execute()
+	require.Equal(t, "VMWARE:VirtualMachine", q.Query.ResourceKinds[0])
+	require.Equal(t, "RED", q.Query.State[0])
+}
+
+func TestMultipleState(t *testing.T) {
+	q := QueryParser{}
+	q.Buffer = "resource(VMWARE:VirtualMachine).whereState(RED,YELLOW).metric(cpu|demandmhz)"
+	require.NoError(t, q.Init())
+	require.NoError(t, q.Parse())
+	q.Execute()
+	require.Equal(t, "VMWARE:VirtualMachine", q.Query.ResourceKinds[0])
+	require.Equal(t, "RED", q.Query.State[0])
+	require.Equal(t, "YELLOW", q.Query.State[1])
+}
