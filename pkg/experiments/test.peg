@@ -1,0 +1,14 @@
+#go:build grammars
+# +build grammars
+
+package experiments
+
+type Test Peg {}
+
+Expression <-
+    FOO { fmt.Println("FOO") }
+    BAR { fmt.Println("BAR") } !.
+
+FOO <- "foo"
+BAR <- "bar"
+FOO <- "foo"

@@ -91,3 +91,27 @@ func TestMultipleState(t *testing.T) {
 	require.Equal(t, "RED", q.Query.State[0])
 	require.Equal(t, "YELLOW", q.Query.State[1])
 }
+
+func TestSimpleWhereMetrics(t *testing.T) {
+	q := QueryParser{}
+	q.Buffer = "resource(VMWARE:VirtualMachine).whereMetrics(cpu > 42).metric(cpu|demandmhz)"
+	require.NoError(t, q.Init())
+	require.NoError(t, q.Parse())
+	q.Execute()
+	require.Equal(t, "VMWARE:VirtualMachine", q.Query.ResourceKinds[0])
+	require.Equal(t, "cpu", q.Query.MetricConditions[0].Key)
+	require.Equal(t, 42.0, q.Query.MetricConditions[0].DoubleValue)
+	require.Equal(t, "", q.Query.MetricConditions[0].ConjunctiveOperator)
+}
+
+func TestComplexWhereMetrics(t *testing.T) {
+	q := QueryParser{}
+	q.Buffer = "resource(VMWARE:VirtualMachine).whereMetrics(cpu > 42 and mem > 1e7 and disk > 1e-2).metric(cpu|demandmhz)"
+	require.NoError(t, q.Init())
+	require.NoError(t, q.Parse())
+	q.Execute()
+	require.Equal(t, "VMWARE:VirtualMachine", q.Query.ResourceKinds[0])
+	require.Equal(t, "cpu", q.Query.MetricConditions[0].Key)
+	require.Equal(t, 42.0, q.Query.MetricConditions[0].DoubleValue)
+	require.Equal(t, "", q.Query.MetricConditions[0].ConjunctiveOperator)
+}
