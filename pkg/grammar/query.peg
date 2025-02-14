@@ -4,13 +4,13 @@
 package grammar
 
 type QueryParser Peg {
-    Query RawQuery;
+    Query               RawQuery
 
-    currentText string
-    currentList []string
-    currentCondition Condition
-    currentConditions []Condition
-    currentConjunctive int    
+    currentText         string
+    currentList         []string
+    currentCondition    Condition
+    currentConditions   []Condition
+    currentConjunctive  string    
 }
 
 Query <- 
@@ -34,13 +34,14 @@ Filter <-
   / WHERE_STATE { p.currentList = make([]string, 0) }
     LP IdentifierList RP { p.Query.State = p.currentList }
   / WHERE_METRICS { p.currentConditions = make([]Condition, 0) }
-    LP Conditions RP { p.Query.MetricsConditions = p.currentConditions }
+    LP Conditions RP { p.Query.MetricConditions = p.currentConditions }
+  / WHERE_PROPERTIES { p.currentConditions = make([]Condition, 0) }
+    LP Conditions RP { p.Query.PropertyConditions = p.currentConditions } 
 
 Conditions <- 
-    Term { p.currentConditions = append(p.currentConditions, p.currentCondition.withConjunction(AndConjuction)) }
-        (<Conjunctive> { p.currentConjunction = text == "OR" ? OrConjuctive : AndConjuctive }
-        Term { p.currentConditions = append(p.currentConditions, p.currentCondition) })*
-
+    Term { p.currentConditions = append(p.currentConditions, *p.currentCondition.WithConjunctive("")) }
+        (<Conjunctive> { p.currentConjunctive = strings.ToUpper(text) } 
+        Term { p.currentConditions = append(p.currentConditions, *p.currentCondition.WithConjunctive(p.currentConjunctive)) })*
 Term <- 
     Function 
   / InfixExpression
@@ -55,7 +56,7 @@ Function <-
 
 UnaryFunction <-
     <UnaryFunctionName> { p.currentCondition.Operator = text} 
-    LP <Identifier> { p.currentCondition.Identifier = text } RP
+    LP <Identifier> { p.currentCondition.Key = text } RP
 
 UnaryFunctionName <-
     EXISTS
@@ -83,14 +84,14 @@ Operator <-
 
 BinaryFunction <- 
     <BinaryFunctionName> { p.currentCondition.Operator = text}  
-    LP <Identifier> { p.currentCondition.Identifier = text} Comma LiteralConditionValue RP
+    LP <Identifier> { p.currentCondition.Key = text} Comma LiteralConditionValue RP
 
 InfixExpression <-
     Identifier _ <Operator> { p.currentCondition.Operator = text } _ LiteralConditionValue
 
 LiteralConditionValue <-
     <LiteralString> { p.currentCondition.StringValue = text }
-  / <Float> { p.currentCondition.DoubleValue = strconv.ParseFloat(text, 64) }
+  / <Float> { p.currentCondition.DoubleValue, _ = strconv.ParseFloat(text, 64) }
 
 
 Metrics <- 
@@ -122,6 +123,8 @@ RESOURCE                <- "resource"
 WHERE_HEALTH            <- "whereHealth"
 WHERE_STATE             <- "whereState"
 WHERE_STATUS            <- "whereStatus"
+WHERE_METRICS           <- "whereMetrics"
+WHERE_PROPERTIES        <- "whereProperties"
 
 AND                     <- "and"
 OR                      <- "or"

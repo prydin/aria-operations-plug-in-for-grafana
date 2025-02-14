@@ -6,14 +6,9 @@ const (
 	DoubleCondition
 )
 
-const (
-	AndConjunction = iota
-	OrConjunction
-)
-
 type Condition struct {
 	Type                int
-	ConjunctionOperator int
+	ConjunctiveOperator string
 	DoubleValue         float64
 	StringValue         string
 	Key                 string
@@ -33,7 +28,7 @@ type RawQuery struct {
 	PropertyConditions []Condition
 }
 
-func (c *Condition) WithConjunction(op int) *Condition {
-	c.ConjunctionOperator = op
+func (c *Condition) WithConjunctive(op string) *Condition {
+	c.ConjunctiveOperator = op
 	return c
 }
