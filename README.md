@@ -3,6 +3,9 @@
 Grafana datasource plugin for reading metrics from VMware Aria Operations (formerly vRealize Operations). This is a full-featured datasource capable of accessing any metric in Aria Operations
 either through a simple list picker or a rich query language
 
+
+[!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://www.buymeacoffee.com/prydin)
+
 ## Important Notice
 
 This is currently an unsigned plugin that has not been reviewed or endorsed by Grafana. You may still use it, but you need to do one of the following:
