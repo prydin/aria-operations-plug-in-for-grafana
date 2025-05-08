@@ -116,7 +116,7 @@ IDQuotedCharacter       <- [A-Za-z0-9_:|.\- ,$]
 LiteralString           <- Quote <LiteralChar*> { p.currentText = text } Quote 
 
 # Reserved words
-METRICS                 <- 'metric'
+METRICS                 <- 'metrics'
 NAME                    <- 'name'
 REGEX                   <- 'regex'
 RESOURCE                <- 'resource'

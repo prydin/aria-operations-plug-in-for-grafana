@@ -8,7 +8,7 @@ import (
 
 func TestSimpleName(t *testing.T) {
 	q := QueryParser{}
-	q.Buffer = "resource(VMWARE:VirtualMachine).name(\"foo\").metric(cpu|demandmhz)"
+	q.Buffer = "resource(VMWARE:VirtualMachine).name(\"foo\").metrics(cpu|demandmhz)"
 	require.NoError(t, q.Init())
 	require.NoError(t, q.Parse())
 	q.Execute()
@@ -18,7 +18,7 @@ func TestSimpleName(t *testing.T) {
 
 func TestMultipleName(t *testing.T) {
 	q := QueryParser{}
-	q.Buffer = "resource(VMWARE:VirtualMachine).name(\"foo\", \"bar\", \"baz\").metric(cpu|demandmhz)"
+	q.Buffer = "resource(VMWARE:VirtualMachine).name(\"foo\", \"bar\", \"baz\").metrics(cpu|demandmhz)"
 	require.NoError(t, q.Init())
 	require.NoError(t, q.Parse())
 	q.Execute()
@@ -30,7 +30,7 @@ func TestMultipleName(t *testing.T) {
 
 func TestSimpleRegex(t *testing.T) {
 	q := QueryParser{}
-	q.Buffer = "resource(VMWARE:VirtualMachine).regex(\"foo\").metric(cpu|demandmhz)"
+	q.Buffer = "resource(VMWARE:VirtualMachine).regex(\"foo\").metrics(cpu|demandmhz)"
 	require.NoError(t, q.Init())
 	require.NoError(t, q.Parse())
 	q.Execute()
@@ -40,7 +40,7 @@ func TestSimpleRegex(t *testing.T) {
 
 func TestMultipleRegex(t *testing.T) {
 	q := QueryParser{}
-	q.Buffer = "resource(VMWARE:VirtualMachine).regex(\"foo\", \"bar\", \"baz\").metric(cpu|demandmhz)"
+	q.Buffer = "resource(VMWARE:VirtualMachine).regex(\"foo\", \"bar\", \"baz\").metrics(cpu|demandmhz)"
 	require.NoError(t, q.Init())
 	require.NoError(t, q.Parse())
 	q.Execute()
@@ -52,7 +52,7 @@ func TestMultipleRegex(t *testing.T) {
 
 func TestSimpleHealth(t *testing.T) {
 	q := QueryParser{}
-	q.Buffer = "resource(VMWARE:VirtualMachine).whereHealth(RED).metric(cpu|demandmhz)"
+	q.Buffer = "resource(VMWARE:VirtualMachine).whereHealth(RED).metrics(cpu|demandmhz)"
 	require.NoError(t, q.Init())
 	require.NoError(t, q.Parse())
 	q.Execute()
@@ -83,7 +83,7 @@ func TestSimpleState(t *testing.T) {
 
 func TestMultipleState(t *testing.T) {
 	q := QueryParser{}
-	q.Buffer = "resource(VMWARE:VirtualMachine).whereState(RED,YELLOW).metric(cpu|demandmhz)"
+	q.Buffer = "resource(VMWARE:VirtualMachine).whereState(RED,YELLOW).metrics(cpu|demandmhz)"
 	require.NoError(t, q.Init())
 	require.NoError(t, q.Parse())
 	q.Execute()
@@ -106,7 +106,7 @@ func TestSimpleWhereMetrics(t *testing.T) {
 
 func TestComplexWhereMetrics(t *testing.T) {
 	q := QueryParser{}
-	q.Buffer = "resource(VMWARE:VirtualMachine).whereMetrics(cpu > 42 and mem > 1e7 and disk > 1e-2).metric(cpu|demandmhz)"
+	q.Buffer = "resource(VMWARE:VirtualMachine).whereMetrics(cpu > 42 and mem > 1e7 and disk > 1e-2).metrics(cpu|demandmhz)"
 	require.NoError(t, q.Init())
 	require.NoError(t, q.Parse())
 	q.Execute()
