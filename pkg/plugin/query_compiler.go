@@ -39,6 +39,28 @@ import (
 	"github.com/prydin/aria-operations-plug-in-for-grafana/pkg/models"
 )
 
+var operatorMap = map[string]string{
+	"and":             "AND",
+	"or":              "OR",
+	"in":              "IN",
+	"not in":          "NOT_IN",
+	"contains":        "CONTAINS",
+	"starts_with":     "STARTS_WITH",
+	"ends_with":       "ENDS_WITH",
+	"not starts_with": "NOT_STARTS_WITH",
+	"not ends_with":   "NOT_ENDS_WITH",
+	"not contains":    "NOT_CONTAINS",
+	"not regex":       "NOT_REGEX",
+	"exists":          "EXISTS",
+	"not exists":      "NOT_EXISTS",
+	">":               "GT",
+	"<":               "LT",
+	">=":              "GTE",
+	"<=":              "LTE",
+	"=":               "EQ",
+	"!=":              "NE",
+}
+
 func CompileQuery(query *models.AriaOpsQuery) (*models.CompiledQuery, error) {
 	if query.AdvancedMode {
 		return compileAdvancedQuery(query)
@@ -117,13 +139,19 @@ func makeFilterSpec(conditions []grammar.Condition) (*models.FilterSpec, error) 
 		if len(conditions) > 1 && condition.ConjunctiveOperator != conj {
 			return nil, errors.New("combinations of AND and OR is not yet supported") // TODO: Implement this!
 		}
-		c := models.Condition{
-			Key:         condition.Key,
-			Operator:    condition.Operator,
-			StringValue: condition.StringValue,
-			DoubleValue: condition.DoubleValue,
+		operator, ok := operatorMap[condition.Operator]
+		if !ok {
+			return nil, errors.New("unsupported operator: " + condition.Operator)
 		}
-		nativeConditions = append(nativeConditions, c)
+		if condition.Type == grammar.UnaryCondition {
+			c := models.Condition{
+				Key:         condition.Key,
+				Operator:    operator,
+				StringValue: condition.StringValue,
+				DoubleValue: condition.DoubleValue,
+			}
+			nativeConditions = append(nativeConditions, c)
+		}
 	}
 	return &models.FilterSpec{
 		Conditions:          nativeConditions,
