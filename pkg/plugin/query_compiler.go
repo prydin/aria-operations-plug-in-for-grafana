@@ -1,6 +1,38 @@
+/*
+Aria Operations plug-in for Grafana
+Copyright 2023 VMware, Inc.
+
+The BSD-2 license (the "License") set forth below applies to all parts of the
+Aria Operations plug-in for Grafana project. You may not use this file except
+in compliance with the License.
+
+# BSD-2 License
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+Redistributions of source code must retain the above copyright notice,
+this list of conditions and the following disclaimer.
+
+Redistributions in binary form must reproduce the above copyright notice, this
+list of conditions and the following disclaimer in the documentation and/or
+other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+*/
 package plugin
 
 import (
+	"errors"
 	"strings"
 
 	"github.com/prydin/aria-operations-plug-in-for-grafana/pkg/grammar"
@@ -44,17 +76,57 @@ func compileAdvancedQuery(query *models.AriaOpsQuery) (*models.CompiledQuery, er
 		adapterKinds[i] = parts[0]
 		resourceKinds[i] = parts[1]
 	}
+
+	pc, err := makeFilterSpec(q.Query.PropertyConditions)
+	if err != nil {
+		return nil, err
+	}
+	mc, err := makeFilterSpec(q.Query.MetricConditions)
+	if err != nil {
+		return nil, err
+	}
+
 	cq := models.CompiledQuery{
 		ResourceQuery: models.ResourceRequest{
-			AdapterKind:    adapterKinds,
-			ResourceKind:   resourceKinds,
-			Name:           q.Query.Name,
-			Regex:          q.Query.Regex,
-			ResourceHealth: q.Query.Health,
-			ResourceState:  q.Query.State,
-			ResourceStatus: q.Query.Status,
+			AdapterKind:        adapterKinds,
+			ResourceKind:       resourceKinds,
+			Name:               q.Query.Name,
+			Regex:              q.Query.Regex,
+			ResourceHealth:     q.Query.Health,
+			ResourceState:      q.Query.State,
+			ResourceStatus:     q.Query.Status,
+			PropertyConditions: pc,
+			StatConditions:     mc,
 		},
 	}
+
 	cq.Metrics = q.Query.Metrics
 	return &cq, nil
+}
+
+func makeFilterSpec(conditions []grammar.Condition) (*models.FilterSpec, error) {
+	if len(conditions) == 0 {
+		return nil, nil
+	}
+	conj := "AND"
+	if len(conditions) > 1 {
+		conj = conditions[0].ConjunctiveOperator
+	}
+	nativeConditions := make([]models.Condition, 0)
+	for _, condition := range conditions {
+		if len(conditions) > 1 && condition.ConjunctiveOperator != conj {
+			return nil, errors.New("combinations of AND and OR is not yet supported") // TODO: Implement this!
+		}
+		c := models.Condition{
+			Key:         condition.Key,
+			Operator:    condition.Operator,
+			StringValue: condition.StringValue,
+			DoubleValue: condition.DoubleValue,
+		}
+		nativeConditions = append(nativeConditions, c)
+	}
+	return &models.FilterSpec{
+		Conditions:          nativeConditions,
+		ConjunctionOperator: conj,
+	}, nil
 }

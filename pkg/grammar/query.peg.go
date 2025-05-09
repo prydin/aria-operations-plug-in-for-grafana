@@ -485,9 +485,12 @@ func (p *QueryParser) Execute() {
 		case ruleAction24:
 			p.currentCondition.Operator = text
 		case ruleAction25:
-			p.currentCondition.StringValue = text
+			p.currentCondition.StringValue = &text
 		case ruleAction26:
-			p.currentCondition.DoubleValue, _ = strconv.ParseFloat(text, 64)
+
+			tmp, _ := strconv.ParseFloat(text, 64)
+			p.currentCondition.DoubleValue = &tmp
+
 		case ruleAction27:
 			p.currentList = make([]string, 0)
 		case ruleAction28:
@@ -3300,14 +3303,17 @@ func (p *QueryParser) Init(options ...func(*QueryParser) error) error {
 			}
 			return true
 		},
-		/* 86 Action25 <- <{ p.currentCondition.StringValue = text }> */
+		/* 86 Action25 <- <{ p.currentCondition.StringValue = &text }> */
 		func() bool {
 			{
 				add(ruleAction25, position)
 			}
 			return true
 		},
-		/* 87 Action26 <- <{ p.currentCondition.DoubleValue, _ = strconv.ParseFloat(text, 64) }> */
+		/* 87 Action26 <- <{
+		   tmp, _ := strconv.ParseFloat(text, 64)
+		   p.currentCondition.DoubleValue = &tmp
+		 }> */
 		func() bool {
 			{
 				add(ruleAction26, position)
