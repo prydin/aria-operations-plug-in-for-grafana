@@ -31,6 +31,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 package grammar
 
+import "github.com/prydin/aria-operations-plug-in-for-grafana/pkg/models"
+
 const (
 	UnaryCondition = iota
 	StringCondition
@@ -47,16 +49,17 @@ type Condition struct {
 }
 
 type RawQuery struct {
-	ResourceKinds      []string    `json:"resourceKinds,omitempty"`
-	ResourceIds        []string    `json:"resourceIds,omitempty"`
-	Name               []string    `json:"name,omitempty"`
-	Regex              []string    `json:"regex,omitempty"`
-	Metrics            []string    `json:"metrics,omitempty"`
-	Health             []string    `json:"health,omitempty"`
-	Status             []string    `json:"status,omitempty"`
-	State              []string    `json:"state,omitempty"`
-	MetricConditions   []Condition `json:"metricConditions,omitempty"`
-	PropertyConditions []Condition `json:"propertyConditions,omitempty"`
+	ResourceKinds      []string               `json:"resourceKinds,omitempty"`
+	ResourceIds        []string               `json:"resourceIds,omitempty"`
+	Name               []string               `json:"name,omitempty"`
+	Regex              []string               `json:"regex,omitempty"`
+	Metrics            []string               `json:"metrics,omitempty"`
+	Health             []string               `json:"health,omitempty"`
+	Status             []string               `json:"status,omitempty"`
+	State              []string               `json:"state,omitempty"`
+	MetricConditions   []Condition            `json:"metricConditions,omitempty"`
+	PropertyConditions []Condition            `json:"propertyConditions,omitempty"`
+	Aggregation        models.AggregationSpec `json:"aggregation"`
 }
 
 func (c *Condition) WithConjunctive(op string) *Condition {

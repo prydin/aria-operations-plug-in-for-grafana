@@ -40,12 +40,14 @@ type QueryParser Peg {
     currentCondition    Condition
     currentConditions   []Condition
     currentConjunctive  string    
+    currentFloat        float64
 }
 
 Query <- 
     TypeSpec 
     ( Dot Filter )+ 
-    Dot Metrics !.
+    Dot Metrics 
+    ( Dot Aggregation )? !.
 
 TypeSpec <- 
     <RESOURCE> { p.currentList = make([]string, 0) } 
@@ -66,6 +68,12 @@ Filter <-
     LP Conditions RP { p.Query.MetricConditions = p.currentConditions }
   / WHERE_PROPERTIES { p.currentConditions = make([]Condition, 0) }
     LP Conditions RP { p.Query.PropertyConditions = p.currentConditions } 
+
+Aggregation <- 
+  < AVG / MIN / MAX / STDDEV / VARIANCE / MEDIAN > { p.Query.Aggregation.Type = text } 
+    LP <Identifier> { p.Query.Aggregation.Field = text } RP 
+  / PERCENTILE { p.Query.Aggregation.Type = text } 
+    LP <Identifier> { p.Query.Aggregation.Field = text } Comma Float { p.Query.Aggregation.Value = p.currentFloat } RP
 
 Conditions <- 
     Term { p.currentConditions = append(p.currentConditions, *p.currentCondition.WithConjunctive("")) }
@@ -120,13 +128,13 @@ InfixExpression <-
 
 LiteralConditionValue <-
     <LiteralString> { p.currentCondition.StringValue = &text }
-  / <Float> { 
-      tmp, _ := strconv.ParseFloat(text, 64) 
+  / Float { 
+      tmp := p.currentFloat
       p.currentCondition.DoubleValue = &tmp
     }
 
 Metrics <- 
-    METRICS { p.currentList = make([]string, 0) } LP IdentifierList RP { p.Query.Metrics = p.currentList}
+    METRICS { p.currentList = make([]string, 0) } LP IdentifierList RP { p.Query.Metrics = p.currentList }
 
 # Identifiers    
 Identifier <-
@@ -177,6 +185,14 @@ LTE                     <- '<='
 EQ                      <- '='
 NE                      <- '!='
 
+AVG                     <- 'avg'
+MIN                     <- 'min'
+MAX                     <- 'max'
+STDDEV                  <- 'stddev'
+VARIANCE                <- 'variance'
+MEDIAN                  <- 'median'
+PERCENTILE              <- 'percentile'
+
 # Lexical tokens
 Quote                   <- '"'
 Comma                   <- _ ',' _
@@ -186,4 +202,4 @@ LP                      <- _ '(' _
 RP                      <- _ ')' _
 _                       <- [ \t\n\r]*
 LiteralChar             <- [^"^\n]
-Float                   <- '-'? [0-9]+ ('.' [0-9]+)? ([Ee] [+\-]? [0-9]+)?
+Float                   <- <'-'? [0-9]+ ('.' [0-9]+)? ([Ee] [+\-]? [0-9]+)?> { p.currentFloat, _ = strconv.ParseFloat(text, 64) }
