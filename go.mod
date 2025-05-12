@@ -102,4 +102,5 @@ require (
 require (
 	golang.org/x/net v0.34.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0
+	github.com/influxdata/tdigest v0.0.1
 )
