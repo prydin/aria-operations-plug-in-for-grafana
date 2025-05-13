@@ -36,16 +36,12 @@ import (
 	"math"
 	"sort"
 	"sync"
+	"time"
 
 	"github.com/grafana/grafana-plugin-sdk-go/data"
 	"github.com/influxdata/tdigest"
+	"github.com/prydin/aria-operations-plug-in-for-grafana/pkg/models"
 )
-
-type AggregationSpec struct {
-	Type       string
-	Parameter  float64
-	Properties []string
-}
 
 type StatProducer func(acc *Accumulator) float64
 
@@ -191,7 +187,7 @@ type Stats struct {
 	mu             sync.Mutex
 }
 
-func NewStats(aggregation AggregationSpec) *Stats {
+func NewStats(aggregation models.AggregationSpec) *Stats {
 	wantPercentile := aggregation.Type == "percentile"
 	percentile := 0.0
 	if wantPercentile {
@@ -204,10 +200,11 @@ func NewStats(aggregation AggregationSpec) *Stats {
 	}
 }
 
-func (s *Stats) Add(timestamps []int64, values []float64, properties map[string]string) {
+func (s *Stats) Add(metricKey string, timestamps []int64, values []float64, properties map[string]string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	properties["$statKey"] = metricKey
 	keyBytes, _ := json.Marshal(properties)
 	key := string(keyBytes)
 
@@ -222,28 +219,34 @@ func (s *Stats) Add(timestamps []int64, values []float64, properties map[string]
 	}
 }
 
-func (s *Stats) ToFrames(refId string, aggregation AggregationSpec, smootherFactory func() Smoother) ([]data.Frame, error) {
+func (s *Stats) ToFrames(refId string, aggregation models.AggregationSpec, smootherFactory func() Smoother) (data.Frames, error) {
 	produce, exists := statProducers[aggregation.Type]
 	if !exists {
 		return nil, errors.New("internal error: producer " + aggregation.Type + " not found")
 	}
 
-	var frames []data.Frame
+	var frames data.Frames
 	for key, bucket := range s.buckets {
 		var labels map[string]string
 		if err := json.Unmarshal([]byte(key), &labels); err != nil {
 			return nil, err
 		}
+		statKey := labels["$statKey"]
+		delete(labels, "$statKey")
 
-		frame := data.NewFrame(refId) // TODO: Is refId the right name?
 		results := bucket.GetResults()
+		timestamps := make([]time.Time, 0, len(results))
+		values := make([]float64, 0, len(results))
 		for ts, acc := range results {
 			value := produce(acc)
-			frame.Fields = append(frame.Fields,
-				data.NewField("timestamp", nil, []int64{ts}),
-				data.NewField("value", labels, []float64{value}))
+			timestamps = append(timestamps, time.Unix(ts/1000, 0))
+			values = append(values, value)
 		}
-		frames = append(frames, *frame)
+		frame := data.NewFrame(statKey,
+			data.NewField("Time", nil, timestamps),
+			data.NewField("Value", labels, values))
+		frame.RefID = refId
+		frames = append(frames, frame)
 	}
 	return frames, nil
 }

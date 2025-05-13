@@ -34,6 +34,7 @@ import (
 	"math"
 	"testing"
 
+	"github.com/prydin/aria-operations-plug-in-for-grafana/pkg/models"
 	"github.com/stretchr/testify/require"
 )
 
@@ -45,18 +46,19 @@ var aggregations = []string{
 	"min",
 	"variance",
 	"stddev",
-}
+	"sum",
+	"count"}
 
 var aggTestData = []float64{1, 2, 3, 4, 5, 6, 7, 8, 9}
 var aggResults = []float64{5, 45, 9, 9, 1, 7.5, math.Sqrt(7.5)}
 
-var simpleAggregationSpec = AggregationSpec{
+var simpleAggregationSpec = models.AggregationSpec{
 	Type:       "avg",
 	Parameter:  50.0,
 	Properties: []string{},
 }
 
-func TestSimpleAggrations(t *testing.T) {
+func TestSimpleAggregations(t *testing.T) {
 	timestamps := make([]int64, len(aggTestData))
 	for i := range aggTestData {
 		timestamps[i] = 1
@@ -68,13 +70,50 @@ func TestSimpleAggrations(t *testing.T) {
 			for ts := range aggTestData {
 				timestamps[ts] = int64(i)
 			}
-			s.Add(timestamps, aggTestData, make(map[string]string))
-			frames, err := s.ToFrames("dummy", simpleAggregationSpec, nil)
-			if err != nil {
-				t.Fatalf("Error converting to frames: %v", err)
+			s.Add("someMetric", timestamps, aggTestData, make(map[string]string))
+		}
+		frames, err := s.ToFrames("dummy", simpleAggregationSpec, nil)
+		if err != nil {
+			t.Fatalf("Error converting to frames: %v", err)
+		}
+		for _, frame := range frames {
+			f := frame.Fields[1]
+			for i := range f.Len() {
+				require.Equal(t, aggResults[aggIdx], f.At(i))
 			}
-			for _, frame := range frames {
-				require.Equal(t, aggResults[aggIdx], frame.Fields[1].At(0))
+
+		}
+	}
+}
+
+func TestSlicedAggregations(t *testing.T) {
+	key := map[string]string{
+		"foo": "bar",
+		"bar": "foo",
+	}
+	timestamps := make([]int64, len(aggTestData))
+	for i := range aggTestData {
+		timestamps[i] = 1
+	}
+	for aggIdx, agg := range aggregations {
+		simpleAggregationSpec.Type = agg
+		s := NewStats(simpleAggregationSpec)
+		for i := range 10 {
+			for ts := range aggTestData {
+				timestamps[ts] = int64(i)
+			}
+			s.Add("someMetric", timestamps, aggTestData, key)
+		}
+		frames, err := s.ToFrames("dummy", simpleAggregationSpec, nil)
+		if err != nil {
+			t.Fatalf("Error converting to frames: %v", err)
+		}
+		for _, frame := range frames {
+			f := frame.Fields[1]
+			require.Equal(t, "foo", f.Labels["bar"])
+			require.Equal(t, "bar", f.Labels["foo"])
+			for i := range f.Len() {
+				require.Equal(t, aggResults[aggIdx], f.At(i))
 			}
 		}
 	}

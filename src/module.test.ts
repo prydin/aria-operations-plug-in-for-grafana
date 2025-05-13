@@ -701,6 +701,7 @@ describe('Aggregations', () => {
   }
 });
 
+
 describe('Sliced aggregations', () => {
   const key = new Map([
     ['foo', 'bar'],

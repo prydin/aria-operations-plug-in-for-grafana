@@ -120,6 +120,7 @@ func compileAdvancedQuery(query *models.AriaOpsQuery) (*models.CompiledQuery, er
 			PropertyConditions: pc,
 			StatConditions:     mc,
 		},
+		Aggregation: q.Query.Aggregation,
 	}
 
 	cq.Metrics = q.Query.Metrics

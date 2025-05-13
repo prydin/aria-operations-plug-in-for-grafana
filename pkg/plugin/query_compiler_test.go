@@ -77,3 +77,18 @@ func TestSingleConditionQuery(t *testing.T) {
 	require.Equal(t, 0.0, *cq.ResourceQuery.StatConditions.Conditions[0].DoubleValue)
 	require.Equal(t, "cpu|demandmhz", cq.Metrics[0])
 }
+
+func TestAggregationQuery(t *testing.T) {
+	for _, agg := range aggregations {
+		q := models.AriaOpsQuery{
+			QueryText:    "resource(VMWARE:VirtualMachine).name(\"hello\").metrics(cpu|demandmhz)." + agg + "()",
+			AdvancedMode: true,
+		}
+		cq, err := CompileQuery(&q)
+		require.NoError(t, err, "Offending statement: %s", q.QueryText)
+		require.Equal(t, "VMWARE", cq.ResourceQuery.AdapterKind[0])
+		require.Equal(t, "VirtualMachine", cq.ResourceQuery.ResourceKind[0])
+		require.Equal(t, "cpu|demandmhz", cq.Metrics[0])
+		require.Equal(t, agg, cq.Aggregation.Type)
+	}
+}

@@ -36,6 +36,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"strconv"
 	"time"
 
 	"github.com/grafana/grafana-plugin-sdk-go/backend"
@@ -133,7 +134,7 @@ func (d *Datasource) query(_ context.Context, pCtx backend.PluginContext, query 
 		resourceMap[resource.Identifier] = resource.ResourceKey.Name
 	}
 
-	frames, err := d.GetMetrics(query.RefID, resourceMap, cq.Metrics, query.TimeRange, query.Interval)
+	frames, err := d.GetMetrics(query.RefID, resourceMap, cq.Metrics, query.TimeRange, query.Interval, cq.Aggregation)
 	if err != nil {
 		return backend.ErrDataResponse(backend.StatusBadRequest, fmt.Sprintf("querying metrics: %v", err.Error()))
 	}
@@ -210,7 +211,7 @@ func (d *Datasource) GetMetrics(
 	metrics []string,
 	timeRange backend.TimeRange,
 	interval time.Duration,
-	//aggregation models.AggregationSpec,
+	aggregation models.AggregationSpec,
 	//smootherSpec models.SlidingWindowSpec
 ) (data.Frames, error) {
 	resourceIds := make([]string, 0)
@@ -232,6 +233,29 @@ func (d *Datasource) GetMetrics(
 	backend.Logger.Debug("get metrics returned", "count", len(metricResponse.Values))
 	if err != nil {
 		return nil, err
+	}
+	if aggregation.Type != "" {
+		propertyMap := make(map[string]map[string]string)
+		if aggregation.Properties != nil {
+			propertyMap, err = d.getPropertiesForResources(
+				resourceIds,
+				aggregation.Properties,
+			)
+			if err != nil {
+				return nil, err
+			}
+		}
+		stats := NewStats(aggregation)
+		for _, r := range metricResponse.Values {
+			for _, envelope := range r.StatList.Stat {
+				pm := propertyMap[r.ResourceId]
+				if pm == nil {
+					pm = make(map[string]string)
+				}
+				stats.Add(envelope.StatKey.Key, envelope.Timestamps, envelope.Data, pm)
+			}
+		}
+		return stats.ToFrames(refID, aggregation, nil)
 	}
 	frames := make(data.Frames, 0)
 	for _, resourceMetrics := range metricResponse.Values {
@@ -264,6 +288,38 @@ func (d *Datasource) FramesFromResourceMetrics(refId string, resources map[strin
 	}
 	backend.Logger.Debug("framesFromResourceMetrics", "frameCount", len(frames))
 	return frames
+}
+
+func (d *Datasource) getPropertiesForResources(resourceIds []string, propertyKeys []string) (map[string]map[string]string, error) {
+	if len(propertyKeys) == 0 {
+		return map[string]map[string]string{}, nil
+	}
+	payload := models.ResourcePropertiesRequest{
+		ResourceIds:  resourceIds,
+		PropertyKeys: propertyKeys,
+	}
+
+	var resp models.ResourcePropertiesResponse
+	err := d.client.post("/resources/properties/latest/query", payload, &resp)
+	if err != nil {
+		return nil, err
+	}
+
+	resourceMap := make(map[string]map[string]string)
+	for _, resource := range resp.Values {
+		properties := make(map[string]string)
+		resourceMap[resource.ResourceId] = properties
+		for _, property := range resource.PropertyContents.PropertyContent {
+			if len(property.Values) > 0 {
+				properties[property.StatKey] = property.Values[0]
+			} else if len(property.Data) > 0 {
+				properties[property.StatKey] = strconv.FormatFloat(property.Data[0], 'f', -1, 64)
+			} else {
+				properties[property.StatKey] = "<undefined>"
+			}
+		}
+	}
+	return resourceMap, nil
 }
 
 /*

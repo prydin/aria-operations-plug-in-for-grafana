@@ -69,12 +69,6 @@ Filter <-
   / WHERE_PROPERTIES { p.currentConditions = make([]Condition, 0) }
     LP Conditions RP { p.Query.PropertyConditions = p.currentConditions } 
 
-Aggregation <- 
-  < AVG / MIN / MAX / STDDEV / VARIANCE / MEDIAN > { p.Query.Aggregation.Type = text } 
-    LP <Identifier> { p.Query.Aggregation.Field = text } RP 
-  / PERCENTILE { p.Query.Aggregation.Type = text } 
-    LP <Identifier> { p.Query.Aggregation.Field = text } Comma Float { p.Query.Aggregation.Value = p.currentFloat } RP
-
 Conditions <- 
     Term { p.currentConditions = append(p.currentConditions, *p.currentCondition.WithConjunctive("")) }
         ( _ <Conjunctive> _ { p.currentConjunctive = strings.ToUpper(text) } 
@@ -136,6 +130,13 @@ LiteralConditionValue <-
 Metrics <- 
     METRICS { p.currentList = make([]string, 0) } LP IdentifierList RP { p.Query.Metrics = p.currentList }
 
+Aggregation <- 
+  < AVG / MIN / MAX / STDDEV / VARIANCE / MEDIAN / COUNT / SUM > { p.Query.Aggregation.Type = text } 
+    LP { p.currentList = make([]string, 0) } IdentifierList? { p.Query.Aggregation.Properties = p.currentList } RP 
+  / PERCENTILE { p.Query.Aggregation.Type = text } 
+    LP { p.currentList = make([]string, 0) } Float { p.Query.Aggregation.Parameter = p.currentFloat } 
+      Comma IdentifierList? { p.Query.Aggregation.Properties = p.currentList } RP
+
 # Identifiers    
 Identifier <-
     IDStartCharacter IDCharacter* /
@@ -188,6 +189,8 @@ NE                      <- '!='
 AVG                     <- 'avg'
 MIN                     <- 'min'
 MAX                     <- 'max'
+COUNT                   <- 'count'
+SUM                     <- 'sum'
 STDDEV                  <- 'stddev'
 VARIANCE                <- 'variance'
 MEDIAN                  <- 'median'
