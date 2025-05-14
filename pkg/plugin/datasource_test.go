@@ -96,3 +96,25 @@ func TestGetMetricFrames(t *testing.T) {
 	frames := ds.FramesFromResourceMetrics("A", map[string]string{"dd3f76cc-4c44-4e3b-913a-17af826d8d28": "acclvcfopsn09.acc.broadcom.net"}, &response.Values[0])
 	require.NotEmpty(t, frames)
 }
+
+func TestGetPropertiesForResources(t *testing.T) {
+	client, err := newAuthenticatedClient()
+	require.NoError(t, err)
+
+	ds := Datasource{
+		client: client,
+	}
+
+	resourceIds := []string{"b0544167-6961-40ff-8b91-d85be7c8307a"}
+	propertyKeys := []string{"summary|guest|fullName", "summary|guest|guestFamily"}
+
+	properties, err := ds.getPropertiesForResources(resourceIds, propertyKeys)
+	require.NoError(t, err)
+	require.NotEmpty(t, properties)
+
+	// Validate that the properties map contains the expected resource ID and keys
+	r := resourceIds[0]
+	require.Contains(t, properties, r)
+	require.Contains(t, properties[r], "summary|guest|fullName")
+	require.Contains(t, properties[r], "summary|guest|fullName")
+}

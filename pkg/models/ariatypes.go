@@ -141,15 +141,15 @@ type ResourcePropertiesRequest struct {
 }
 
 type ResourceProperties struct {
-	ResourceId       string   `json:"resourceId,omitempty"`
-	PropertyContents struct { // TODO: property-contents
-		PropertyContent []struct { // TODO: property-content
+	ResourceId       string `json:"resourceId,omitempty"`
+	PropertyContents struct {
+		PropertyContent []struct {
 			StatKey    string    `json:"statKey,omitempty"`
 			Timestamps []int64   `json:"timestamps,omitempty"`
 			Values     []string  `json:"values,omitempty"`
 			Data       []float64 `json:"data,omitempty"`
-		} `json:"propertyContent,omitempty"`
-	} `json:"propertyContents,omitempty"`
+		} `json:"property-content,omitempty"`
+	} `json:"property-contents,omitempty"`
 }
 
 type ResourcePropertiesResponse struct {

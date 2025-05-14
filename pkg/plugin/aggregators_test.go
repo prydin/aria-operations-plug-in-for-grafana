@@ -32,6 +32,7 @@ package plugin
 
 import (
 	"math"
+	"strconv"
 	"testing"
 
 	"github.com/prydin/aria-operations-plug-in-for-grafana/pkg/models"
@@ -46,11 +47,11 @@ var aggregations = []string{
 	"min",
 	"variance",
 	"stddev",
-	"sum",
-	"count"}
+	"count",
+	"median"}
 
 var aggTestData = []float64{1, 2, 3, 4, 5, 6, 7, 8, 9}
-var aggResults = []float64{5, 45, 9, 9, 1, 7.5, math.Sqrt(7.5)}
+var aggResults = []float64{5, 45, 9, 9, 1, 7.5, math.Sqrt(7.5), 9, 5}
 
 var simpleAggregationSpec = models.AggregationSpec{
 	Type:       "avg",
@@ -87,31 +88,35 @@ func TestSimpleAggregations(t *testing.T) {
 }
 
 func TestSlicedAggregations(t *testing.T) {
-	key := map[string]string{
-		"foo": "bar",
-		"bar": "foo",
-	}
 	timestamps := make([]int64, len(aggTestData))
 	for i := range aggTestData {
 		timestamps[i] = 1
 	}
 	for aggIdx, agg := range aggregations {
+
 		simpleAggregationSpec.Type = agg
 		s := NewStats(simpleAggregationSpec)
 		for i := range 10 {
 			for ts := range aggTestData {
 				timestamps[ts] = int64(i)
 			}
-			s.Add("someMetric", timestamps, aggTestData, key)
+			for keyNumber := range 10 {
+				keyString := strconv.FormatInt(int64(keyNumber), 10)
+				key := map[string]string{
+					"foo": keyString,
+					"bar": keyString,
+				}
+				s.Add("someMetric", timestamps, aggTestData, key)
+			}
 		}
 		frames, err := s.ToFrames("dummy", simpleAggregationSpec, nil)
 		if err != nil {
 			t.Fatalf("Error converting to frames: %v", err)
 		}
+		require.Equal(t, 10, len(frames))
 		for _, frame := range frames {
 			f := frame.Fields[1]
-			require.Equal(t, "foo", f.Labels["bar"])
-			require.Equal(t, "bar", f.Labels["foo"])
+			require.Equal(t, f.Labels["foo"], f.Labels["bar"])
 			for i := range f.Len() {
 				require.Equal(t, aggResults[aggIdx], f.At(i))
 			}

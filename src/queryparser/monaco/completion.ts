@@ -266,6 +266,7 @@ export class AriaOpsCompletionItemProvider
     min: this.handleProperty,
     max: this.handleProperty,
     stddev: this.handleProperty,
+    median: this.handleProperty,
     count: this.handleProperty,
     variance: this.handleProperty,
     percentile: this.handleProperty,

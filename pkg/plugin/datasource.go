@@ -227,7 +227,6 @@ func (d *Datasource) GetMetrics(
 		IntervalType:       "MINUTES",
 		IntervalQuantifier: int64(math.Max(interval.Minutes(), 5)),
 	}
-	backend.Logger.Debug("get metrics", "query", metricQuery)
 	metricResponse := models.ResourceStatsResponse{}
 	err := d.client.GetMetrics(&metricQuery, &metricResponse)
 	backend.Logger.Debug("get metrics returned", "count", len(metricResponse.Values))

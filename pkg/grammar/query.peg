@@ -45,7 +45,7 @@ type QueryParser Peg {
 
 Query <- 
     TypeSpec 
-    ( Dot Filter )+ 
+    ( Dot Filter )* 
     Dot Metrics 
     ( Dot Aggregation )? !.
 
@@ -133,9 +133,9 @@ Metrics <-
 Aggregation <- 
   < AVG / MIN / MAX / STDDEV / VARIANCE / MEDIAN / COUNT / SUM > { p.Query.Aggregation.Type = text } 
     LP { p.currentList = make([]string, 0) } IdentifierList? { p.Query.Aggregation.Properties = p.currentList } RP 
-  / PERCENTILE { p.Query.Aggregation.Type = text } 
+  / <PERCENTILE> { p.Query.Aggregation.Type = text } 
     LP { p.currentList = make([]string, 0) } Float { p.Query.Aggregation.Parameter = p.currentFloat } 
-      Comma IdentifierList? { p.Query.Aggregation.Properties = p.currentList } RP
+      (Comma IdentifierList)? { p.Query.Aggregation.Properties = p.currentList } RP
 
 # Identifiers    
 Identifier <-

@@ -54,6 +54,7 @@ var statProducers = map[string]StatProducer{
 	"count":      (*Accumulator).GetCount,
 	"variance":   (*Accumulator).GetVariance,
 	"percentile": (*Accumulator).GetPercentile,
+	"median":     (*Accumulator).GetMedian,
 }
 
 type Accumulator struct {
@@ -65,6 +66,7 @@ type Accumulator struct {
 	avg        float64
 	wantDigest bool
 	digest     *tdigest.TDigest
+	median     *Median
 	percentile float64
 	mu         sync.Mutex
 }
@@ -79,6 +81,7 @@ func NewAccumulator(wantPercentile bool, percentile float64) *Accumulator {
 	if wantPercentile {
 		acc.digest = tdigest.New() // TODO: Do we need to specify compression
 	}
+	acc.median = NewMedian()
 	return acc
 }
 
@@ -96,6 +99,11 @@ func (a *Accumulator) AddDataPoint(value float64) {
 	if a.digest != nil {
 		a.digest.Add(value, 1.0)
 	}
+	a.median.Push(value)
+}
+
+func (a *Accumulator) GetMedian() float64 {
+	return a.median.Result()
 }
 
 func (a *Accumulator) GetAverage() float64 {
