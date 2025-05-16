@@ -15,7 +15,8 @@ func TestSlidingAverage(t *testing.T) {
 		if i < int(duration) {
 			require.Equal(t, float64(i)/2.0, acc.GetValue().Value, "Error at sample %d", i)
 		} else {
-			require.Equal(t, 2.0*(float64(i)-float64(duration)+1.0)/2.0, acc.GetValue().Value)
+			require.Equal(t, (2.0*float64(i)-float64(duration)+1.0)/2.0, acc.GetValue().Value)
+
 		}
 	}
 }

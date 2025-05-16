@@ -70,17 +70,21 @@ var SmootherFactories = map[string]SmootherFactory{
 	"mavg": NewSlidingAverage,
 }
 
+func newSmootherBase(resolution int64, totalTime int64, duration int64, shift bool) *smootherBase {
+	return &smootherBase{
+		resolution: resolution,
+		totalTime:  totalTime,
+		buffer:     make([]*Sample, int(duration/resolution)),
+		lag:        duration,
+		adjustLag:  shift,
+	}
+}
+
 func NewSlidingAverage(resolution int64, totalTime int64, duration int64, shift bool) Smoother {
 	s := SlidingAverage{
-		smootherBase: smootherBase{
-			resolution: resolution,
-			totalTime:  totalTime,
-			buffer:     make([]*Sample, int(totalTime/resolution)),
-			lag:        duration,
-			adjustLag:  shift,
-		},
-		sum:   0,
-		count: 0,
+		smootherBase: *newSmootherBase(resolution, totalTime, duration, shift),
+		sum:          0,
+		count:        0,
 	}
 	s.callbackTarget = &s
 	return &s
