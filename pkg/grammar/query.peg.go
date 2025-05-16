@@ -147,6 +147,16 @@ const (
 	ruleAction43
 	ruleAction44
 	ruleAction45
+	ruleAction46
+	ruleAction47
+	ruleAction48
+	ruleAction49
+	ruleAction50
+	ruleAction51
+	ruleAction52
+	ruleAction53
+	ruleAction54
+	ruleAction55
 )
 
 var rul3s = [...]string{
@@ -280,6 +290,16 @@ var rul3s = [...]string{
 	"Action43",
 	"Action44",
 	"Action45",
+	"Action46",
+	"Action47",
+	"Action48",
+	"Action49",
+	"Action50",
+	"Action51",
+	"Action52",
+	"Action53",
+	"Action54",
+	"Action55",
 }
 
 type token32 struct {
@@ -397,7 +417,7 @@ type QueryParser struct {
 
 	Buffer string
 	buffer []rune
-	rules  [130]func() bool
+	rules  [140]func() bool
 	parse  func(rule ...int) error
 	reset  func()
 	Pretty bool
@@ -533,80 +553,100 @@ func (p *QueryParser) Execute() {
 		case ruleAction12:
 			p.Push(text)
 		case ruleAction13:
-			p.Push(text)
+			p.Push("CONTAINS")
 		case ruleAction14:
-			p.Push("EQ")
+			p.Push("STARTS_WITH")
 		case ruleAction15:
-			p.Push("NE")
+			p.Push("ENDS_WITH")
 		case ruleAction16:
-			p.Push("LTE")
+			p.Push("REGEX")
 		case ruleAction17:
-			p.Push("LT")
+			p.Push("NOT_CONTAINS")
 		case ruleAction18:
-			p.Push("GTE")
+			p.Push("NOT_STARTS_WITH")
 		case ruleAction19:
-			p.Push("GT")
+			p.Push("NOT_ENDS_WITH")
 		case ruleAction20:
-
-			val := p.Pop()
-			id := p.PopString()
-			op := p.PopString()
-			p.Push(&Condition{Key: id, Operator: op, Value: val})
-
+			p.Push("NOT_REGEX")
 		case ruleAction21:
+			p.Push("IN")
+		case ruleAction22:
+			p.Push("NOT_IN")
+		case ruleAction23:
+			p.Push(text)
+		case ruleAction24:
+			p.Push("EQ")
+		case ruleAction25:
+			p.Push("NE")
+		case ruleAction26:
+			p.Push("LTE")
+		case ruleAction27:
+			p.Push("LT")
+		case ruleAction28:
+			p.Push("GTE")
+		case ruleAction29:
+			p.Push("GT")
+		case ruleAction30:
+
+			val := p.Pop()
+			id := p.PopString()
+			op := p.PopString()
+			p.Push(&Condition{Key: id, Operator: op, Value: val})
+
+		case ruleAction31:
 
 			val := p.Pop()
 			op := p.PopString()
 			id := p.PopString()
 			p.Push(&Condition{Key: id, Operator: op, Value: val})
 
-		case ruleAction22:
-			p.Query.Metrics = p.PopList()
-		case ruleAction23:
-			p.Query.Aggregation.Type = text
-		case ruleAction24:
-			p.Query.Aggregation.Properties = p.PopList()
-		case ruleAction25:
-			p.Query.Aggregation.Type = text
-		case ruleAction26:
-			p.Query.Aggregation.Parameter = p.PopFloat()
-		case ruleAction27:
-			p.Query.Aggregation.Properties = p.PopList()
-		case ruleAction28:
-			p.Query.Smoother.Type = p.PopString()
-		case ruleAction29:
-			p.Query.Smoother.Shift = p.Pop().(bool)
-		case ruleAction30:
-			p.Push(text)
-		case ruleAction31:
-			p.Push(text)
 		case ruleAction32:
-			p.Push([]string{p.PopString()})
+			p.Query.Metrics = p.PopList()
 		case ruleAction33:
-			p.PushStringIntoList(p.PopString())
+			p.Query.Aggregation.Type = text
 		case ruleAction34:
-			p.Push([]string{p.PopString()})
+			p.Query.Aggregation.Properties = p.PopList()
 		case ruleAction35:
-			p.PushStringIntoList(p.PopString())
+			p.Query.Aggregation.Type = text
 		case ruleAction36:
-			p.Push(text)
+			p.Query.Aggregation.Parameter = p.PopFloat()
 		case ruleAction37:
-			p.Push(text == "true")
+			p.Query.Aggregation.Properties = p.PopList()
 		case ruleAction38:
-			p.Push(p.PopFloat() * p.PopFloat())
+			p.Query.Smoother.Type = text
 		case ruleAction39:
-			p.Push(float64(1000))
+			p.Query.Smoother.Shift = p.Pop().(bool)
 		case ruleAction40:
-			p.Push(float64(1000 * 60))
+			p.Push(text)
 		case ruleAction41:
-			p.Push(float64(1000 * 60 * 60))
+			p.Push(text)
 		case ruleAction42:
-			p.Push(float64(1000 * 60 * 60 * 24))
+			p.Push([]string{p.PopString()})
 		case ruleAction43:
-			p.Push(float64(1000 * 60 * 60 * 24 * 7))
+			p.PushStringIntoList(p.PopString())
 		case ruleAction44:
-			p.Push(float64(1000 * 60 * 60 * 24 * 365))
+			p.Push([]string{p.PopString()})
 		case ruleAction45:
+			p.PushStringIntoList(p.PopString())
+		case ruleAction46:
+			p.Push(text)
+		case ruleAction47:
+			p.Push(text == "true")
+		case ruleAction48:
+			p.Push(p.PopFloat() * p.PopFloat())
+		case ruleAction49:
+			p.Push(float64(1000))
+		case ruleAction50:
+			p.Push(float64(1000 * 60))
+		case ruleAction51:
+			p.Push(float64(1000 * 60 * 60))
+		case ruleAction52:
+			p.Push(float64(1000 * 60 * 60 * 24))
+		case ruleAction53:
+			p.Push(float64(1000 * 60 * 60 * 24 * 7))
+		case ruleAction54:
+			p.Push(float64(1000 * 60 * 60 * 24 * 365))
+		case ruleAction55:
 			tmp, _ := strconv.ParseFloat(text, 64)
 			p.Push(tmp)
 
@@ -1118,7 +1158,7 @@ func (p *QueryParser) Init(options ...func(*QueryParser) error) error {
 			position, tokenIndex = position40, tokenIndex40
 			return false
 		},
-		/* 9 BinaryFunctionName <- <((CONTAINS / STARTS_WITH / ENDS_WITH / REGEX / NOT_CONTAINS / NOT_STARTS_WITH / NOT_ENDS_WITH / NOT_REGEX / IN / NOT_IN) Action13)> */
+		/* 9 BinaryFunctionName <- <(((CONTAINS Action13) / (STARTS_WITH Action14) / (ENDS_WITH Action15) / (REGEX Action16) / (NOT_CONTAINS Action17) / (NOT_STARTS_WITH Action18) / (NOT_ENDS_WITH Action19) / (NOT_REGEX Action20) / (IN Action21) / (NOT_IN Action22)) Action23)> */
 		func() bool {
 			position44, tokenIndex44 := position, tokenIndex
 			{
@@ -1128,10 +1168,16 @@ func (p *QueryParser) Init(options ...func(*QueryParser) error) error {
 					if !_rules[ruleCONTAINS]() {
 						goto l47
 					}
+					if !_rules[ruleAction13]() {
+						goto l47
+					}
 					goto l46
 				l47:
 					position, tokenIndex = position46, tokenIndex46
 					if !_rules[ruleSTARTS_WITH]() {
+						goto l48
+					}
+					if !_rules[ruleAction14]() {
 						goto l48
 					}
 					goto l46
@@ -1140,10 +1186,16 @@ func (p *QueryParser) Init(options ...func(*QueryParser) error) error {
 					if !_rules[ruleENDS_WITH]() {
 						goto l49
 					}
+					if !_rules[ruleAction15]() {
+						goto l49
+					}
 					goto l46
 				l49:
 					position, tokenIndex = position46, tokenIndex46
 					if !_rules[ruleREGEX]() {
+						goto l50
+					}
+					if !_rules[ruleAction16]() {
 						goto l50
 					}
 					goto l46
@@ -1152,10 +1204,16 @@ func (p *QueryParser) Init(options ...func(*QueryParser) error) error {
 					if !_rules[ruleNOT_CONTAINS]() {
 						goto l51
 					}
+					if !_rules[ruleAction17]() {
+						goto l51
+					}
 					goto l46
 				l51:
 					position, tokenIndex = position46, tokenIndex46
 					if !_rules[ruleNOT_STARTS_WITH]() {
+						goto l52
+					}
+					if !_rules[ruleAction18]() {
 						goto l52
 					}
 					goto l46
@@ -1164,10 +1222,16 @@ func (p *QueryParser) Init(options ...func(*QueryParser) error) error {
 					if !_rules[ruleNOT_ENDS_WITH]() {
 						goto l53
 					}
+					if !_rules[ruleAction19]() {
+						goto l53
+					}
 					goto l46
 				l53:
 					position, tokenIndex = position46, tokenIndex46
 					if !_rules[ruleNOT_REGEX]() {
+						goto l54
+					}
+					if !_rules[ruleAction20]() {
 						goto l54
 					}
 					goto l46
@@ -1176,15 +1240,21 @@ func (p *QueryParser) Init(options ...func(*QueryParser) error) error {
 					if !_rules[ruleIN]() {
 						goto l55
 					}
+					if !_rules[ruleAction21]() {
+						goto l55
+					}
 					goto l46
 				l55:
 					position, tokenIndex = position46, tokenIndex46
 					if !_rules[ruleNOT_IN]() {
 						goto l44
 					}
+					if !_rules[ruleAction22]() {
+						goto l44
+					}
 				}
 			l46:
-				if !_rules[ruleAction13]() {
+				if !_rules[ruleAction23]() {
 					goto l44
 				}
 				add(ruleBinaryFunctionName, position45)
@@ -1194,7 +1264,7 @@ func (p *QueryParser) Init(options ...func(*QueryParser) error) error {
 			position, tokenIndex = position44, tokenIndex44
 			return false
 		},
-		/* 10 Operator <- <((EQ Action14) / (NE Action15) / (LTE Action16) / (LT Action17) / (GTE Action18) / (GT Action19))> */
+		/* 10 Operator <- <((EQ Action24) / (NE Action25) / (LTE Action26) / (LT Action27) / (GTE Action28) / (GT Action29))> */
 		func() bool {
 			position56, tokenIndex56 := position, tokenIndex
 			{
@@ -1204,7 +1274,7 @@ func (p *QueryParser) Init(options ...func(*QueryParser) error) error {
 					if !_rules[ruleEQ]() {
 						goto l59
 					}
-					if !_rules[ruleAction14]() {
+					if !_rules[ruleAction24]() {
 						goto l59
 					}
 					goto l58
@@ -1213,7 +1283,7 @@ func (p *QueryParser) Init(options ...func(*QueryParser) error) error {
 					if !_rules[ruleNE]() {
 						goto l60
 					}
-					if !_rules[ruleAction15]() {
+					if !_rules[ruleAction25]() {
 						goto l60
 					}
 					goto l58
@@ -1222,7 +1292,7 @@ func (p *QueryParser) Init(options ...func(*QueryParser) error) error {
 					if !_rules[ruleLTE]() {
 						goto l61
 					}
-					if !_rules[ruleAction16]() {
+					if !_rules[ruleAction26]() {
 						goto l61
 					}
 					goto l58
@@ -1231,7 +1301,7 @@ func (p *QueryParser) Init(options ...func(*QueryParser) error) error {
 					if !_rules[ruleLT]() {
 						goto l62
 					}
-					if !_rules[ruleAction17]() {
+					if !_rules[ruleAction27]() {
 						goto l62
 					}
 					goto l58
@@ -1240,7 +1310,7 @@ func (p *QueryParser) Init(options ...func(*QueryParser) error) error {
 					if !_rules[ruleGTE]() {
 						goto l63
 					}
-					if !_rules[ruleAction18]() {
+					if !_rules[ruleAction28]() {
 						goto l63
 					}
 					goto l58
@@ -1249,7 +1319,7 @@ func (p *QueryParser) Init(options ...func(*QueryParser) error) error {
 					if !_rules[ruleGT]() {
 						goto l56
 					}
-					if !_rules[ruleAction19]() {
+					if !_rules[ruleAction29]() {
 						goto l56
 					}
 				}
@@ -1261,7 +1331,7 @@ func (p *QueryParser) Init(options ...func(*QueryParser) error) error {
 			position, tokenIndex = position56, tokenIndex56
 			return false
 		},
-		/* 11 BinaryFunction <- <(BinaryFunctionName LP Identifier Comma LiteralConditionValue RP Action20)> */
+		/* 11 BinaryFunction <- <(BinaryFunctionName LP Identifier Comma LiteralConditionValue RP Action30)> */
 		func() bool {
 			position64, tokenIndex64 := position, tokenIndex
 			{
@@ -1284,7 +1354,7 @@ func (p *QueryParser) Init(options ...func(*QueryParser) error) error {
 				if !_rules[ruleRP]() {
 					goto l64
 				}
-				if !_rules[ruleAction20]() {
+				if !_rules[ruleAction30]() {
 					goto l64
 				}
 				add(ruleBinaryFunction, position65)
@@ -1294,7 +1364,7 @@ func (p *QueryParser) Init(options ...func(*QueryParser) error) error {
 			position, tokenIndex = position64, tokenIndex64
 			return false
 		},
-		/* 12 InfixExpression <- <(Identifier _ Operator _ LiteralConditionValue Action21)> */
+		/* 12 InfixExpression <- <(Identifier _ Operator _ LiteralConditionValue Action31)> */
 		func() bool {
 			position66, tokenIndex66 := position, tokenIndex
 			{
@@ -1314,7 +1384,7 @@ func (p *QueryParser) Init(options ...func(*QueryParser) error) error {
 				if !_rules[ruleLiteralConditionValue]() {
 					goto l66
 				}
-				if !_rules[ruleAction21]() {
+				if !_rules[ruleAction31]() {
 					goto l66
 				}
 				add(ruleInfixExpression, position67)
@@ -1349,7 +1419,7 @@ func (p *QueryParser) Init(options ...func(*QueryParser) error) error {
 			position, tokenIndex = position68, tokenIndex68
 			return false
 		},
-		/* 14 Metrics <- <(METRICS LP IdentifierList RP Action22)> */
+		/* 14 Metrics <- <(METRICS LP IdentifierList RP Action32)> */
 		func() bool {
 			position72, tokenIndex72 := position, tokenIndex
 			{
@@ -1366,7 +1436,7 @@ func (p *QueryParser) Init(options ...func(*QueryParser) error) error {
 				if !_rules[ruleRP]() {
 					goto l72
 				}
-				if !_rules[ruleAction22]() {
+				if !_rules[ruleAction32]() {
 					goto l72
 				}
 				add(ruleMetrics, position73)
@@ -1376,7 +1446,7 @@ func (p *QueryParser) Init(options ...func(*QueryParser) error) error {
 			position, tokenIndex = position72, tokenIndex72
 			return false
 		},
-		/* 15 Aggregation <- <((<(AVG / MIN / MAX / STDDEV / VARIANCE / MEDIAN / COUNT / SUM)> Action23 LP IdentifierList? Action24 RP) / (<PERCENTILE> Action25 LP Float Action26 (Comma IdentifierList)? Action27 RP))> */
+		/* 15 Aggregation <- <((<(AVG / MIN / MAX / STDDEV / VARIANCE / MEDIAN / COUNT / SUM)> Action33 LP (IdentifierList Action34)? RP) / (<PERCENTILE> Action35 LP Float Action36 (Comma IdentifierList Action37)? RP))> */
 		func() bool {
 			position74, tokenIndex74 := position, tokenIndex
 			{
@@ -1436,7 +1506,7 @@ func (p *QueryParser) Init(options ...func(*QueryParser) error) error {
 					l79:
 						add(rulePegText, position78)
 					}
-					if !_rules[ruleAction23]() {
+					if !_rules[ruleAction33]() {
 						goto l77
 					}
 					if !_rules[ruleLP]() {
@@ -1447,14 +1517,14 @@ func (p *QueryParser) Init(options ...func(*QueryParser) error) error {
 						if !_rules[ruleIdentifierList]() {
 							goto l87
 						}
+						if !_rules[ruleAction34]() {
+							goto l87
+						}
 						goto l88
 					l87:
 						position, tokenIndex = position87, tokenIndex87
 					}
 				l88:
-					if !_rules[ruleAction24]() {
-						goto l77
-					}
 					if !_rules[ruleRP]() {
 						goto l77
 					}
@@ -1468,7 +1538,7 @@ func (p *QueryParser) Init(options ...func(*QueryParser) error) error {
 						}
 						add(rulePegText, position89)
 					}
-					if !_rules[ruleAction25]() {
+					if !_rules[ruleAction35]() {
 						goto l74
 					}
 					if !_rules[ruleLP]() {
@@ -1477,7 +1547,7 @@ func (p *QueryParser) Init(options ...func(*QueryParser) error) error {
 					if !_rules[ruleFloat]() {
 						goto l74
 					}
-					if !_rules[ruleAction26]() {
+					if !_rules[ruleAction36]() {
 						goto l74
 					}
 					{
@@ -1488,14 +1558,14 @@ func (p *QueryParser) Init(options ...func(*QueryParser) error) error {
 						if !_rules[ruleIdentifierList]() {
 							goto l90
 						}
+						if !_rules[ruleAction37]() {
+							goto l90
+						}
 						goto l91
 					l90:
 						position, tokenIndex = position90, tokenIndex90
 					}
 				l91:
-					if !_rules[ruleAction27]() {
-						goto l74
-					}
 					if !_rules[ruleRP]() {
 						goto l74
 					}
@@ -1508,7 +1578,7 @@ func (p *QueryParser) Init(options ...func(*QueryParser) error) error {
 			position, tokenIndex = position74, tokenIndex74
 			return false
 		},
-		/* 16 Smoother <- <(<(MAVG / MSUM / MSTDDEV / MVARIANCE / MMEDIAN / MMAX / MMIN / MEXPAVG / MGAUSSIAN)> Action28 LP TimeSpecifier (Comma <Boolean> Action29))> */
+		/* 16 Smoother <- <(<(MAVG / MSUM / MSTDDEV / MVARIANCE / MMEDIAN / MMAX / MMIN / MEXPAVG / MGAUSSIAN)> Action38 LP TimeSpecifier (Comma <Boolean> Action39)? RP)> */
 		func() bool {
 			position92, tokenIndex92 := position, tokenIndex
 			{
@@ -1572,7 +1642,7 @@ func (p *QueryParser) Init(options ...func(*QueryParser) error) error {
 				l95:
 					add(rulePegText, position94)
 				}
-				if !_rules[ruleAction28]() {
+				if !_rules[ruleAction38]() {
 					goto l92
 				}
 				if !_rules[ruleLP]() {
@@ -1581,17 +1651,27 @@ func (p *QueryParser) Init(options ...func(*QueryParser) error) error {
 				if !_rules[ruleTimeSpecifier]() {
 					goto l92
 				}
-				if !_rules[ruleComma]() {
-					goto l92
-				}
 				{
-					position104 := position
-					if !_rules[ruleBoolean]() {
-						goto l92
+					position104, tokenIndex104 := position, tokenIndex
+					if !_rules[ruleComma]() {
+						goto l104
 					}
-					add(rulePegText, position104)
+					{
+						position106 := position
+						if !_rules[ruleBoolean]() {
+							goto l104
+						}
+						add(rulePegText, position106)
+					}
+					if !_rules[ruleAction39]() {
+						goto l104
+					}
+					goto l105
+				l104:
+					position, tokenIndex = position104, tokenIndex104
 				}
-				if !_rules[ruleAction29]() {
+			l105:
+				if !_rules[ruleRP]() {
 					goto l92
 				}
 				add(ruleSmoother, position93)
@@ -1601,145 +1681,137 @@ func (p *QueryParser) Init(options ...func(*QueryParser) error) error {
 			position, tokenIndex = position92, tokenIndex92
 			return false
 		},
-		/* 17 Identifier <- <((<(IDStartCharacter IDCharacter*)> Action30) / (BackTick <IDQuotedCharacter+> Action31 BackTick))> */
+		/* 17 Identifier <- <((<(IDStartCharacter IDCharacter*)> Action40) / (BackTick <IDQuotedCharacter+> Action41 BackTick))> */
 		func() bool {
-			position105, tokenIndex105 := position, tokenIndex
+			position107, tokenIndex107 := position, tokenIndex
 			{
-				position106 := position
+				position108 := position
 				{
-					position107, tokenIndex107 := position, tokenIndex
+					position109, tokenIndex109 := position, tokenIndex
 					{
-						position109 := position
+						position111 := position
 						if !_rules[ruleIDStartCharacter]() {
-							goto l108
-						}
-					l110:
-						{
-							position111, tokenIndex111 := position, tokenIndex
-							if !_rules[ruleIDCharacter]() {
-								goto l111
-							}
 							goto l110
-						l111:
-							position, tokenIndex = position111, tokenIndex111
 						}
-						add(rulePegText, position109)
+					l112:
+						{
+							position113, tokenIndex113 := position, tokenIndex
+							if !_rules[ruleIDCharacter]() {
+								goto l113
+							}
+							goto l112
+						l113:
+							position, tokenIndex = position113, tokenIndex113
+						}
+						add(rulePegText, position111)
 					}
-					if !_rules[ruleAction30]() {
-						goto l108
+					if !_rules[ruleAction40]() {
+						goto l110
 					}
-					goto l107
-				l108:
-					position, tokenIndex = position107, tokenIndex107
+					goto l109
+				l110:
+					position, tokenIndex = position109, tokenIndex109
 					if !_rules[ruleBackTick]() {
-						goto l105
+						goto l107
 					}
 					{
-						position112 := position
+						position114 := position
 						if !_rules[ruleIDQuotedCharacter]() {
-							goto l105
+							goto l107
 						}
-					l113:
+					l115:
 						{
-							position114, tokenIndex114 := position, tokenIndex
+							position116, tokenIndex116 := position, tokenIndex
 							if !_rules[ruleIDQuotedCharacter]() {
-								goto l114
+								goto l116
 							}
-							goto l113
-						l114:
-							position, tokenIndex = position114, tokenIndex114
+							goto l115
+						l116:
+							position, tokenIndex = position116, tokenIndex116
 						}
-						add(rulePegText, position112)
+						add(rulePegText, position114)
 					}
-					if !_rules[ruleAction31]() {
-						goto l105
+					if !_rules[ruleAction41]() {
+						goto l107
 					}
 					if !_rules[ruleBackTick]() {
-						goto l105
+						goto l107
 					}
 				}
-			l107:
-				add(ruleIdentifier, position106)
+			l109:
+				add(ruleIdentifier, position108)
 			}
 			return true
-		l105:
-			position, tokenIndex = position105, tokenIndex105
+		l107:
+			position, tokenIndex = position107, tokenIndex107
 			return false
 		},
-		/* 18 IdentifierList <- <(Identifier Action32 (Comma Identifier Action33)*)> */
+		/* 18 IdentifierList <- <(Identifier Action42 (Comma Identifier Action43)*)> */
 		func() bool {
-			position115, tokenIndex115 := position, tokenIndex
+			position117, tokenIndex117 := position, tokenIndex
 			{
-				position116 := position
+				position118 := position
 				if !_rules[ruleIdentifier]() {
-					goto l115
+					goto l117
 				}
-				if !_rules[ruleAction32]() {
-					goto l115
+				if !_rules[ruleAction42]() {
+					goto l117
 				}
-			l117:
+			l119:
 				{
-					position118, tokenIndex118 := position, tokenIndex
+					position120, tokenIndex120 := position, tokenIndex
 					if !_rules[ruleComma]() {
-						goto l118
+						goto l120
 					}
 					if !_rules[ruleIdentifier]() {
-						goto l118
+						goto l120
 					}
-					if !_rules[ruleAction33]() {
-						goto l118
+					if !_rules[ruleAction43]() {
+						goto l120
 					}
-					goto l117
-				l118:
-					position, tokenIndex = position118, tokenIndex118
+					goto l119
+				l120:
+					position, tokenIndex = position120, tokenIndex120
 				}
-				add(ruleIdentifierList, position116)
+				add(ruleIdentifierList, position118)
 			}
 			return true
-		l115:
-			position, tokenIndex = position115, tokenIndex115
+		l117:
+			position, tokenIndex = position117, tokenIndex117
 			return false
 		},
-		/* 19 LiteralStringList <- <(<LiteralString> Action34 (Comma <LiteralString> Action35)*)> */
+		/* 19 LiteralStringList <- <(LiteralString Action44 (Comma LiteralString Action45)*)> */
 		func() bool {
-			position119, tokenIndex119 := position, tokenIndex
+			position121, tokenIndex121 := position, tokenIndex
 			{
-				position120 := position
-				{
-					position121 := position
-					if !_rules[ruleLiteralString]() {
-						goto l119
-					}
-					add(rulePegText, position121)
+				position122 := position
+				if !_rules[ruleLiteralString]() {
+					goto l121
 				}
-				if !_rules[ruleAction34]() {
-					goto l119
+				if !_rules[ruleAction44]() {
+					goto l121
 				}
-			l122:
+			l123:
 				{
-					position123, tokenIndex123 := position, tokenIndex
+					position124, tokenIndex124 := position, tokenIndex
 					if !_rules[ruleComma]() {
-						goto l123
+						goto l124
 					}
-					{
-						position124 := position
-						if !_rules[ruleLiteralString]() {
-							goto l123
-						}
-						add(rulePegText, position124)
+					if !_rules[ruleLiteralString]() {
+						goto l124
 					}
-					if !_rules[ruleAction35]() {
-						goto l123
+					if !_rules[ruleAction45]() {
+						goto l124
 					}
-					goto l122
-				l123:
-					position, tokenIndex = position123, tokenIndex123
+					goto l123
+				l124:
+					position, tokenIndex = position124, tokenIndex124
 				}
-				add(ruleLiteralStringList, position120)
+				add(ruleLiteralStringList, position122)
 			}
 			return true
-		l119:
-			position, tokenIndex = position119, tokenIndex119
+		l121:
+			position, tokenIndex = position121, tokenIndex121
 			return false
 		},
 		/* 20 IDStartCharacter <- <([A-Z] / [a-z] / '_')> */
@@ -1935,7 +2007,7 @@ func (p *QueryParser) Init(options ...func(*QueryParser) error) error {
 			position, tokenIndex = position140, tokenIndex140
 			return false
 		},
-		/* 23 LiteralString <- <(Quote <LiteralChar*> Action36 Quote)> */
+		/* 23 LiteralString <- <(Quote <LiteralChar*> Action46 Quote)> */
 		func() bool {
 			position153, tokenIndex153 := position, tokenIndex
 			{
@@ -1957,7 +2029,7 @@ func (p *QueryParser) Init(options ...func(*QueryParser) error) error {
 					}
 					add(rulePegText, position155)
 				}
-				if !_rules[ruleAction36]() {
+				if !_rules[ruleAction46]() {
 					goto l153
 				}
 				if !_rules[ruleQuote]() {
@@ -1970,7 +2042,7 @@ func (p *QueryParser) Init(options ...func(*QueryParser) error) error {
 			position, tokenIndex = position153, tokenIndex153
 			return false
 		},
-		/* 24 Boolean <- <(<(('t' 'r' 'u' 'e') / ('f' 'a' 'l' 's' 'e'))> Action37)> */
+		/* 24 Boolean <- <(<(('t' 'r' 'u' 'e') / ('f' 'a' 'l' 's' 'e'))> Action47)> */
 		func() bool {
 			position158, tokenIndex158 := position, tokenIndex
 			{
@@ -2022,7 +2094,7 @@ func (p *QueryParser) Init(options ...func(*QueryParser) error) error {
 				l161:
 					add(rulePegText, position160)
 				}
-				if !_rules[ruleAction37]() {
+				if !_rules[ruleAction47]() {
 					goto l158
 				}
 				add(ruleBoolean, position159)
@@ -2032,7 +2104,7 @@ func (p *QueryParser) Init(options ...func(*QueryParser) error) error {
 			position, tokenIndex = position158, tokenIndex158
 			return false
 		},
-		/* 25 TimeSpecifier <- <(Float TimeUnit Action38)> */
+		/* 25 TimeSpecifier <- <(Float TimeUnit Action48)> */
 		func() bool {
 			position163, tokenIndex163 := position, tokenIndex
 			{
@@ -2043,7 +2115,7 @@ func (p *QueryParser) Init(options ...func(*QueryParser) error) error {
 				if !_rules[ruleTimeUnit]() {
 					goto l163
 				}
-				if !_rules[ruleAction38]() {
+				if !_rules[ruleAction48]() {
 					goto l163
 				}
 				add(ruleTimeSpecifier, position164)
@@ -2053,7 +2125,7 @@ func (p *QueryParser) Init(options ...func(*QueryParser) error) error {
 			position, tokenIndex = position163, tokenIndex163
 			return false
 		},
-		/* 26 TimeUnit <- <(('s' Action39) / ('m' Action40) / ('h' Action41) / ('d' Action42) / ('w' Action43) / ('y' Action44))> */
+		/* 26 TimeUnit <- <(('s' Action49) / ('m' Action50) / ('h' Action51) / ('d' Action52) / ('w' Action53) / ('y' Action54))> */
 		func() bool {
 			position165, tokenIndex165 := position, tokenIndex
 			{
@@ -2064,7 +2136,7 @@ func (p *QueryParser) Init(options ...func(*QueryParser) error) error {
 						goto l168
 					}
 					position++
-					if !_rules[ruleAction39]() {
+					if !_rules[ruleAction49]() {
 						goto l168
 					}
 					goto l167
@@ -2074,7 +2146,7 @@ func (p *QueryParser) Init(options ...func(*QueryParser) error) error {
 						goto l169
 					}
 					position++
-					if !_rules[ruleAction40]() {
+					if !_rules[ruleAction50]() {
 						goto l169
 					}
 					goto l167
@@ -2084,7 +2156,7 @@ func (p *QueryParser) Init(options ...func(*QueryParser) error) error {
 						goto l170
 					}
 					position++
-					if !_rules[ruleAction41]() {
+					if !_rules[ruleAction51]() {
 						goto l170
 					}
 					goto l167
@@ -2094,7 +2166,7 @@ func (p *QueryParser) Init(options ...func(*QueryParser) error) error {
 						goto l171
 					}
 					position++
-					if !_rules[ruleAction42]() {
+					if !_rules[ruleAction52]() {
 						goto l171
 					}
 					goto l167
@@ -2104,7 +2176,7 @@ func (p *QueryParser) Init(options ...func(*QueryParser) error) error {
 						goto l172
 					}
 					position++
-					if !_rules[ruleAction43]() {
+					if !_rules[ruleAction53]() {
 						goto l172
 					}
 					goto l167
@@ -2114,7 +2186,7 @@ func (p *QueryParser) Init(options ...func(*QueryParser) error) error {
 						goto l165
 					}
 					position++
-					if !_rules[ruleAction44]() {
+					if !_rules[ruleAction54]() {
 						goto l165
 					}
 				}
@@ -4690,7 +4762,7 @@ func (p *QueryParser) Init(options ...func(*QueryParser) error) error {
 			position, tokenIndex = position395, tokenIndex395
 			return false
 		},
-		/* 81 Float <- <(<('-'? [0-9]+ ('.' [0-9]+)? (('E' / 'e') ('+' / '-')? [0-9]+)?)> Action45)> */
+		/* 81 Float <- <(<('-'? [0-9]+ ('.' [0-9]+)? (('E' / 'e') ('+' / '-')? [0-9]+)?)> Action55)> */
 		func() bool {
 			position401, tokenIndex401 := position, tokenIndex
 			{
@@ -4810,7 +4882,7 @@ func (p *QueryParser) Init(options ...func(*QueryParser) error) error {
 				l413:
 					add(rulePegText, position403)
 				}
-				if !_rules[ruleAction45]() {
+				if !_rules[ruleAction55]() {
 					goto l401
 				}
 				add(ruleFloat, position402)
@@ -4919,68 +4991,138 @@ func (p *QueryParser) Init(options ...func(*QueryParser) error) error {
 			}
 			return true
 		},
-		/* 97 Action13 <- <{ p.Push(text) }> */
+		/* 97 Action13 <- <{ p.Push("CONTAINS") }> */
 		func() bool {
 			{
 				add(ruleAction13, position)
 			}
 			return true
 		},
-		/* 98 Action14 <- <{ p.Push("EQ") }> */
+		/* 98 Action14 <- <{ p.Push("STARTS_WITH") }> */
 		func() bool {
 			{
 				add(ruleAction14, position)
 			}
 			return true
 		},
-		/* 99 Action15 <- <{ p.Push("NE") }> */
+		/* 99 Action15 <- <{ p.Push("ENDS_WITH") }> */
 		func() bool {
 			{
 				add(ruleAction15, position)
 			}
 			return true
 		},
-		/* 100 Action16 <- <{ p.Push("LTE") }> */
+		/* 100 Action16 <- <{ p.Push("REGEX") }> */
 		func() bool {
 			{
 				add(ruleAction16, position)
 			}
 			return true
 		},
-		/* 101 Action17 <- <{ p.Push("LT") }> */
+		/* 101 Action17 <- <{ p.Push("NOT_CONTAINS") }> */
 		func() bool {
 			{
 				add(ruleAction17, position)
 			}
 			return true
 		},
-		/* 102 Action18 <- <{ p.Push("GTE") }> */
+		/* 102 Action18 <- <{ p.Push("NOT_STARTS_WITH") }> */
 		func() bool {
 			{
 				add(ruleAction18, position)
 			}
 			return true
 		},
-		/* 103 Action19 <- <{ p.Push("GT") }> */
+		/* 103 Action19 <- <{ p.Push("NOT_ENDS_WITH") }> */
 		func() bool {
 			{
 				add(ruleAction19, position)
 			}
 			return true
 		},
-		/* 104 Action20 <- <{
-		   val := p.Pop()
-		   id := p.PopString()
-		   op := p.PopString()
-		   p.Push(&Condition { Key: id, Operator: op, Value: val })
-		 }> */
+		/* 104 Action20 <- <{ p.Push("NOT_REGEX") }> */
 		func() bool {
 			{
 				add(ruleAction20, position)
 			}
 			return true
 		},
-		/* 105 Action21 <- <{
+		/* 105 Action21 <- <{ p.Push("IN") }> */
+		func() bool {
+			{
+				add(ruleAction21, position)
+			}
+			return true
+		},
+		/* 106 Action22 <- <{ p.Push("NOT_IN") }> */
+		func() bool {
+			{
+				add(ruleAction22, position)
+			}
+			return true
+		},
+		/* 107 Action23 <- <{ p.Push(text) }> */
+		func() bool {
+			{
+				add(ruleAction23, position)
+			}
+			return true
+		},
+		/* 108 Action24 <- <{ p.Push("EQ") }> */
+		func() bool {
+			{
+				add(ruleAction24, position)
+			}
+			return true
+		},
+		/* 109 Action25 <- <{ p.Push("NE") }> */
+		func() bool {
+			{
+				add(ruleAction25, position)
+			}
+			return true
+		},
+		/* 110 Action26 <- <{ p.Push("LTE") }> */
+		func() bool {
+			{
+				add(ruleAction26, position)
+			}
+			return true
+		},
+		/* 111 Action27 <- <{ p.Push("LT") }> */
+		func() bool {
+			{
+				add(ruleAction27, position)
+			}
+			return true
+		},
+		/* 112 Action28 <- <{ p.Push("GTE") }> */
+		func() bool {
+			{
+				add(ruleAction28, position)
+			}
+			return true
+		},
+		/* 113 Action29 <- <{ p.Push("GT") }> */
+		func() bool {
+			{
+				add(ruleAction29, position)
+			}
+			return true
+		},
+		/* 114 Action30 <- <{
+		   val := p.Pop()
+		   id := p.PopString()
+		   op := p.PopString()
+		   p.Push(&Condition { Key: id, Operator: op, Value: val })
+		 }> */
+		func() bool {
+			{
+				add(ruleAction30, position)
+			}
+			return true
+		},
+		/* 115 Action31 <- <{
 		   val := p.Pop()
 		   op := p.PopString()
 		   id := p.PopString()
@@ -4988,175 +5130,175 @@ func (p *QueryParser) Init(options ...func(*QueryParser) error) error {
 		 }> */
 		func() bool {
 			{
-				add(ruleAction21, position)
-			}
-			return true
-		},
-		/* 106 Action22 <- <{ p.Query.Metrics = p.PopList() }> */
-		func() bool {
-			{
-				add(ruleAction22, position)
-			}
-			return true
-		},
-		/* 107 Action23 <- <{ p.Query.Aggregation.Type = text }> */
-		func() bool {
-			{
-				add(ruleAction23, position)
-			}
-			return true
-		},
-		/* 108 Action24 <- <{ p.Query.Aggregation.Properties = p.PopList() }> */
-		func() bool {
-			{
-				add(ruleAction24, position)
-			}
-			return true
-		},
-		/* 109 Action25 <- <{ p.Query.Aggregation.Type = text }> */
-		func() bool {
-			{
-				add(ruleAction25, position)
-			}
-			return true
-		},
-		/* 110 Action26 <- <{ p.Query.Aggregation.Parameter = p.PopFloat() }> */
-		func() bool {
-			{
-				add(ruleAction26, position)
-			}
-			return true
-		},
-		/* 111 Action27 <- <{ p.Query.Aggregation.Properties = p.PopList() }> */
-		func() bool {
-			{
-				add(ruleAction27, position)
-			}
-			return true
-		},
-		/* 112 Action28 <- <{ p.Query.Smoother.Type = p.PopString() }> */
-		func() bool {
-			{
-				add(ruleAction28, position)
-			}
-			return true
-		},
-		/* 113 Action29 <- <{ p.Query.Smoother.Shift = p.Pop().(bool) }> */
-		func() bool {
-			{
-				add(ruleAction29, position)
-			}
-			return true
-		},
-		/* 114 Action30 <- <{ p.Push(text) }> */
-		func() bool {
-			{
-				add(ruleAction30, position)
-			}
-			return true
-		},
-		/* 115 Action31 <- <{ p.Push(text) }> */
-		func() bool {
-			{
 				add(ruleAction31, position)
 			}
 			return true
 		},
-		/* 116 Action32 <- <{ p.Push([]string { p.PopString() }) }> */
+		/* 116 Action32 <- <{ p.Query.Metrics = p.PopList() }> */
 		func() bool {
 			{
 				add(ruleAction32, position)
 			}
 			return true
 		},
-		/* 117 Action33 <- <{ p.PushStringIntoList(p.PopString()) }> */
+		/* 117 Action33 <- <{ p.Query.Aggregation.Type = text }> */
 		func() bool {
 			{
 				add(ruleAction33, position)
 			}
 			return true
 		},
-		/* 118 Action34 <- <{ p.Push([]string { p.PopString() }) }> */
+		/* 118 Action34 <- <{ p.Query.Aggregation.Properties = p.PopList() }> */
 		func() bool {
 			{
 				add(ruleAction34, position)
 			}
 			return true
 		},
-		/* 119 Action35 <- <{ p.PushStringIntoList(p.PopString()) }> */
+		/* 119 Action35 <- <{ p.Query.Aggregation.Type = text }> */
 		func() bool {
 			{
 				add(ruleAction35, position)
 			}
 			return true
 		},
-		/* 120 Action36 <- <{ p.Push(text) }> */
+		/* 120 Action36 <- <{ p.Query.Aggregation.Parameter = p.PopFloat() }> */
 		func() bool {
 			{
 				add(ruleAction36, position)
 			}
 			return true
 		},
-		/* 121 Action37 <- <{ p.Push(text == "true") }> */
+		/* 121 Action37 <- <{ p.Query.Aggregation.Properties = p.PopList() }> */
 		func() bool {
 			{
 				add(ruleAction37, position)
 			}
 			return true
 		},
-		/* 122 Action38 <- <{ p.Push(p.PopFloat() * p.PopFloat())}> */
+		/* 122 Action38 <- <{ p.Query.Smoother.Type = text }> */
 		func() bool {
 			{
 				add(ruleAction38, position)
 			}
 			return true
 		},
-		/* 123 Action39 <- <{ p.Push(float64(1000)) }> */
+		/* 123 Action39 <- <{ p.Query.Smoother.Shift = p.Pop().(bool) }> */
 		func() bool {
 			{
 				add(ruleAction39, position)
 			}
 			return true
 		},
-		/* 124 Action40 <- <{ p.Push(float64(1000*60)) }> */
+		/* 124 Action40 <- <{ p.Push(text) }> */
 		func() bool {
 			{
 				add(ruleAction40, position)
 			}
 			return true
 		},
-		/* 125 Action41 <- <{ p.Push(float64(1000*60*60)) }> */
+		/* 125 Action41 <- <{ p.Push(text) }> */
 		func() bool {
 			{
 				add(ruleAction41, position)
 			}
 			return true
 		},
-		/* 126 Action42 <- <{ p.Push(float64(1000*60*60*24)) }> */
+		/* 126 Action42 <- <{ p.Push([]string { p.PopString() }) }> */
 		func() bool {
 			{
 				add(ruleAction42, position)
 			}
 			return true
 		},
-		/* 127 Action43 <- <{ p.Push(float64(1000*60*60*24*7)) }> */
+		/* 127 Action43 <- <{ p.PushStringIntoList(p.PopString()) }> */
 		func() bool {
 			{
 				add(ruleAction43, position)
 			}
 			return true
 		},
-		/* 128 Action44 <- <{ p.Push(float64(1000*60*60*24*365)) }> */
+		/* 128 Action44 <- <{ p.Push([]string { p.PopString() }) }> */
 		func() bool {
 			{
 				add(ruleAction44, position)
 			}
 			return true
 		},
-		/* 129 Action45 <- <{ tmp, _ := strconv.ParseFloat(text, 64); p.Push(tmp) }> */
+		/* 129 Action45 <- <{ p.PushStringIntoList(p.PopString()) }> */
 		func() bool {
 			{
 				add(ruleAction45, position)
+			}
+			return true
+		},
+		/* 130 Action46 <- <{ p.Push(text) }> */
+		func() bool {
+			{
+				add(ruleAction46, position)
+			}
+			return true
+		},
+		/* 131 Action47 <- <{ p.Push(text == "true") }> */
+		func() bool {
+			{
+				add(ruleAction47, position)
+			}
+			return true
+		},
+		/* 132 Action48 <- <{ p.Push(p.PopFloat() * p.PopFloat())}> */
+		func() bool {
+			{
+				add(ruleAction48, position)
+			}
+			return true
+		},
+		/* 133 Action49 <- <{ p.Push(float64(1000)) }> */
+		func() bool {
+			{
+				add(ruleAction49, position)
+			}
+			return true
+		},
+		/* 134 Action50 <- <{ p.Push(float64(1000*60)) }> */
+		func() bool {
+			{
+				add(ruleAction50, position)
+			}
+			return true
+		},
+		/* 135 Action51 <- <{ p.Push(float64(1000*60*60)) }> */
+		func() bool {
+			{
+				add(ruleAction51, position)
+			}
+			return true
+		},
+		/* 136 Action52 <- <{ p.Push(float64(1000*60*60*24)) }> */
+		func() bool {
+			{
+				add(ruleAction52, position)
+			}
+			return true
+		},
+		/* 137 Action53 <- <{ p.Push(float64(1000*60*60*24*7)) }> */
+		func() bool {
+			{
+				add(ruleAction53, position)
+			}
+			return true
+		},
+		/* 138 Action54 <- <{ p.Push(float64(1000*60*60*24*365)) }> */
+		func() bool {
+			{
+				add(ruleAction54, position)
+			}
+			return true
+		},
+		/* 139 Action55 <- <{ tmp, _ := strconv.ParseFloat(text, 64); p.Push(tmp) }> */
+		func() bool {
+			{
+				add(ruleAction55, position)
 			}
 			return true
 		},

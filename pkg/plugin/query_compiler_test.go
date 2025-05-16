@@ -108,3 +108,18 @@ func TestSlicedAggregationQuery(t *testing.T) {
 		require.ElementsMatch(t, []string{"summary|guest|fullName"}, cq.Aggregation.Properties)
 	}
 }
+
+func TestSlidingAverageQuery(t *testing.T) {
+	for smoother := range SmootherFactories {
+		q := models.AriaOpsQuery{
+			QueryText:    "resource(VMWARE:VirtualMachine).name(\"hello\").metrics(cpu|demandmhz)." + smoother + "(5m)",
+			AdvancedMode: true,
+		}
+		cq, err := CompileQuery(&q)
+		require.NoError(t, err, "Offending statement: %s", q.QueryText)
+		require.Equal(t, "VMWARE", cq.ResourceQuery.AdapterKind[0])
+		require.Equal(t, "VirtualMachine", cq.ResourceQuery.ResourceKind[0])
+		require.Equal(t, "cpu|demandmhz", cq.Metrics[0])
+		require.Equal(t, smoother, cq.Smoother.Type)
+	}
+}

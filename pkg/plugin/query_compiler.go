@@ -39,28 +39,6 @@ import (
 	"github.com/prydin/aria-operations-plug-in-for-grafana/pkg/models"
 )
 
-var operatorMap = map[string]string{
-	"and":             "AND",
-	"or":              "OR",
-	"in":              "IN",
-	"not in":          "NOT_IN",
-	"contains":        "CONTAINS",
-	"starts_with":     "STARTS_WITH",
-	"ends_with":       "ENDS_WITH",
-	"not starts_with": "NOT_STARTS_WITH",
-	"not ends_with":   "NOT_ENDS_WITH",
-	"not contains":    "NOT_CONTAINS",
-	"not regex":       "NOT_REGEX",
-	"exists":          "EXISTS",
-	"not exists":      "NOT_EXISTS",
-	">":               "GT",
-	"<":               "LT",
-	">=":              "GTE",
-	"<=":              "LTE",
-	"=":               "EQ",
-	"!=":              "NE",
-}
-
 func CompileQuery(query *models.AriaOpsQuery) (*models.CompiledQuery, error) {
 	if query.AdvancedMode {
 		return compileAdvancedQuery(query)
@@ -121,6 +99,7 @@ func compileAdvancedQuery(query *models.AriaOpsQuery) (*models.CompiledQuery, er
 			StatConditions:     mc,
 		},
 		Aggregation: q.Query.Aggregation,
+		Smoother:    q.Query.Smoother,
 	}
 
 	cq.Metrics = q.Query.Metrics
@@ -140,24 +119,22 @@ func makeFilterSpec(conditions []*grammar.Condition) (*models.FilterSpec, error)
 		if len(conditions) > 1 && condition.ConjunctiveOperator != conj {
 			return nil, errors.New("combinations of AND and OR is not yet supported") // TODO: Implement this!
 		}
-		operator, ok := operatorMap[condition.Operator]
-		if !ok {
-			return nil, errors.New("unsupported operator: " + condition.Operator)
-		}
 		if condition.Type == grammar.UnaryCondition {
 			c := models.Condition{
 				Key:      condition.Key,
-				Operator: operator,
+				Operator: condition.Operator,
 			}
-			nativeConditions = append(nativeConditions, c)
 			switch v := condition.Value.(type) {
 			case float64:
-				c.DoubleValue = &v
+				val := v
+				c.DoubleValue = &val
 			case string:
-				c.StringValue = &v
+				val := v
+				c.StringValue = &val
 			default:
 				return nil, errors.New("unsupported value type for condition: " + condition.Key)
 			}
+			nativeConditions = append(nativeConditions, c)
 		}
 	}
 	return &models.FilterSpec{

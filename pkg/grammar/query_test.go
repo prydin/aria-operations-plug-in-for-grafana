@@ -93,7 +93,7 @@ func TestSimpleHealth(t *testing.T) {
 
 func TestMultipleHealth(t *testing.T) {
 	q := QueryParser{}
-	q.Buffer = "resource(VMWARE:VirtualMachine).whereHealth(RED,YELLOW).metric(cpu|demandmhz)"
+	q.Buffer = "resource(VMWARE:VirtualMachine).whereHealth(RED,YELLOW).metrics(cpu|demandmhz)"
 	require.NoError(t, q.Init())
 	require.NoError(t, q.Parse())
 	q.Execute()
@@ -104,7 +104,7 @@ func TestMultipleHealth(t *testing.T) {
 
 func TestSimpleState(t *testing.T) {
 	q := QueryParser{}
-	q.Buffer = "resource(VMWARE:VirtualMachine).whereState(RED).metric(cpu|demandmhz)"
+	q.Buffer = "resource(VMWARE:VirtualMachine).whereState(RED).metrics(cpu|demandmhz)"
 	require.NoError(t, q.Init())
 	require.NoError(t, q.Parse())
 	q.Execute()
@@ -125,7 +125,7 @@ func TestMultipleState(t *testing.T) {
 
 func TestSimpleWhereMetrics(t *testing.T) {
 	q := QueryParser{}
-	q.Buffer = "resource(VMWARE:VirtualMachine).whereMetrics(cpu > 42).metric(cpu|demandmhz)"
+	q.Buffer = "resource(VMWARE:VirtualMachine).whereMetrics(cpu > 42).metrics(cpu|demandmhz)"
 	require.NoError(t, q.Init())
 	require.NoError(t, q.Parse())
 	q.Execute()

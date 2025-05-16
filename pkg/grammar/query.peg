@@ -87,24 +87,24 @@ UnaryFunctionName <-
   / NOT_EXISTS ) { p.Push(text) }
 
 BinaryFunctionName <- 
-    ( CONTAINS
-  / STARTS_WITH
-  / ENDS_WITH
-  / REGEX
-  / NOT_CONTAINS
-  / NOT_STARTS_WITH
-  / NOT_ENDS_WITH
-  / NOT_REGEX
-  / IN
-  / NOT_IN ) { p.Push(text) }
+    ( CONTAINS        { p.Push("CONTAINS") }
+    / STARTS_WITH     { p.Push("STARTS_WITH") }
+    / ENDS_WITH       { p.Push("ENDS_WITH") }
+    / REGEX           { p.Push("REGEX") }
+    / NOT_CONTAINS    { p.Push("NOT_CONTAINS") }
+    / NOT_STARTS_WITH { p.Push("NOT_STARTS_WITH") }
+    / NOT_ENDS_WITH   { p.Push("NOT_ENDS_WITH") }
+    / NOT_REGEX       { p.Push("NOT_REGEX") }
+    / IN              { p.Push("IN") }
+    / NOT_IN          { p.Push("NOT_IN") } ) { p.Push(text) }
 
 Operator <-
-    EQ { p.Push("EQ") }
-  / NE { p.Push("NE") }
-  / LTE { p.Push("LTE") }
-  / LT { p.Push("LT") }
-  / GTE { p.Push("GTE") }
-  / GT { p.Push("GT") }
+    EQ                { p.Push("EQ") }
+  / NE                { p.Push("NE") }
+  / LTE               { p.Push("LTE") }
+  / LT                { p.Push("LT") }
+  / GTE               { p.Push("GTE") }
+  / GT                { p.Push("GT") }
 
 BinaryFunction <- 
     BinaryFunctionName
@@ -131,14 +131,14 @@ Metrics <-
 
 Aggregation <- 
   < AVG / MIN / MAX / STDDEV / VARIANCE / MEDIAN / COUNT / SUM > { p.Query.Aggregation.Type = text } 
-    LP IdentifierList? { p.Query.Aggregation.Properties = p.PopList() } RP 
+    LP (IdentifierList { p.Query.Aggregation.Properties = p.PopList() })? RP 
   / <PERCENTILE> { p.Query.Aggregation.Type = text } 
     LP Float { p.Query.Aggregation.Parameter = p.PopFloat() } 
-      (Comma IdentifierList)? { p.Query.Aggregation.Properties = p.PopList() } RP
+      ((Comma IdentifierList) { p.Query.Aggregation.Properties = p.PopList() } )? RP
 
 Smoother <- 
-  < MAVG / MSUM / MSTDDEV / MVARIANCE / MMEDIAN / MMAX / MMIN / MEXPAVG / MGAUSSIAN > { p.Query.Smoother.Type = p.PopString() }
-    LP TimeSpecifier (Comma <Boolean> { p.Query.Smoother.Shift = p.Pop().(bool) })
+  < MAVG / MSUM / MSTDDEV / MVARIANCE / MMEDIAN / MMAX / MMIN / MEXPAVG / MGAUSSIAN > { p.Query.Smoother.Type = text }
+    LP TimeSpecifier (Comma <Boolean> { p.Query.Smoother.Shift = p.Pop().(bool) })? RP 
 
 # Identifiers    
 Identifier <-
@@ -151,8 +151,8 @@ IdentifierList <-
 
 # Literals
 LiteralStringList <- 
-    <LiteralString> { p.Push([]string { p.PopString() }) }
-    (Comma <LiteralString> { p.PushStringIntoList(p.PopString()) })*
+    LiteralString { p.Push([]string { p.PopString() }) }
+    (Comma LiteralString { p.PushStringIntoList(p.PopString()) })*
 
 IDStartCharacter        <- [A-Za-z_]
 IDCharacter             <- [A-Za-z0-9_:|.\-]

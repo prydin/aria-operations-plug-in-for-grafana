@@ -44,7 +44,7 @@ func (p *QueryParser) PushConditionIntoList(item *Condition) {
 
 func (p *QueryParser) Pop() any {
 	if len(p.stack) == 0 {
-		panic("Stack underflow")
+		panic("Parser stack underflow")
 	}
 	l := len(p.stack)
 	tmp := p.stack[l-1]
