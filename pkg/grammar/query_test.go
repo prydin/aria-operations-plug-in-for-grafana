@@ -131,7 +131,7 @@ func TestSimpleWhereMetrics(t *testing.T) {
 	q.Execute()
 	require.Equal(t, "VMWARE:VirtualMachine", q.Query.ResourceKinds[0])
 	require.Equal(t, "cpu", q.Query.MetricConditions[0].Key)
-	require.Equal(t, 42.0, q.Query.MetricConditions[0].DoubleValue)
+	require.Equal(t, 42.0, q.Query.MetricConditions[0].Value)
 	require.Equal(t, "", q.Query.MetricConditions[0].ConjunctiveOperator)
 }
 
@@ -143,12 +143,12 @@ func TestComplexWhereMetrics(t *testing.T) {
 	q.Execute()
 	require.Equal(t, "VMWARE:VirtualMachine", q.Query.ResourceKinds[0])
 	require.Equal(t, "cpu", q.Query.MetricConditions[0].Key)
-	require.Equal(t, 42.0, *q.Query.MetricConditions[0].DoubleValue)
+	require.Equal(t, 42.0, q.Query.MetricConditions[0].Value)
 	require.Equal(t, "", q.Query.MetricConditions[0].ConjunctiveOperator)
 	require.Equal(t, "mem", q.Query.MetricConditions[1].Key)
-	require.Equal(t, 1e7, *q.Query.MetricConditions[1].DoubleValue)
+	require.Equal(t, 1e7, q.Query.MetricConditions[1].Value)
 	require.Equal(t, "AND", q.Query.MetricConditions[1].ConjunctiveOperator)
 	require.Equal(t, "disk", q.Query.MetricConditions[2].Key)
-	require.Equal(t, 1e-2, *q.Query.MetricConditions[2].DoubleValue)
+	require.Equal(t, 1e-2, q.Query.MetricConditions[2].Value)
 	require.Equal(t, "AND", q.Query.MetricConditions[2].ConjunctiveOperator)
 }

@@ -28,41 +28,46 @@ SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
 CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-*/
-package grammar
+*/package grammar
 
-import "github.com/prydin/aria-operations-plug-in-for-grafana/pkg/models"
-
-const (
-	UnaryCondition = iota
-	StringCondition
-	DoubleCondition
-)
-
-type Condition struct {
-	Type                int
-	ConjunctiveOperator string
-	Value               any
-	Key                 string
-	Operator            string
+func (p *QueryParser) Push(item any) {
+	p.stack = append(p.stack, item)
 }
 
-type RawQuery struct {
-	ResourceKinds      []string
-	ResourceIds        []string
-	Name               []string
-	Regex              []string
-	Metrics            []string
-	Health             []string
-	Status             []string
-	State              []string
-	MetricConditions   []*Condition
-	PropertyConditions []*Condition
-	Aggregation        models.AggregationSpec
-	Smoother           models.SmootherSpec
+func (p *QueryParser) PushStringIntoList(item string) {
+	p.Push(append(p.Pop().([]string), item))
 }
 
-func (c *Condition) WithConjunctive(op string) *Condition {
-	c.ConjunctiveOperator = op
-	return c
+func (p *QueryParser) PushConditionIntoList(item *Condition) {
+	p.Push(append(p.Pop().([]*Condition), item))
+}
+
+func (p *QueryParser) Pop() any {
+	if len(p.stack) == 0 {
+		panic("Stack underflow")
+	}
+	l := len(p.stack)
+	tmp := p.stack[l-1]
+	p.stack = p.stack[0 : l-1]
+	return tmp
+}
+
+func (p *QueryParser) PopString() string {
+	return p.Pop().(string)
+}
+
+func (p *QueryParser) PopFloat() float64 {
+	return p.Pop().(float64)
+}
+
+func (p *QueryParser) PopList() []string {
+	return p.Pop().([]string)
+}
+
+func (p *QueryParser) PopConditions() []*Condition {
+	return p.Pop().([]*Condition)
+}
+
+func (p *QueryParser) PopCondition() *Condition {
+	return p.Pop().(*Condition)
 }

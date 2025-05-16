@@ -31,10 +31,22 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 package models
 
+type SmootherSpec struct {
+	Type       string
+	WindowSize int64
+	Shift      bool
+}
+
+type AggregationSpec struct {
+	Type       string
+	Parameter  float64
+	Properties []string
+}
+
 type CompiledQuery struct {
-	ResourceQuery ResourceRequest `json:"resourceQuery"`
-	//OrTerms        *OrTerm           `json:"orTerms,omitempty"`
-	Metrics     []string        `json:"metrics"`
-	Aggregation AggregationSpec `json:"aggregation,omitempty"`
-	//SlidingWindow  *SlidingWindowSpec `json:"slidingWindow,omitempty"`
+	ResourceQuery ResourceRequest
+	//OrTerms        *OrTerm
+	Metrics     []string
+	Aggregation AggregationSpec
+	Smoother    SmootherSpec
 }

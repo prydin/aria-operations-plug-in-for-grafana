@@ -34,67 +34,60 @@ package grammar
 
 type QueryParser Peg {
     Query               RawQuery
-
-    currentText         string
-    currentList         []string
-    currentCondition    Condition
-    currentConditions   []Condition
-    currentConjunctive  string    
-    currentFloat        float64
+    stack               []any
 }
 
-Query <- 
+Query <-
     TypeSpec 
     ( Dot Filter )* 
     Dot Metrics 
-    ( Dot Aggregation )? !.
+    ( Dot Aggregation )? 
+    ( Dot Smoother )? !.
 
 TypeSpec <- 
-    <RESOURCE> { p.currentList = make([]string, 0) } 
-    LP IdentifierList RP { p.Query.ResourceKinds = p.currentList }
+    <RESOURCE> LP IdentifierList RP { p.Query.ResourceKinds = p.PopList() }
 
 Filter <-
-    NAME { p.currentList = make([]string, 0) }
-    LP LiteralStringList RP { p.Query.Name = p.currentList } 
-  / REGEX { p.currentList = make([]string, 0) }
-    LP LiteralStringList RP { p.Query.Regex = p.currentList } 
-  / WHERE_HEALTH { p.currentList = make([]string, 0) }
-    LP IdentifierList RP { p.Query.Health = p.currentList }
-  / WHERE_STATUS { p.currentList = make([]string, 0) }
-    LP IdentifierList RP { p.Query.Status = p.currentList }
-  / WHERE_STATE { p.currentList = make([]string, 0) }
-    LP IdentifierList RP { p.Query.State = p.currentList }
-  / WHERE_METRICS { p.currentConditions = make([]Condition, 0) }
-    LP Conditions RP { p.Query.MetricConditions = p.currentConditions }
-  / WHERE_PROPERTIES { p.currentConditions = make([]Condition, 0) }
-    LP Conditions RP { p.Query.PropertyConditions = p.currentConditions } 
+    NAME LP LiteralStringList RP { p.Query.Name = p.PopList() } 
+  / REGEX LP LiteralStringList RP { p.Query.Regex = p.PopList() } 
+  / WHERE_HEALTH LP IdentifierList RP { p.Query.Health = p.PopList() }
+  / WHERE_STATUS LP IdentifierList RP { p.Query.Status = p.PopList() }
+  / WHERE_STATE LP IdentifierList RP { p.Query.State = p.PopList() }
+  / WHERE_METRICS LP Conditions RP { p.Query.MetricConditions = p.PopConditions() }
+  / WHERE_PROPERTIES LP Conditions RP { p.Query.PropertyConditions = p.PopConditions() } 
 
 Conditions <- 
-    Term { p.currentConditions = append(p.currentConditions, *p.currentCondition.WithConjunctive("")) }
-        ( _ <Conjunctive> _ { p.currentConjunctive = strings.ToUpper(text) } 
-        Term { p.currentConditions = append(p.currentConditions, *p.currentCondition.WithConjunctive(p.currentConjunctive)) })*
+    Term { p.Push([]*Condition { p.PopCondition() })  }
+        ( _ Conjunctive _ 
+        Term { 
+          cond := p.PopCondition()
+          conj := p.PopString()
+          p.PushConditionIntoList(cond.WithConjunctive(conj))} )*
 Term <- 
     Function 
   / InfixExpression
 
 Conjunctive <- 
-    AND
-  / OR
+    <AND / OR> { p.Push(strings.ToUpper(text)) }
 
 Function <-
-    UnaryFunction
-  / BinaryFunction
+    UnaryFunction 
+  / BinaryFunction 
 
 UnaryFunction <-
-    <UnaryFunctionName> { p.currentCondition.Operator = text} 
-    LP <Identifier> { p.currentCondition.Key = text } RP
+    UnaryFunctionName 
+    LP Identifier RP { 
+      id := p.PopString()
+      op := p.PopString()
+      p.Push(&Condition { Key: id, Operator: op })
+    }
 
 UnaryFunctionName <-
-    EXISTS
-  / NOT_EXISTS
+  ( EXISTS
+  / NOT_EXISTS ) { p.Push(text) }
 
 BinaryFunctionName <- 
-    CONTAINS
+    ( CONTAINS
   / STARTS_WITH
   / ENDS_WITH
   / REGEX
@@ -103,57 +96,76 @@ BinaryFunctionName <-
   / NOT_ENDS_WITH
   / NOT_REGEX
   / IN
-  / NOT_IN
+  / NOT_IN ) { p.Push(text) }
 
 Operator <-
-    EQ
-  / NE
-  / LTE
-  / LT
-  / GTE
-  / GT
+    EQ { p.Push("EQ") }
+  / NE { p.Push("NE") }
+  / LTE { p.Push("LTE") }
+  / LT { p.Push("LT") }
+  / GTE { p.Push("GTE") }
+  / GT { p.Push("GT") }
 
 BinaryFunction <- 
-    <BinaryFunctionName> { p.currentCondition.Operator = text}  
-    LP <Identifier> { p.currentCondition.Key = text} Comma LiteralConditionValue RP
-
-InfixExpression <-
-    <Identifier> { p.currentCondition.Key = text } _ <Operator> { p.currentCondition.Operator = text } _ LiteralConditionValue
-
-LiteralConditionValue <-
-    <LiteralString> { p.currentCondition.StringValue = &text }
-  / Float { 
-      tmp := p.currentFloat
-      p.currentCondition.DoubleValue = &tmp
+    BinaryFunctionName
+    LP Identifier Comma LiteralConditionValue RP { 
+      val := p.Pop()
+      id := p.PopString()
+      op := p.PopString()
+      p.Push(&Condition { Key: id, Operator: op, Value: val })
     }
 
+InfixExpression <-
+    Identifier _ Operator _ LiteralConditionValue { 
+      val := p.Pop()
+      op := p.PopString()
+      id := p.PopString()
+      p.Push(&Condition { Key: id, Operator: op, Value: val })
+    }
+
+LiteralConditionValue <-
+    LiteralString / Float 
+
 Metrics <- 
-    METRICS { p.currentList = make([]string, 0) } LP IdentifierList RP { p.Query.Metrics = p.currentList }
+    METRICS LP IdentifierList RP { p.Query.Metrics = p.PopList() }
 
 Aggregation <- 
   < AVG / MIN / MAX / STDDEV / VARIANCE / MEDIAN / COUNT / SUM > { p.Query.Aggregation.Type = text } 
-    LP { p.currentList = make([]string, 0) } IdentifierList? { p.Query.Aggregation.Properties = p.currentList } RP 
+    LP IdentifierList? { p.Query.Aggregation.Properties = p.PopList() } RP 
   / <PERCENTILE> { p.Query.Aggregation.Type = text } 
-    LP { p.currentList = make([]string, 0) } Float { p.Query.Aggregation.Parameter = p.currentFloat } 
-      (Comma IdentifierList)? { p.Query.Aggregation.Properties = p.currentList } RP
+    LP Float { p.Query.Aggregation.Parameter = p.PopFloat() } 
+      (Comma IdentifierList)? { p.Query.Aggregation.Properties = p.PopList() } RP
+
+Smoother <- 
+  < MAVG / MSUM / MSTDDEV / MVARIANCE / MMEDIAN / MMAX / MMIN / MEXPAVG / MGAUSSIAN > { p.Query.Smoother.Type = p.PopString() }
+    LP TimeSpecifier (Comma <Boolean> { p.Query.Smoother.Shift = p.Pop().(bool) })
 
 # Identifiers    
 Identifier <-
-    IDStartCharacter IDCharacter* /
-    BackTick <IDQuotedCharacter+> BackTick
+    <IDStartCharacter IDCharacter*> { p.Push(text) }/
+    BackTick <IDQuotedCharacter+> { p.Push(text) } BackTick
 
 IdentifierList <- 
-    <Identifier> { p.currentList = append(p.currentList, text)} 
-    (Comma <Identifier> { p.currentList = append(p.currentList, text)} )*
+    Identifier { p.Push([]string { p.PopString() }) }
+    (Comma Identifier { p.PushStringIntoList(p.PopString()) } )*
 
+# Literals
 LiteralStringList <- 
-    <LiteralString> { p.currentList = append(p.currentList, p.currentText )}
-    (Comma <LiteralString> { p.currentList = append(p.currentList, p.currentText) })*
+    <LiteralString> { p.Push([]string { p.PopString() }) }
+    (Comma <LiteralString> { p.PushStringIntoList(p.PopString()) })*
 
 IDStartCharacter        <- [A-Za-z_]
 IDCharacter             <- [A-Za-z0-9_:|.\-]
 IDQuotedCharacter       <- [A-Za-z0-9_:|.\- ,$]
-LiteralString           <- Quote <LiteralChar*> { p.currentText = text } Quote 
+LiteralString           <- Quote <LiteralChar*> { p.Push(text) } Quote 
+Boolean                 <- <'true' / 'false'> { p.Push(text == "true") }
+TimeSpecifier           <- Float TimeUnit { p.Push(p.PopFloat() * p.PopFloat())}
+TimeUnit                <-  's' { p.Push(float64(1000)) }
+                          / 'm' { p.Push(float64(1000*60)) }
+                          / 'h' { p.Push(float64(1000*60*60)) }
+                          / 'd' { p.Push(float64(1000*60*60*24)) }
+                          / 'w' { p.Push(float64(1000*60*60*24*7)) }
+                          / 'y' { p.Push(float64(1000*60*60*24*365)) }
 
 # Reserved words
 METRICS                 <- 'metrics'
@@ -166,6 +178,7 @@ WHERE_STATUS            <- 'whereStatus'
 WHERE_METRICS           <- 'whereMetrics'
 WHERE_PROPERTIES        <- 'whereProperties'
 
+# Expression language
 AND                     <- 'and'
 OR                      <- 'or'
 IN                      <- 'in'
@@ -186,6 +199,7 @@ LTE                     <- '<='
 EQ                      <- '='
 NE                      <- '!='
 
+# Aggregations
 AVG                     <- 'avg'
 MIN                     <- 'min'
 MAX                     <- 'max'
@@ -196,6 +210,18 @@ VARIANCE                <- 'variance'
 MEDIAN                  <- 'median'
 PERCENTILE              <- 'percentile'
 
+# Smoothers
+MAVG                    <- "mavg" 
+MSTDDEV                 <- "mstddev"
+MVARIANCE               <- "mvariance"
+MMEDIAN                 <- "mmedian"
+MMAX                    <- "mmax"
+MMIN                    <- "mmin"
+MSUM                    <- "msum"
+MEXPAVG                 <- "mexpavg"
+MGAUSSIAN               <- "mgaussian"
+
+
 # Lexical tokens
 Quote                   <- '"'
 Comma                   <- _ ',' _
@@ -205,4 +231,4 @@ LP                      <- _ '(' _
 RP                      <- _ ')' _
 _                       <- [ \t\n\r]*
 LiteralChar             <- [^"^\n]
-Float                   <- <'-'? [0-9]+ ('.' [0-9]+)? ([Ee] [+\-]? [0-9]+)?> { p.currentFloat, _ = strconv.ParseFloat(text, 64) }
+Float                   <- <'-'? [0-9]+ ('.' [0-9]+)? ([Ee] [+\-]? [0-9]+)?> { tmp, _ := strconv.ParseFloat(text, 64); p.Push(tmp) }

@@ -127,7 +127,7 @@ func compileAdvancedQuery(query *models.AriaOpsQuery) (*models.CompiledQuery, er
 	return &cq, nil
 }
 
-func makeFilterSpec(conditions []grammar.Condition) (*models.FilterSpec, error) {
+func makeFilterSpec(conditions []*grammar.Condition) (*models.FilterSpec, error) {
 	if len(conditions) == 0 {
 		return nil, nil
 	}
@@ -146,12 +146,18 @@ func makeFilterSpec(conditions []grammar.Condition) (*models.FilterSpec, error) 
 		}
 		if condition.Type == grammar.UnaryCondition {
 			c := models.Condition{
-				Key:         condition.Key,
-				Operator:    operator,
-				StringValue: condition.StringValue,
-				DoubleValue: condition.DoubleValue,
+				Key:      condition.Key,
+				Operator: operator,
 			}
 			nativeConditions = append(nativeConditions, c)
+			switch v := condition.Value.(type) {
+			case float64:
+				c.DoubleValue = &v
+			case string:
+				c.StringValue = &v
+			default:
+				return nil, errors.New("unsupported value type for condition: " + condition.Key)
+			}
 		}
 	}
 	return &models.FilterSpec{
