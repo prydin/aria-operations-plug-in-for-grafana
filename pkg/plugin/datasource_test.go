@@ -93,7 +93,7 @@ func TestGetMetricFrames(t *testing.T) {
 	ds := Datasource{
 		client: client,
 	}
-	frames := ds.FramesFromResourceMetrics("A", map[string]string{"dd3f76cc-4c44-4e3b-913a-17af826d8d28": "acclvcfopsn09.acc.broadcom.net"}, &response.Values[0])
+	frames := ds.FramesFromResourceMetrics("A", map[string]string{"dd3f76cc-4c44-4e3b-913a-17af826d8d28": "acclvcfopsn09.acc.broadcom.net"}, &response.Values[0], nil)
 	require.NotEmpty(t, frames)
 }
 

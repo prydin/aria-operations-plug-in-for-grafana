@@ -138,7 +138,7 @@ Aggregation <-
 
 Smoother <- 
   < MAVG / MSUM / MSTDDEV / MVARIANCE / MMEDIAN / MMAX / MMIN / MEXPAVG / MGAUSSIAN > { p.Query.Smoother.Type = text }
-    LP TimeSpecifier (Comma <Boolean> { p.Query.Smoother.Shift = p.Pop().(bool) })? RP 
+    LP TimeSpecifier { p.Query.Smoother.WindowSize = int64(p.PopFloat())} (Comma <Boolean> { p.Query.Smoother.Shift = p.Pop().(bool) })? RP 
 
 # Identifiers    
 Identifier <-

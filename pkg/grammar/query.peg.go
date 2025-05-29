@@ -157,6 +157,7 @@ const (
 	ruleAction53
 	ruleAction54
 	ruleAction55
+	ruleAction56
 )
 
 var rul3s = [...]string{
@@ -300,6 +301,7 @@ var rul3s = [...]string{
 	"Action53",
 	"Action54",
 	"Action55",
+	"Action56",
 }
 
 type token32 struct {
@@ -417,7 +419,7 @@ type QueryParser struct {
 
 	Buffer string
 	buffer []rune
-	rules  [140]func() bool
+	rules  [141]func() bool
 	parse  func(rule ...int) error
 	reset  func()
 	Pretty bool
@@ -615,38 +617,40 @@ func (p *QueryParser) Execute() {
 		case ruleAction38:
 			p.Query.Smoother.Type = text
 		case ruleAction39:
-			p.Query.Smoother.Shift = p.Pop().(bool)
+			p.Query.Smoother.WindowSize = int64(p.PopFloat())
 		case ruleAction40:
-			p.Push(text)
+			p.Query.Smoother.Shift = p.Pop().(bool)
 		case ruleAction41:
 			p.Push(text)
 		case ruleAction42:
-			p.Push([]string{p.PopString()})
-		case ruleAction43:
-			p.PushStringIntoList(p.PopString())
-		case ruleAction44:
-			p.Push([]string{p.PopString()})
-		case ruleAction45:
-			p.PushStringIntoList(p.PopString())
-		case ruleAction46:
 			p.Push(text)
+		case ruleAction43:
+			p.Push([]string{p.PopString()})
+		case ruleAction44:
+			p.PushStringIntoList(p.PopString())
+		case ruleAction45:
+			p.Push([]string{p.PopString()})
+		case ruleAction46:
+			p.PushStringIntoList(p.PopString())
 		case ruleAction47:
-			p.Push(text == "true")
+			p.Push(text)
 		case ruleAction48:
-			p.Push(p.PopFloat() * p.PopFloat())
+			p.Push(text == "true")
 		case ruleAction49:
-			p.Push(float64(1000))
+			p.Push(p.PopFloat() * p.PopFloat())
 		case ruleAction50:
-			p.Push(float64(1000 * 60))
+			p.Push(float64(1000))
 		case ruleAction51:
-			p.Push(float64(1000 * 60 * 60))
+			p.Push(float64(1000 * 60))
 		case ruleAction52:
-			p.Push(float64(1000 * 60 * 60 * 24))
+			p.Push(float64(1000 * 60 * 60))
 		case ruleAction53:
-			p.Push(float64(1000 * 60 * 60 * 24 * 7))
+			p.Push(float64(1000 * 60 * 60 * 24))
 		case ruleAction54:
-			p.Push(float64(1000 * 60 * 60 * 24 * 365))
+			p.Push(float64(1000 * 60 * 60 * 24 * 7))
 		case ruleAction55:
+			p.Push(float64(1000 * 60 * 60 * 24 * 365))
+		case ruleAction56:
 			tmp, _ := strconv.ParseFloat(text, 64)
 			p.Push(tmp)
 
@@ -1578,7 +1582,7 @@ func (p *QueryParser) Init(options ...func(*QueryParser) error) error {
 			position, tokenIndex = position74, tokenIndex74
 			return false
 		},
-		/* 16 Smoother <- <(<(MAVG / MSUM / MSTDDEV / MVARIANCE / MMEDIAN / MMAX / MMIN / MEXPAVG / MGAUSSIAN)> Action38 LP TimeSpecifier (Comma <Boolean> Action39)? RP)> */
+		/* 16 Smoother <- <(<(MAVG / MSUM / MSTDDEV / MVARIANCE / MMEDIAN / MMAX / MMIN / MEXPAVG / MGAUSSIAN)> Action38 LP TimeSpecifier Action39 (Comma <Boolean> Action40)? RP)> */
 		func() bool {
 			position92, tokenIndex92 := position, tokenIndex
 			{
@@ -1651,6 +1655,9 @@ func (p *QueryParser) Init(options ...func(*QueryParser) error) error {
 				if !_rules[ruleTimeSpecifier]() {
 					goto l92
 				}
+				if !_rules[ruleAction39]() {
+					goto l92
+				}
 				{
 					position104, tokenIndex104 := position, tokenIndex
 					if !_rules[ruleComma]() {
@@ -1663,7 +1670,7 @@ func (p *QueryParser) Init(options ...func(*QueryParser) error) error {
 						}
 						add(rulePegText, position106)
 					}
-					if !_rules[ruleAction39]() {
+					if !_rules[ruleAction40]() {
 						goto l104
 					}
 					goto l105
@@ -1681,7 +1688,7 @@ func (p *QueryParser) Init(options ...func(*QueryParser) error) error {
 			position, tokenIndex = position92, tokenIndex92
 			return false
 		},
-		/* 17 Identifier <- <((<(IDStartCharacter IDCharacter*)> Action40) / (BackTick <IDQuotedCharacter+> Action41 BackTick))> */
+		/* 17 Identifier <- <((<(IDStartCharacter IDCharacter*)> Action41) / (BackTick <IDQuotedCharacter+> Action42 BackTick))> */
 		func() bool {
 			position107, tokenIndex107 := position, tokenIndex
 			{
@@ -1705,7 +1712,7 @@ func (p *QueryParser) Init(options ...func(*QueryParser) error) error {
 						}
 						add(rulePegText, position111)
 					}
-					if !_rules[ruleAction40]() {
+					if !_rules[ruleAction41]() {
 						goto l110
 					}
 					goto l109
@@ -1731,7 +1738,7 @@ func (p *QueryParser) Init(options ...func(*QueryParser) error) error {
 						}
 						add(rulePegText, position114)
 					}
-					if !_rules[ruleAction41]() {
+					if !_rules[ruleAction42]() {
 						goto l107
 					}
 					if !_rules[ruleBackTick]() {
@@ -1746,7 +1753,7 @@ func (p *QueryParser) Init(options ...func(*QueryParser) error) error {
 			position, tokenIndex = position107, tokenIndex107
 			return false
 		},
-		/* 18 IdentifierList <- <(Identifier Action42 (Comma Identifier Action43)*)> */
+		/* 18 IdentifierList <- <(Identifier Action43 (Comma Identifier Action44)*)> */
 		func() bool {
 			position117, tokenIndex117 := position, tokenIndex
 			{
@@ -1754,7 +1761,7 @@ func (p *QueryParser) Init(options ...func(*QueryParser) error) error {
 				if !_rules[ruleIdentifier]() {
 					goto l117
 				}
-				if !_rules[ruleAction42]() {
+				if !_rules[ruleAction43]() {
 					goto l117
 				}
 			l119:
@@ -1766,7 +1773,7 @@ func (p *QueryParser) Init(options ...func(*QueryParser) error) error {
 					if !_rules[ruleIdentifier]() {
 						goto l120
 					}
-					if !_rules[ruleAction43]() {
+					if !_rules[ruleAction44]() {
 						goto l120
 					}
 					goto l119
@@ -1780,7 +1787,7 @@ func (p *QueryParser) Init(options ...func(*QueryParser) error) error {
 			position, tokenIndex = position117, tokenIndex117
 			return false
 		},
-		/* 19 LiteralStringList <- <(LiteralString Action44 (Comma LiteralString Action45)*)> */
+		/* 19 LiteralStringList <- <(LiteralString Action45 (Comma LiteralString Action46)*)> */
 		func() bool {
 			position121, tokenIndex121 := position, tokenIndex
 			{
@@ -1788,7 +1795,7 @@ func (p *QueryParser) Init(options ...func(*QueryParser) error) error {
 				if !_rules[ruleLiteralString]() {
 					goto l121
 				}
-				if !_rules[ruleAction44]() {
+				if !_rules[ruleAction45]() {
 					goto l121
 				}
 			l123:
@@ -1800,7 +1807,7 @@ func (p *QueryParser) Init(options ...func(*QueryParser) error) error {
 					if !_rules[ruleLiteralString]() {
 						goto l124
 					}
-					if !_rules[ruleAction45]() {
+					if !_rules[ruleAction46]() {
 						goto l124
 					}
 					goto l123
@@ -2007,7 +2014,7 @@ func (p *QueryParser) Init(options ...func(*QueryParser) error) error {
 			position, tokenIndex = position140, tokenIndex140
 			return false
 		},
-		/* 23 LiteralString <- <(Quote <LiteralChar*> Action46 Quote)> */
+		/* 23 LiteralString <- <(Quote <LiteralChar*> Action47 Quote)> */
 		func() bool {
 			position153, tokenIndex153 := position, tokenIndex
 			{
@@ -2029,7 +2036,7 @@ func (p *QueryParser) Init(options ...func(*QueryParser) error) error {
 					}
 					add(rulePegText, position155)
 				}
-				if !_rules[ruleAction46]() {
+				if !_rules[ruleAction47]() {
 					goto l153
 				}
 				if !_rules[ruleQuote]() {
@@ -2042,7 +2049,7 @@ func (p *QueryParser) Init(options ...func(*QueryParser) error) error {
 			position, tokenIndex = position153, tokenIndex153
 			return false
 		},
-		/* 24 Boolean <- <(<(('t' 'r' 'u' 'e') / ('f' 'a' 'l' 's' 'e'))> Action47)> */
+		/* 24 Boolean <- <(<(('t' 'r' 'u' 'e') / ('f' 'a' 'l' 's' 'e'))> Action48)> */
 		func() bool {
 			position158, tokenIndex158 := position, tokenIndex
 			{
@@ -2094,7 +2101,7 @@ func (p *QueryParser) Init(options ...func(*QueryParser) error) error {
 				l161:
 					add(rulePegText, position160)
 				}
-				if !_rules[ruleAction47]() {
+				if !_rules[ruleAction48]() {
 					goto l158
 				}
 				add(ruleBoolean, position159)
@@ -2104,7 +2111,7 @@ func (p *QueryParser) Init(options ...func(*QueryParser) error) error {
 			position, tokenIndex = position158, tokenIndex158
 			return false
 		},
-		/* 25 TimeSpecifier <- <(Float TimeUnit Action48)> */
+		/* 25 TimeSpecifier <- <(Float TimeUnit Action49)> */
 		func() bool {
 			position163, tokenIndex163 := position, tokenIndex
 			{
@@ -2115,7 +2122,7 @@ func (p *QueryParser) Init(options ...func(*QueryParser) error) error {
 				if !_rules[ruleTimeUnit]() {
 					goto l163
 				}
-				if !_rules[ruleAction48]() {
+				if !_rules[ruleAction49]() {
 					goto l163
 				}
 				add(ruleTimeSpecifier, position164)
@@ -2125,7 +2132,7 @@ func (p *QueryParser) Init(options ...func(*QueryParser) error) error {
 			position, tokenIndex = position163, tokenIndex163
 			return false
 		},
-		/* 26 TimeUnit <- <(('s' Action49) / ('m' Action50) / ('h' Action51) / ('d' Action52) / ('w' Action53) / ('y' Action54))> */
+		/* 26 TimeUnit <- <(('s' Action50) / ('m' Action51) / ('h' Action52) / ('d' Action53) / ('w' Action54) / ('y' Action55))> */
 		func() bool {
 			position165, tokenIndex165 := position, tokenIndex
 			{
@@ -2136,7 +2143,7 @@ func (p *QueryParser) Init(options ...func(*QueryParser) error) error {
 						goto l168
 					}
 					position++
-					if !_rules[ruleAction49]() {
+					if !_rules[ruleAction50]() {
 						goto l168
 					}
 					goto l167
@@ -2146,7 +2153,7 @@ func (p *QueryParser) Init(options ...func(*QueryParser) error) error {
 						goto l169
 					}
 					position++
-					if !_rules[ruleAction50]() {
+					if !_rules[ruleAction51]() {
 						goto l169
 					}
 					goto l167
@@ -2156,7 +2163,7 @@ func (p *QueryParser) Init(options ...func(*QueryParser) error) error {
 						goto l170
 					}
 					position++
-					if !_rules[ruleAction51]() {
+					if !_rules[ruleAction52]() {
 						goto l170
 					}
 					goto l167
@@ -2166,7 +2173,7 @@ func (p *QueryParser) Init(options ...func(*QueryParser) error) error {
 						goto l171
 					}
 					position++
-					if !_rules[ruleAction52]() {
+					if !_rules[ruleAction53]() {
 						goto l171
 					}
 					goto l167
@@ -2176,7 +2183,7 @@ func (p *QueryParser) Init(options ...func(*QueryParser) error) error {
 						goto l172
 					}
 					position++
-					if !_rules[ruleAction53]() {
+					if !_rules[ruleAction54]() {
 						goto l172
 					}
 					goto l167
@@ -2186,7 +2193,7 @@ func (p *QueryParser) Init(options ...func(*QueryParser) error) error {
 						goto l165
 					}
 					position++
-					if !_rules[ruleAction54]() {
+					if !_rules[ruleAction55]() {
 						goto l165
 					}
 				}
@@ -4762,7 +4769,7 @@ func (p *QueryParser) Init(options ...func(*QueryParser) error) error {
 			position, tokenIndex = position395, tokenIndex395
 			return false
 		},
-		/* 81 Float <- <(<('-'? [0-9]+ ('.' [0-9]+)? (('E' / 'e') ('+' / '-')? [0-9]+)?)> Action55)> */
+		/* 81 Float <- <(<('-'? [0-9]+ ('.' [0-9]+)? (('E' / 'e') ('+' / '-')? [0-9]+)?)> Action56)> */
 		func() bool {
 			position401, tokenIndex401 := position, tokenIndex
 			{
@@ -4882,7 +4889,7 @@ func (p *QueryParser) Init(options ...func(*QueryParser) error) error {
 				l413:
 					add(rulePegText, position403)
 				}
-				if !_rules[ruleAction55]() {
+				if !_rules[ruleAction56]() {
 					goto l401
 				}
 				add(ruleFloat, position402)
@@ -5183,14 +5190,14 @@ func (p *QueryParser) Init(options ...func(*QueryParser) error) error {
 			}
 			return true
 		},
-		/* 123 Action39 <- <{ p.Query.Smoother.Shift = p.Pop().(bool) }> */
+		/* 123 Action39 <- <{ p.Query.Smoother.WindowSize = int64(p.PopFloat())}> */
 		func() bool {
 			{
 				add(ruleAction39, position)
 			}
 			return true
 		},
-		/* 124 Action40 <- <{ p.Push(text) }> */
+		/* 124 Action40 <- <{ p.Query.Smoother.Shift = p.Pop().(bool) }> */
 		func() bool {
 			{
 				add(ruleAction40, position)
@@ -5204,101 +5211,108 @@ func (p *QueryParser) Init(options ...func(*QueryParser) error) error {
 			}
 			return true
 		},
-		/* 126 Action42 <- <{ p.Push([]string { p.PopString() }) }> */
+		/* 126 Action42 <- <{ p.Push(text) }> */
 		func() bool {
 			{
 				add(ruleAction42, position)
 			}
 			return true
 		},
-		/* 127 Action43 <- <{ p.PushStringIntoList(p.PopString()) }> */
+		/* 127 Action43 <- <{ p.Push([]string { p.PopString() }) }> */
 		func() bool {
 			{
 				add(ruleAction43, position)
 			}
 			return true
 		},
-		/* 128 Action44 <- <{ p.Push([]string { p.PopString() }) }> */
+		/* 128 Action44 <- <{ p.PushStringIntoList(p.PopString()) }> */
 		func() bool {
 			{
 				add(ruleAction44, position)
 			}
 			return true
 		},
-		/* 129 Action45 <- <{ p.PushStringIntoList(p.PopString()) }> */
+		/* 129 Action45 <- <{ p.Push([]string { p.PopString() }) }> */
 		func() bool {
 			{
 				add(ruleAction45, position)
 			}
 			return true
 		},
-		/* 130 Action46 <- <{ p.Push(text) }> */
+		/* 130 Action46 <- <{ p.PushStringIntoList(p.PopString()) }> */
 		func() bool {
 			{
 				add(ruleAction46, position)
 			}
 			return true
 		},
-		/* 131 Action47 <- <{ p.Push(text == "true") }> */
+		/* 131 Action47 <- <{ p.Push(text) }> */
 		func() bool {
 			{
 				add(ruleAction47, position)
 			}
 			return true
 		},
-		/* 132 Action48 <- <{ p.Push(p.PopFloat() * p.PopFloat())}> */
+		/* 132 Action48 <- <{ p.Push(text == "true") }> */
 		func() bool {
 			{
 				add(ruleAction48, position)
 			}
 			return true
 		},
-		/* 133 Action49 <- <{ p.Push(float64(1000)) }> */
+		/* 133 Action49 <- <{ p.Push(p.PopFloat() * p.PopFloat())}> */
 		func() bool {
 			{
 				add(ruleAction49, position)
 			}
 			return true
 		},
-		/* 134 Action50 <- <{ p.Push(float64(1000*60)) }> */
+		/* 134 Action50 <- <{ p.Push(float64(1000)) }> */
 		func() bool {
 			{
 				add(ruleAction50, position)
 			}
 			return true
 		},
-		/* 135 Action51 <- <{ p.Push(float64(1000*60*60)) }> */
+		/* 135 Action51 <- <{ p.Push(float64(1000*60)) }> */
 		func() bool {
 			{
 				add(ruleAction51, position)
 			}
 			return true
 		},
-		/* 136 Action52 <- <{ p.Push(float64(1000*60*60*24)) }> */
+		/* 136 Action52 <- <{ p.Push(float64(1000*60*60)) }> */
 		func() bool {
 			{
 				add(ruleAction52, position)
 			}
 			return true
 		},
-		/* 137 Action53 <- <{ p.Push(float64(1000*60*60*24*7)) }> */
+		/* 137 Action53 <- <{ p.Push(float64(1000*60*60*24)) }> */
 		func() bool {
 			{
 				add(ruleAction53, position)
 			}
 			return true
 		},
-		/* 138 Action54 <- <{ p.Push(float64(1000*60*60*24*365)) }> */
+		/* 138 Action54 <- <{ p.Push(float64(1000*60*60*24*7)) }> */
 		func() bool {
 			{
 				add(ruleAction54, position)
 			}
 			return true
 		},
-		/* 139 Action55 <- <{ tmp, _ := strconv.ParseFloat(text, 64); p.Push(tmp) }> */
+		/* 139 Action55 <- <{ p.Push(float64(1000*60*60*24*365)) }> */
 		func() bool {
 			{
 				add(ruleAction55, position)
+			}
+			return true
+		},
+		/* 140 Action56 <- <{ tmp, _ := strconv.ParseFloat(text, 64); p.Push(tmp) }> */
+		func() bool {
+			{
+				add(ruleAction56, position)
 			}
 			return true
 		},

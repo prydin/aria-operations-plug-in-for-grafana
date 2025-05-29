@@ -134,7 +134,7 @@ func (d *Datasource) query(_ context.Context, pCtx backend.PluginContext, query 
 		resourceMap[resource.Identifier] = resource.ResourceKey.Name
 	}
 
-	frames, err := d.GetMetrics(query.RefID, resourceMap, cq.Metrics, query.TimeRange, query.Interval, cq.Aggregation)
+	frames, err := d.GetMetrics(query.RefID, resourceMap, cq.Metrics, query.TimeRange, query.Interval, cq.Aggregation, cq.Smoother)
 	if err != nil {
 		return backend.ErrDataResponse(backend.StatusBadRequest, fmt.Sprintf("querying metrics: %v", err.Error()))
 	}
@@ -212,17 +212,29 @@ func (d *Datasource) GetMetrics(
 	timeRange backend.TimeRange,
 	interval time.Duration,
 	aggregation models.AggregationSpec,
-	//smootherSpec models.SlidingWindowSpec
-) (data.Frames, error) {
+	smootherSpec models.SmootherSpec) (data.Frames, error) {
 	resourceIds := make([]string, 0)
 	for k := range resources {
 		resourceIds = append(resourceIds, k)
+
 	}
+	var smootherMaker func() Smoother
+
+	var extendedEnd int64 = 0
+	if smootherSpec.Type != "" {
+		smootherMaker = func() Smoother {
+			return SmootherFactories[smootherSpec.Type](interval.Milliseconds(), timeRange.To.Sub(timeRange.From).Milliseconds(), smootherSpec.WindowSize, smootherSpec.Shift)
+		}
+		if smootherSpec.Shift {
+			extendedEnd = smootherSpec.WindowSize
+		}
+	}
+
 	metricQuery := models.ResourceStatsRequest{
 		ResourceId:         resourceIds,
 		StatKey:            metrics,
 		Begin:              timeRange.From.UnixMilli(),
-		End:                timeRange.To.UnixMilli(),
+		End:                timeRange.To.UnixMilli() + extendedEnd,
 		RollUpType:         "AVG",
 		IntervalType:       "MINUTES",
 		IntervalQuantifier: int64(math.Max(interval.Minutes(), 5)),
@@ -258,12 +270,12 @@ func (d *Datasource) GetMetrics(
 	}
 	frames := make(data.Frames, 0)
 	for _, resourceMetrics := range metricResponse.Values {
-		frames = append(frames, d.FramesFromResourceMetrics(refID, resources, &resourceMetrics)...)
+		frames = append(frames, d.FramesFromResourceMetrics(refID, resources, &resourceMetrics, smootherMaker)...)
 	}
 	return frames, nil
 }
 
-func (d *Datasource) FramesFromResourceMetrics(refId string, resources map[string]string, resourceMetrics *models.ResourceStats) data.Frames {
+func (d *Datasource) FramesFromResourceMetrics(refId string, resources map[string]string, resourceMetrics *models.ResourceStats, smootherMaker func() Smoother) data.Frames {
 	frames := make(data.Frames, 0)
 	resId := resourceMetrics.ResourceId
 	for _, envelope := range resourceMetrics.StatList.Stat {
@@ -276,12 +288,28 @@ func (d *Datasource) FramesFromResourceMetrics(refId string, resources map[strin
 		timestamps := make([]time.Time, len(envelope.Timestamps))
 		values := make([]float64, len(envelope.Timestamps))
 		for i, ts := range envelope.Timestamps {
-			timestamps[i] = time.Unix(ts/1000, 0)
+			timestamps[i] = time.UnixMilli(ts)
 			values[i] = float64(envelope.Data[i])
 		}
-		frame.Fields = append(frame.Fields,
-			data.NewField("Time", nil, timestamps),
-			data.NewField("Value", labels, values))
+
+		if smootherMaker != nil {
+			smoother := smootherMaker()
+			// Run samples through the smoother
+			sValues := make([]float64, 0)
+			sTimestamps := make([]time.Time, 0)
+			for i, ts := range envelope.Timestamps {
+				point := smoother.PushAndGet(ts, envelope.Data[i])
+				sTimestamps = append(sTimestamps, time.UnixMilli(point.Timestamp))
+				sValues = append(sValues, point.Value)
+			}
+			frame.Fields = append(frame.Fields,
+				data.NewField("Time", nil, sTimestamps),
+				data.NewField("Value", labels, sValues))
+		} else {
+			frame.Fields = append(frame.Fields,
+				data.NewField("Time", nil, timestamps),
+				data.NewField("Value", labels, values))
+		}
 		frames = append(frames, frame)
 		backend.Logger.Debug("framesFromResourceMetrics", "field", len(frame.Fields))
 	}

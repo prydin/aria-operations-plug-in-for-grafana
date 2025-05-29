@@ -32,6 +32,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 package plugin
 
+import "github.com/grafana/grafana-plugin-sdk-go/backend"
+
 type Sample struct {
 	Timestamp int64
 	Value     float64
@@ -55,6 +57,7 @@ type smootherBase struct {
 
 type Smoother interface {
 	Push(timestamp int64, value float64)
+	PushAndGet(timestamp int64, value float64) *Sample
 	GetValue() *Sample
 }
 
@@ -71,6 +74,7 @@ var SmootherFactories = map[string]SmootherFactory{
 }
 
 func newSmootherBase(resolution int64, totalTime int64, duration int64, shift bool) *smootherBase {
+	backend.Logger.Info("Creating smoother", "resolution", resolution, "totalTime", totalTime, "duration", duration)
 	return &smootherBase{
 		resolution: resolution,
 		totalTime:  totalTime,
@@ -101,6 +105,7 @@ func (s *SlidingAverage) onEvict(sample *Sample) {
 }
 
 func (s *SlidingAverage) getValue() *Sample {
+	backend.Logger.Info("getValue", "sum", s.sum, "count", s.count)
 	return s.makeSample(s.sum / float64(s.count))
 }
 
@@ -131,6 +136,11 @@ func (s *smootherBase) GetValue() *Sample {
 		s.buffer[p] = nil
 	}
 	return s.callbackTarget.getValue()
+}
+
+func (s *smootherBase) PushAndGet(timestamp int64, value float64) *Sample {
+	s.Push(timestamp, value)
+	return s.GetValue()
 }
 
 func (s *smootherBase) makeSample(value float64) *Sample {
