@@ -32,7 +32,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 package plugin
 
-import "github.com/grafana/grafana-plugin-sdk-go/backend"
+import (
+	"container/heap"
+	"math"
+
+	"github.com/grafana/grafana-plugin-sdk-go/backend"
+)
 
 type Sample struct {
 	Timestamp int64
@@ -67,10 +72,40 @@ type SlidingAverage struct {
 	count int
 }
 
+type SlidingSum struct {
+	smootherBase
+	sum float64
+}
+
+type SlidingMax struct {
+	smootherBase
+	heap MaxHeap
+}
+
+type SlidingMin struct {
+	smootherBase
+	heap MinHeap
+}
+
+type SlidingVariance struct {
+	smootherBase
+	avg      float64
+	vAcc     float64
+	sum      float64
+	count    int
+	full     bool
+	isStdDev bool
+}
+
 type SmootherFactory func(resolution int64, totalTime int64, duration int64, shift bool) Smoother
 
 var SmootherFactories = map[string]SmootherFactory{
-	"mavg": NewSlidingAverage,
+	"mavg":      NewSlidingAverage,
+	"msum":      NewSlidingSum,
+	"mmin":      NewSlidingMin,
+	"mmax":      NewSlidingMax,
+	"mvariance": NewSlidingVariance,
+	"mstddev":   NewSlidingStdDev,
 }
 
 func newSmootherBase(resolution int64, totalTime int64, duration int64, shift bool) *smootherBase {
@@ -107,6 +142,145 @@ func (s *SlidingAverage) onEvict(sample *Sample) {
 func (s *SlidingAverage) getValue() *Sample {
 	backend.Logger.Info("getValue", "sum", s.sum, "count", s.count)
 	return s.makeSample(s.sum / float64(s.count))
+}
+
+func NewSlidingSum(resolution int64, totalTime int64, duration int64, shift bool) Smoother {
+	s := SlidingSum{
+		smootherBase: *newSmootherBase(resolution, totalTime, duration, shift),
+		sum:          0,
+	}
+	s.callbackTarget = &s
+	return &s
+}
+
+func (s *SlidingSum) onPush(sample *Sample) {
+	s.sum += sample.Value
+}
+
+func (s *SlidingSum) onEvict(sample *Sample) {
+	s.sum -= sample.Value
+}
+
+func (s *SlidingSum) getValue() *Sample {
+	return s.makeSample(s.sum)
+}
+
+func NewSlidingMax(resolution int64, totalTime int64, duration int64, shift bool) Smoother {
+	s := SlidingMax{
+		smootherBase: *newSmootherBase(resolution, totalTime, duration, shift),
+		heap:         make(MaxHeap, 0, int(duration/resolution)),
+	}
+	s.callbackTarget = &s
+	heap.Init(&s.heap)
+	return &s
+}
+
+func (s *SlidingMax) onPush(sample *Sample) {
+	heap.Push(&s.heap, sample.Value)
+}
+
+func (s *SlidingMax) onEvict(sample *Sample) {
+	// If the heap is full and smallest value is about to get dropped, then pop it from the heap
+	if s.heap[0] == sample.Value {
+		heap.Pop(&s.heap)
+	}
+}
+
+func (s *SlidingMax) getValue() *Sample {
+	v := math.NaN()
+	if s.heap.Len() > 0 {
+		v = s.heap[0]
+	}
+	return s.makeSample(v)
+}
+
+func NewSlidingMin(resolution int64, totalTime int64, duration int64, shift bool) Smoother {
+	s := SlidingMin{
+		smootherBase: *newSmootherBase(resolution, totalTime, duration, shift),
+		heap:         make(MinHeap, 0, int(duration/resolution)),
+	}
+	s.callbackTarget = &s
+	heap.Init(&s.heap)
+	return &s
+}
+
+func (s *SlidingMin) onPush(sample *Sample) {
+	heap.Push(&s.heap, sample.Value)
+}
+
+func (s *SlidingMin) onEvict(sample *Sample) {
+	// If the heap is full and smallest value is about to get dropped, then pop it from the heap
+	if s.heap[0] == sample.Value {
+		heap.Pop(&s.heap)
+	}
+}
+
+func (s *SlidingMin) getValue() *Sample {
+	v := math.NaN()
+	if s.heap.Len() > 0 {
+		v = s.heap[0]
+	}
+	return s.makeSample(v)
+}
+
+func NewSlidingVariance(resolution int64, totalTime int64, duration int64, shift bool) Smoother {
+	s := SlidingVariance{
+		smootherBase: *newSmootherBase(resolution, totalTime, duration, shift),
+		isStdDev:     false,
+	}
+	s.callbackTarget = &s
+	return &s
+}
+
+func NewSlidingStdDev(resolution int64, totalTime int64, duration int64, shift bool) Smoother {
+	s := SlidingVariance{
+		smootherBase: *newSmootherBase(resolution, totalTime, duration, shift),
+		isStdDev:     true,
+	}
+	s.callbackTarget = &s
+	return &s
+}
+
+func (s *SlidingVariance) onPush(sample *Sample) {
+	if s.full {
+		return
+	}
+	s.count++
+	if s.count >= len(s.buffer) {
+		s.full = true
+	}
+
+	// Welford's method. The stock version of this is used when the windows isn't full. Once
+	// the window fills up, the calculation takes place in onEvict.
+	// https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Welford's_online_algorithm
+	v := sample.Value
+	s.sum += v
+	avg := s.sum / float64(s.count)
+	s.vAcc += (v - s.avg) * (v - avg)
+	s.avg = avg
+}
+
+func (s *SlidingVariance) onEvict(sample *Sample) {
+	// Slightly modified version of Welford's method that allows us to remove
+	// values that are out of scope.
+	current := s.buffer[s.head].Value
+	evicted := sample.Value
+	oldAvg := s.avg
+	s.avg = oldAvg + (current-evicted)/float64(s.count)
+	s.vAcc += (current - evicted) * (current - s.avg + evicted - oldAvg)
+}
+
+func (s *SlidingVariance) getValue() *Sample {
+	if s.count > 1 {
+		variance := s.vAcc / float64(s.count-1)
+		if s.isStdDev {
+			return s.makeSample(math.Sqrt(variance))
+		} else {
+			return s.makeSample(variance)
+		}
+	} else {
+		return s.makeSample(0)
+	}
 }
 
 func (s *smootherBase) Push(timestamp int64, value float64) {
@@ -387,25 +561,6 @@ export class SlidingCount extends SlidingAccumulator {
 
   _getValue(): Sample {
     return this.makeSample(this.count);
-  }
-}
-
-/**
- * Sliding window sum
- */
-export class SlidingSum extends SlidingAccumulator {
-  sum = 0.0;
-
-  onPush(sample: Sample): void {
-    this.sum += sample.value;
-  }
-
-  onEvict(sample: Sample): void {
-    this.sum -= sample.value;
-  }
-
-  _getValue(): Sample {
-    return this.makeSample(this.sum);
   }
 }
 

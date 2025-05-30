@@ -35,6 +35,7 @@ import (
 	"math"
 )
 
+type MaxHeap []float64
 type MinHeap []float64
 
 func (h MinHeap) Len() int           { return len(h) }
@@ -52,8 +53,6 @@ func (h *MinHeap) Pop() any {
 	*h = old[0 : n-1]
 	return x
 }
-
-type MaxHeap []float64
 
 func (h MaxHeap) Len() int           { return len(h) }
 func (h MaxHeap) Less(i, j int) bool { return h[i] > h[j] } // Note the > for max-heap
