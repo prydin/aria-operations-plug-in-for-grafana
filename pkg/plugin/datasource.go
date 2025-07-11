@@ -220,6 +220,11 @@ func (d *Datasource) GetMetrics(
 	}
 	var smootherMaker func() Smoother
 
+	// Max resolution is 5 minutes. Adjust interval if needed
+	if interval < 5*time.Minute {
+		interval = 5 * time.Minute
+	}
+
 	var extendedEnd int64 = 0
 	if smootherSpec.Type != "" {
 		smootherMaker = func() Smoother {

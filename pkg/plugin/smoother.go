@@ -97,6 +97,18 @@ type SlidingVariance struct {
 	isStdDev bool
 }
 
+type SlidingMedian struct {
+	smootherBase
+	median Median
+}
+
+type SlidingExponentialAverage struct {
+	smootherBase
+	alpha           float64
+	current         float64
+	latestTimestamp int64
+}
+
 type SmootherFactory func(resolution int64, totalTime int64, duration int64, shift bool) Smoother
 
 var SmootherFactories = map[string]SmootherFactory{
@@ -106,6 +118,8 @@ var SmootherFactories = map[string]SmootherFactory{
 	"mmax":      NewSlidingMax,
 	"mvariance": NewSlidingVariance,
 	"mstddev":   NewSlidingStdDev,
+	"mmedian":   NewSlidingMedian,
+	"mexpavg":   NewSlidingExponentialAverage,
 }
 
 func newSmootherBase(resolution int64, totalTime int64, duration int64, shift bool) *smootherBase {
@@ -283,6 +297,27 @@ func (s *SlidingVariance) getValue() *Sample {
 	}
 }
 
+func NewSlidingMedian(resolution int64, totalTime int64, duration int64, shift bool) Smoother {
+	s := SlidingMedian{
+		smootherBase: *newSmootherBase(resolution, totalTime, duration, shift),
+	}
+	s.median = *NewMedian()
+	s.callbackTarget = &s
+	return &s
+}
+
+func (s *SlidingMedian) onPush(sample *Sample) {
+	s.median.Push(sample.Value)
+}
+
+func (s *SlidingMedian) onEvict(sample *Sample) {
+	s.median.Pop(sample.Value)
+}
+
+func (s *SlidingMedian) getValue() *Sample {
+	return s.makeSample(s.median.Result())
+}
+
 func (s *smootherBase) Push(timestamp int64, value float64) {
 	s.head = (s.head + 1) % len(s.buffer)
 	sample := &Sample{Timestamp: timestamp, Value: value}
@@ -323,6 +358,42 @@ func (s *smootherBase) makeSample(value float64) *Sample {
 		shift = s.lag / 2
 	}
 	return &Sample{Timestamp: s.buffer[s.head].Timestamp - shift, Value: value}
+}
+
+func NewSlidingExponentialAverage(resolution int64, totalTime int64, duration int64, shift bool) Smoother {
+	s := SlidingExponentialAverage{
+		smootherBase: *newSmootherBase(resolution, totalTime, duration, shift),
+	}
+	s.alpha = 1.0 - math.Exp(-float64(resolution)/float64(duration))
+	backend.Logger.Info("NewSlidingExponentialAverage", "alpha", s.alpha)
+	s.current = math.NaN()
+	s.callbackTarget = &s
+	return &s
+}
+
+func (s *SlidingExponentialAverage) GetAlpha() float64 {
+	return s.alpha
+}
+
+func (s *SlidingExponentialAverage) onPush(sample *Sample) {
+	if math.IsNaN(s.current) {
+		s.current = sample.Value
+	} else {
+		s.current = (1.0-s.alpha)*s.current + s.alpha*sample.Value
+	}
+	s.latestTimestamp = sample.Timestamp
+	// backend.Logger.Info("ExpAvg new sample", "sample", sample.Value, "avg", s.current, "alpha", s.alpha)
+}
+
+func (s *SlidingExponentialAverage) onEvict(sample *Sample) {
+	// DO nothing
+}
+
+func (s *SlidingExponentialAverage) getValue() *Sample {
+	return &Sample{
+		Value:     s.current,
+		Timestamp: s.latestTimestamp - s.lag/2,
+	}
 }
 
 var X = `

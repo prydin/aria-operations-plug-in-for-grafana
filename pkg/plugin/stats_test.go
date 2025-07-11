@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestMedianFinder(t *testing.T) {
+func TestMedian(t *testing.T) {
 	oddSizeData := []float64{0, 1, 2, 3, 4, 5, 6, 7, 8}
 	evenSizeData := []float64{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
 	for range 100 {
@@ -18,6 +18,8 @@ func TestMedianFinder(t *testing.T) {
 		for _, n := range oddSizeData {
 			mf.Push(n)
 		}
+		mf.Push(3.333)
+		mf.Pop(3.333)
 		require.Equal(t, 4.0, mf.Result())
 
 		mf = NewMedian()
@@ -27,6 +29,8 @@ func TestMedianFinder(t *testing.T) {
 		for _, n := range evenSizeData {
 			mf.Push(n)
 		}
+		mf.Push(3.333)
+		mf.Pop(3.333)
 		require.Equal(t, 4.5, mf.Result())
 	}
 }

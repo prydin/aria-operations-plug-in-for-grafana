@@ -76,6 +76,17 @@ type Median struct {
 	highHeap MinHeap // Min-heap for the higher half
 }
 
+func FindInHeap(h []float64, num float64) (int, bool) {
+	// TODO: This is very inefficient, but the best we can do with a heap. If
+	// this becomes a problem, revisit and replace with a tree.
+	for i := range h {
+		if h[i] == num {
+			return i, true
+		}
+	}
+	return 0, false
+}
+
 // Constructor initializes the MedianFinder
 func NewMedian() *Median {
 	lowHeap := MaxHeap{}
@@ -85,15 +96,7 @@ func NewMedian() *Median {
 	return &Median{lowHeap: lowHeap, highHeap: highHeap}
 }
 
-// AddNum adds a number to the data structure
-func (mf *Median) Push(num float64) {
-	if mf.lowHeap.Len() == 0 || num <= (mf.lowHeap)[0] {
-		heap.Push(&mf.lowHeap, num)
-	} else {
-		heap.Push(&mf.highHeap, num)
-	}
-
-	// Rebalance the heaps
+func (mf *Median) rebalance() {
 	if mf.lowHeap.Len() > mf.highHeap.Len()+1 {
 		heap.Push(&mf.highHeap, heap.Pop(&mf.lowHeap))
 	} else if mf.highHeap.Len() > mf.lowHeap.Len() {
@@ -101,7 +104,26 @@ func (mf *Median) Push(num float64) {
 	}
 }
 
-// FindMedian returns the median of current data stream
+// AddNum adds a number to the data structure
+func (mf *Median) Push(num float64) {
+	if mf.lowHeap.Len() == 0 || num <= (mf.lowHeap)[0] {
+		heap.Push(&mf.lowHeap, num)
+	} else {
+		heap.Push(&mf.highHeap, num)
+	}
+	mf.rebalance()
+}
+
+func (mf *Median) Pop(num float64) {
+	if i, ok := FindInHeap(mf.lowHeap, num); ok {
+		heap.Remove(&mf.lowHeap, i)
+	} else if i, ok := FindInHeap(mf.highHeap, num); ok {
+		heap.Remove(&mf.highHeap, i)
+	}
+	mf.rebalance()
+}
+
+// FindResult returns the median of current data stream
 func (mf *Median) Result() float64 {
 	if mf.lowHeap.Len() == 0 && mf.highHeap.Len() == 0 {
 		return math.NaN()

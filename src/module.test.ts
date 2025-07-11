@@ -34,6 +34,7 @@ import { Stats } from 'aggregator';
 import { fill } from 'lodash';
 import { compileQuery } from 'queryparser/compiler';
 import {
+  ExponentialAverage,
   GaussianEstimator,
   SlidingAverage,
   SlidingMax,
@@ -883,8 +884,8 @@ describe('Sliding functions', () => {
 
   test('Gaussian math', () => {});
 
-  test('Gaussian', () => {
-    const g = new GaussianEstimator(300000, 8640000, { duration: 60000 });
-    console.log(g.h);
+  test('ExponentialAverage', () => {
+    const g = new ExponentialAverage(300000, { duration: 60000 });
+    expect(g.alpha).toBeCloseTo(0.9900498337491681, 6)
   });
 });
