@@ -109,6 +109,12 @@ type SlidingExponentialAverage struct {
 	latestTimestamp int64
 }
 
+type GaussianEstimator struct {
+	smootherBase
+	h          float64
+	windowSize int64
+}
+
 type SmootherFactory func(resolution int64, totalTime int64, duration int64, shift bool) Smoother
 
 var SmootherFactories = map[string]SmootherFactory{
@@ -120,6 +126,7 @@ var SmootherFactories = map[string]SmootherFactory{
 	"mstddev":   NewSlidingStdDev,
 	"mmedian":   NewSlidingMedian,
 	"mexpavg":   NewSlidingExponentialAverage,
+	"mgaussian": NewGaussianEstimator,
 }
 
 func newSmootherBase(resolution int64, totalTime int64, duration int64, shift bool) *smootherBase {
@@ -394,6 +401,60 @@ func (s *SlidingExponentialAverage) getValue() *Sample {
 		Value:     s.current,
 		Timestamp: s.latestTimestamp - s.lag/2,
 	}
+}
+
+func NewGaussianEstimator(resolution int64, totalTime int64, duration int64, shift bool) Smoother {
+	// Since the gaussian decays asymptotically, we expand the
+	// window to catch more of the tails. The factor 2 is rather arbitrarily chosen
+	// but seems to work.
+	s := GaussianEstimator{
+		smootherBase: *newSmootherBase(resolution, totalTime, duration*2, shift),
+	}
+	s.windowSize = duration
+
+	// Calculate the smoothing factor, which is really the standard deviation.
+	// We use the fact that the interval -2 * sigma to 2 * sigma from the mean
+	// covers about 95% of samples following normal distribution. For the purpose
+	// of our kernel, it means that the sliding window covers about 95% of the
+	// area under the kernel function graph.
+	s.h = float64(duration) / 2
+	s.callbackTarget = &s
+	return &s
+}
+
+func (s *GaussianEstimator) onPush(sample *Sample) {
+	// Update the internal state with the new sample
+}
+
+func (s *GaussianEstimator) onEvict(sample *Sample) {
+	// Update the internal state when a sample is evicted
+}
+
+func (s *GaussianEstimator) getValue() *Sample {
+	// Implementation note: It migth be more efficient to calculate this in the frequency
+	// domain instead, as what we're doing is basically a convolution. However, the point
+	// count is probably too low for that to make any meaningful difference.
+	sum := float64(0.0)
+	wSum := float64(0.0)
+	nPoints := len(s.buffer)
+	x := float64(s.buffer[s.head].Timestamp)
+	for i := 0; i < nPoints; i++ {
+		sample := s.buffer[(s.head+i+1)%nPoints]
+		if sample == nil {
+			continue
+		}
+		//const g = this.gaussianCoeff[i];
+		g := s.gaussian(float64(float64(sample.Timestamp) - x + float64(s.lag/2)))
+		sum += g
+		wSum += g * sample.Value
+	}
+	return s.makeSample(wSum / sum)
+}
+
+const sqrt2pi = 2.5066282746310002
+
+func (s *GaussianEstimator) gaussian(x float64) float64 {
+	return (1 / (sqrt2pi * s.h)) * math.Exp(-(x*x)/(2*s.h*s.h))
 }
 
 var X = `
