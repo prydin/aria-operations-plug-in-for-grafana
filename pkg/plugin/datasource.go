@@ -45,6 +45,46 @@ import (
 	"github.com/prydin/aria-operations-plug-in-for-grafana/pkg/models"
 )
 
+type AndCombiner struct {
+	numTerms int
+	counters map[string]*struct {
+		count int
+		name  string
+	}
+}
+
+func NewAndCombiner(numTerms int) *AndCombiner {
+	return &AndCombiner{
+		counters: make(map[string]*struct {
+			count int
+			name  string
+		}),
+		numTerms: numTerms,
+	}
+}
+
+func (ac *AndCombiner) AddTerm(id, name string) {
+	// Check if we already have an entry. Increase counter if so. Otherwise create a new entry
+	if entry, exists := ac.counters[id]; exists {
+		entry.count++
+	} else {
+		ac.counters[id] = &struct {
+			count int
+			name  string
+		}{count: 1, name: name}
+	}
+}
+
+func (ac *AndCombiner) ToMap() map[string]string {
+	result := make(map[string]string)
+	for id, entry := range ac.counters {
+		if entry.count == ac.numTerms {
+			result[id] = entry.name
+		}
+	}
+	return result
+}
+
 // Datasource is an example datasource which can respond to data queries, reports
 // its health and has streaming skills.
 type Datasource struct {
@@ -122,7 +162,8 @@ func (d *Datasource) query(_ context.Context, pCtx backend.PluginContext, query 
 	}
 
 	// Get the resources
-	resourceMap := make(map[string]string)
+
+	resourceAcc := NewAndCombiner(len(cq.ResourceQueries))
 	for _, resourceQuery := range cq.ResourceQueries {
 
 		var resources models.ResourceResponse
@@ -133,12 +174,12 @@ func (d *Datasource) query(_ context.Context, pCtx backend.PluginContext, query 
 		}
 
 		for _, resource := range resources.ResourceList {
-			resourceMap[resource.Identifier] = resource.ResourceKey.Name
+			resourceAcc.AddTerm(resource.Identifier, resource.ResourceKey.Name)
 		}
 	}
 
 	// Get the metrics
-	frames, err := d.GetMetrics(query.RefID, resourceMap, cq.Metrics, query.TimeRange, query.Interval, cq.Aggregation, cq.Smoother)
+	frames, err := d.GetMetrics(query.RefID, resourceAcc.ToMap(), cq.Metrics, query.TimeRange, query.Interval, cq.Aggregation, cq.Smoother)
 	if err != nil {
 		return backend.ErrDataResponse(backend.StatusBadRequest, fmt.Sprintf("querying metrics: %v", err.Error()))
 	}
@@ -220,7 +261,6 @@ func (d *Datasource) GetMetrics(
 	resourceIds := make([]string, 0)
 	for k := range resources {
 		resourceIds = append(resourceIds, k)
-
 	}
 	var smootherMaker func() Smoother
 

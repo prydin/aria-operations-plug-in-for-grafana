@@ -149,7 +149,9 @@ func makeFilterSpec(conditions []*grammar.Condition, inAllowed bool) ([]*models.
 	// Determine the conjunction
 	conj := "OR"
 	for i, condition := range conditions {
-		if i > 0 && condition.ConjunctiveOperator != conj {
+		if i == 1 {
+			conj = condition.ConjunctiveOperator
+		} else if i > 1 && condition.ConjunctiveOperator != conj {
 			return nil, errors.New("combinations of AND and OR is not yet supported") // TODO: Implement this!
 		}
 		if condition.ConjunctiveOperator != "" {
@@ -166,20 +168,13 @@ func makeFilterSpec(conditions []*grammar.Condition, inAllowed bool) ([]*models.
 			if conj == "OR" {
 				// The simple case: The overall conjunctive is "OR", so we just expand
 				// the IN operator to a bunch of OR
-				parts := condition.Value.([]string)
-				for _, part := range parts {
-					trimmedPart := strings.TrimSpace(part)
-					nativeConditions = append(nativeConditions, models.Condition{
-						Key:         condition.Key,
-						Operator:    "EQ",
-						StringValue: &trimmedPart,
-					})
-				}
+				nativeConditions = append(nativeConditions, expandInCondition(condition)...)
 			} else {
 				deferredInConditions = append(deferredInConditions, condition)
 			}
 			continue
 		}
+
 		c := models.Condition{
 			Key:      condition.Key,
 			Operator: condition.Operator,
@@ -196,10 +191,34 @@ func makeFilterSpec(conditions []*grammar.Condition, inAllowed bool) ([]*models.
 		}
 		nativeConditions = append(nativeConditions, c)
 	}
-	return []*models.FilterSpec{
-		{
+	filters := make([]*models.FilterSpec, 0)
+	if len(nativeConditions) > 0 {
+		filters = append(filters, &models.FilterSpec{
 			Conditions:          nativeConditions,
 			ConjunctionOperator: conj,
-		},
-	}, nil
+		})
+	}
+
+	// We may have IN-queries that were part of an "AND".
+	for _, inCondition := range deferredInConditions {
+		filters = append(filters, &models.FilterSpec{
+			Conditions:          expandInCondition(inCondition),
+			ConjunctionOperator: "OR",
+		})
+	}
+	return filters, nil
+}
+
+func expandInCondition(condition *grammar.Condition) []models.Condition {
+	expandedConditions := make([]models.Condition, 0)
+	parts := condition.Value.([]string)
+	for _, part := range parts {
+		trimmedPart := strings.TrimSpace(part)
+		expandedConditions = append(expandedConditions, models.Condition{
+			Key:         condition.Key,
+			Operator:    "EQ",
+			StringValue: &trimmedPart,
+		})
+	}
+	return expandedConditions
 }

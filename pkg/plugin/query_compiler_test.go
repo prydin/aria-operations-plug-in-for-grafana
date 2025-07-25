@@ -120,9 +120,27 @@ func TestCompileComplexInQuery(t *testing.T) {
 	}
 	cq, err := CompileQuery(&q)
 	require.NoError(t, err)
+	require.Equal(t, 2, len(cq.ResourceQueries))
 	require.Equal(t, "VMWARE", cq.ResourceQueries[0].AdapterKind[0])
 	require.Equal(t, "VirtualMachine", cq.ResourceQueries[0].ResourceKind[0])
 	require.Equal(t, "cpu|demandmhz", cq.Metrics[0])
+	require.Equal(t, "VMWARE", cq.ResourceQueries[1].AdapterKind[0])
+	require.Equal(t, "VirtualMachine", cq.ResourceQueries[1].ResourceKind[0])
+	require.Equal(t, "prop", cq.ResourceQueries[0].PropertyConditions.Conditions[0].Key)
+	require.Equal(t, "foo", *cq.ResourceQueries[0].PropertyConditions.Conditions[0].StringValue)
+	require.Equal(t, "prop", cq.ResourceQueries[0].PropertyConditions.Conditions[1].Key)
+	require.Equal(t, "bar", *cq.ResourceQueries[0].PropertyConditions.Conditions[1].StringValue)
+	require.Equal(t, "prop", cq.ResourceQueries[0].PropertyConditions.Conditions[2].Key)
+	require.Equal(t, "baz", *cq.ResourceQueries[0].PropertyConditions.Conditions[2].StringValue)
+	require.Equal(t, "prop2", cq.ResourceQueries[1].PropertyConditions.Conditions[0].Key)
+	require.Equal(t, "fee", *cq.ResourceQueries[1].PropertyConditions.Conditions[0].StringValue)
+	require.Equal(t, "prop2", cq.ResourceQueries[1].PropertyConditions.Conditions[1].Key)
+	require.Equal(t, "fie", *cq.ResourceQueries[1].PropertyConditions.Conditions[1].StringValue)
+	require.Equal(t, "prop2", cq.ResourceQueries[1].PropertyConditions.Conditions[2].Key)
+	require.Equal(t, "foe", *cq.ResourceQueries[1].PropertyConditions.Conditions[2].StringValue)
+	require.Equal(t, "prop2", cq.ResourceQueries[1].PropertyConditions.Conditions[3].Key)
+	require.Equal(t, "fum", *cq.ResourceQueries[1].PropertyConditions.Conditions[3].StringValue)
+
 	// TODO: More tests for complex in queries
 }
 
@@ -144,6 +162,15 @@ func TestCompilePropertyAndQuery(t *testing.T) {
 	require.Equal(t, "baz", cq.ResourceQueries[0].PropertyConditions.Conditions[2].Key)
 	require.Equal(t, "AND", cq.ResourceQueries[0].PropertyConditions.ConjunctionOperator)
 	require.Equal(t, "cpu|demandmhz", cq.Metrics[0])
+}
+
+func TestCompilePropertyIllegalAndOrQuery(t *testing.T) {
+	q := models.AriaOpsQuery{
+		QueryText:    "resource(VMWARE:VirtualMachine).whereProperties(foo = \"foo\" and bar = 1 and baz = 2 or fie = \"fie\").metrics(cpu|demandmhz)",
+		AdvancedMode: true,
+	}
+	_, err := CompileQuery(&q)
+	require.Error(t, err)
 }
 
 func TestCompilePropertyOrQuery(t *testing.T) {
@@ -175,7 +202,7 @@ func TestSingleConditionQuery(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "VMWARE", cq.ResourceQueries[0].AdapterKind[0])
 	require.Equal(t, "VirtualMachine", cq.ResourceQueries[0].ResourceKind[0])
-	require.Equal(t, "AND", cq.ResourceQueries[0].StatConditions.ConjunctionOperator)
+	require.Equal(t, "OR", cq.ResourceQueries[0].StatConditions.ConjunctionOperator)
 	require.Equal(t, "cpu|demandmhz", cq.ResourceQueries[0].StatConditions.Conditions[0].Key)
 	require.Equal(t, 0.0, *cq.ResourceQueries[0].StatConditions.Conditions[0].DoubleValue)
 	require.Equal(t, "cpu|demandmhz", cq.Metrics[0])

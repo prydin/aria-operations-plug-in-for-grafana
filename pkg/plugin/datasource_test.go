@@ -118,3 +118,16 @@ func TestGetPropertiesForResources(t *testing.T) {
 	require.Contains(t, properties[r], "summary|guest|fullName")
 	require.Contains(t, properties[r], "summary|guest|fullName")
 }
+
+func TestAndCombiner(t *testing.T) {
+	ac := NewAndCombiner(2)
+
+	ac.AddTerm("1", "term1")
+	ac.AddTerm("2", "term2")
+	ac.AddTerm("1", "term1")
+
+	result := ac.ToMap()
+	require.Len(t, result, 1)
+	require.Contains(t, result, "1")
+	require.Equal(t, "term1", result["1"])
+}
