@@ -44,9 +44,9 @@ type AggregationSpec struct {
 }
 
 type CompiledQuery struct {
-	ResourceQuery ResourceRequest
-	//OrTerms        *OrTerm
-	Metrics     []string
-	Aggregation AggregationSpec
-	Smoother    SmootherSpec
+	OrTerms         map[string]string
+	ResourceQueries []ResourceRequest
+	Metrics         []string
+	Aggregation     AggregationSpec
+	Smoother        SmootherSpec
 }

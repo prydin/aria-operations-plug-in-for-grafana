@@ -122,18 +122,22 @@ func (d *Datasource) query(_ context.Context, pCtx backend.PluginContext, query 
 	}
 
 	// Get the resources
-	var resources models.ResourceResponse
-	err = d.client.GetResources(&cq.ResourceQuery, &resources)
-	if err != nil {
-		return backend.ErrDataResponse(backend.StatusBadRequest, fmt.Sprintf("resource fetch: %v", err.Error()))
+	resourceMap := make(map[string]string)
+	for _, resourceQuery := range cq.ResourceQueries {
+
+		var resources models.ResourceResponse
+		backend.Logger.Debug("GetResources", "query", resourceQuery)
+		err = d.client.GetResources(&resourceQuery, &resources)
+		if err != nil {
+			return backend.ErrDataResponse(backend.StatusBadRequest, fmt.Sprintf("resource fetch: %v", err.Error()))
+		}
+
+		for _, resource := range resources.ResourceList {
+			resourceMap[resource.Identifier] = resource.ResourceKey.Name
+		}
 	}
 
 	// Get the metrics
-	resourceMap := make(map[string]string)
-	for _, resource := range resources.ResourceList {
-		resourceMap[resource.Identifier] = resource.ResourceKey.Name
-	}
-
 	frames, err := d.GetMetrics(query.RefID, resourceMap, cq.Metrics, query.TimeRange, query.Interval, cq.Aggregation, cq.Smoother)
 	if err != nil {
 		return backend.ErrDataResponse(backend.StatusBadRequest, fmt.Sprintf("querying metrics: %v", err.Error()))

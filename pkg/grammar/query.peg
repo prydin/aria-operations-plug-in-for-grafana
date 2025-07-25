@@ -94,9 +94,7 @@ BinaryFunctionName <-
     / NOT_CONTAINS    { p.Push("NOT_CONTAINS") }
     / NOT_STARTS_WITH { p.Push("NOT_STARTS_WITH") }
     / NOT_ENDS_WITH   { p.Push("NOT_ENDS_WITH") }
-    / NOT_REGEX       { p.Push("NOT_REGEX") }
-    / IN              { p.Push("IN") }
-    / NOT_IN          { p.Push("NOT_IN") } ) { p.Push(text) }
+    / NOT_REGEX       { p.Push("NOT_REGEX") }) { p.Push(text) }
 
 Operator <-
     EQ                { p.Push("EQ") }
@@ -105,6 +103,9 @@ Operator <-
   / LT                { p.Push("LT") }
   / GTE               { p.Push("GTE") }
   / GT                { p.Push("GT") }
+  / IN                { p.Push("IN") }
+  / NOT_IN            { p.Push("NOT_IN") } { p.Push(text) }
+
 
 BinaryFunction <- 
     BinaryFunctionName
@@ -115,8 +116,7 @@ BinaryFunction <-
       p.Push(&Condition { Key: id, Operator: op, Value: val })
     }
 
-InfixExpression <-
-    Identifier _ Operator _ LiteralConditionValue { 
+  InfixExpression <- Identifier _ Operator _ LiteralConditionValue { 
       val := p.Pop()
       op := p.PopString()
       id := p.PopString()
@@ -124,7 +124,7 @@ InfixExpression <-
     }
 
 LiteralConditionValue <-
-    LiteralString / Float 
+    LiteralString / Float / LP LiteralStringList RP
 
 Metrics <- 
     METRICS LP IdentifierList RP { p.Query.Metrics = p.PopList() }
