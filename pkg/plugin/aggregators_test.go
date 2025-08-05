@@ -59,6 +59,33 @@ var simpleAggregationSpec = models.AggregationSpec{
 	Properties: []string{},
 }
 
+func TestSimpleAggregationsWithSmoother(t *testing.T) {
+	timestamps := make([]int64, len(aggTestData))
+	for i := range aggTestData {
+		timestamps[i] = 1
+	}
+	simpleAggregationSpec.Type = "avg"
+	//	smootherMaker := func() Smoother {
+	//		return SmootherFactories["mmax"](1000, 1000, 1000, false)
+	//	}
+	myTestData := make([]float64, len(aggTestData))
+
+	s := NewStats(simpleAggregationSpec)
+	for i := range 10 {
+		for j := range aggTestData {
+			myTestData[j] = aggTestData[j] + float64(i*1000)
+		}
+		for ts := range aggTestData {
+			timestamps[ts] = int64(i)
+		}
+		s.Add("someMetric", timestamps, myTestData, make(map[string]string))
+	}
+	_, err := s.ToFrames("dummy", simpleAggregationSpec, nil)
+	if err != nil {
+		t.Fatalf("Error converting to frames: %v", err)
+	}
+}
+
 func TestSimpleAggregations(t *testing.T) {
 	timestamps := make([]int64, len(aggTestData))
 	for i := range aggTestData {

@@ -71,4 +71,6 @@ export const KEYWORDS = [
   'msum',
   'mexpavg',
   'mgaussian',
+  'true',
+  'false'
 ];

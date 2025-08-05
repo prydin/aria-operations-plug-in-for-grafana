@@ -294,6 +294,16 @@ func (d *Datasource) GetMetrics(
 		interval = 5 * time.Minute
 	}
 
+	var extendedEnd int64 = 0
+	if smootherSpec.Type != "" {
+		smootherMaker = func() Smoother {
+			return SmootherFactories[smootherSpec.Type](interval.Milliseconds(), timeRange.To.Sub(timeRange.From).Milliseconds(), smootherSpec.WindowSize, smootherSpec.Shift)
+		}
+		if smootherSpec.Shift {
+			extendedEnd = smootherSpec.WindowSize
+		}
+	}
+
 	resourceResults := make([]models.ResourceStats, 0)
 	for i := 0; i < len(resourceIds); i += ResourcePageSize {
 		end := i + ResourcePageSize
@@ -301,15 +311,6 @@ func (d *Datasource) GetMetrics(
 			end = len(resourceIds)
 		}
 		resourceSlice := resourceIds[i:end]
-		var extendedEnd int64 = 0
-		if smootherSpec.Type != "" {
-			smootherMaker = func() Smoother {
-				return SmootherFactories[smootherSpec.Type](interval.Milliseconds(), timeRange.To.Sub(timeRange.From).Milliseconds(), smootherSpec.WindowSize, smootherSpec.Shift)
-			}
-			if smootherSpec.Shift {
-				extendedEnd = smootherSpec.WindowSize
-			}
-		}
 
 		metricQuery := models.ResourceStatsRequest{
 			ResourceId:         resourceSlice,
@@ -350,7 +351,7 @@ func (d *Datasource) GetMetrics(
 				stats.Add(envelope.StatKey.Key, envelope.Timestamps, envelope.Data, pm)
 			}
 		}
-		return stats.ToFrames(refID, aggregation, nil)
+		return stats.ToFrames(refID, aggregation, smootherMaker)
 	}
 	frames := make(data.Frames, 0)
 	for _, resourceMetrics := range resourceResults {

@@ -235,6 +235,10 @@ func (s *Stats) ToFrames(refId string, aggregation models.AggregationSpec, smoot
 
 	var frames data.Frames
 	for key, bucket := range s.buckets {
+		var smoother Smoother
+		if smootherFactory != nil {
+			smoother = smootherFactory()
+		}
 		var labels map[string]string
 		if err := json.Unmarshal([]byte(key), &labels); err != nil {
 			return nil, err
@@ -244,11 +248,25 @@ func (s *Stats) ToFrames(refId string, aggregation models.AggregationSpec, smoot
 
 		results := bucket.GetResults()
 		timestamps := make([]time.Time, 0, len(results))
+		sortedTs := make([]int64, 0, len(results))
 		values := make([]float64, 0, len(results))
-		for ts, acc := range results {
-			value := produce(acc)
-			timestamps = append(timestamps, time.Unix(ts/1000, 0))
-			values = append(values, value)
+		for ts := range results {
+			sortedTs = append(sortedTs, ts)
+		}
+		sort.Slice(sortedTs, func(i, j int) bool { return sortedTs[i] < sortedTs[j] })
+		if smoother != nil {
+			for _, ts := range sortedTs {
+				value := produce(results[ts])
+				point := smoother.PushAndGet(ts, value)
+				timestamps = append(timestamps, time.UnixMilli(point.Timestamp))
+				values = append(values, point.Value)
+			}
+		} else {
+			for _, ts := range sortedTs {
+				value := produce(results[ts])
+				timestamps = append(timestamps, time.UnixMilli(ts))
+				values = append(values, value)
+			}
 		}
 		frame := data.NewFrame(statKey,
 			data.NewField("Time", nil, timestamps),

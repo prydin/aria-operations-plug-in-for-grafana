@@ -107,6 +107,10 @@ Operator <-
   / IN                { p.Push("IN") }
   / NOT_IN            { p.Push("NOT_IN") } { p.Push(text) }
 
+  LiteralBoolean <- 
+    TRUE              { p.Push("true") }
+  / FALSE             { p.Push("false") }
+
 
 BinaryFunction <- 
     BinaryFunctionName
@@ -125,7 +129,7 @@ BinaryFunction <-
     }
 
 LiteralConditionValue <-
-    LiteralString / Float / LP LiteralStringList RP
+    LiteralBoolean / LiteralString / Float / LP LiteralStringList RP
 
 Metrics <- 
     METRICS LP IdentifierList RP { p.Query.Metrics = p.PopList() }
@@ -179,6 +183,8 @@ WHERE_STATUS            <- 'whereStatus'
 WHERE_METRICS           <- 'whereMetrics'
 WHERE_PROPERTIES        <- 'whereProperties'
 ALL                     <- 'all'
+TRUE                    <- 'true'
+FALSE                   <- 'false'
 
 # Expression language
 AND                     <- 'and'
