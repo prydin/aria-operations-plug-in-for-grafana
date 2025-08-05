@@ -37,6 +37,7 @@ import (
 	"fmt"
 	"math"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/grafana/grafana-plugin-sdk-go/backend"
@@ -44,6 +45,40 @@ import (
 	"github.com/grafana/grafana-plugin-sdk-go/data"
 	"github.com/prydin/aria-operations-plug-in-for-grafana/pkg/models"
 )
+
+const ResourcePageSize = 1000 // Must be 1000 or less
+
+type ThrottledExecutor struct {
+	limiter chan struct{}
+	wg      sync.WaitGroup
+}
+
+func NewThrottledExecutor(limit int) *ThrottledExecutor {
+	if limit == 0 {
+		panic("Limit must be > 0")
+	}
+	return &ThrottledExecutor{limiter: make(chan struct{}, limit)}
+}
+
+func (t *ThrottledExecutor) Run(ctx context.Context, job func()) {
+	t.wg.Add(1)
+	go func() {
+		defer t.wg.Done()
+		select {
+		case t.limiter <- struct{}{}:
+			defer func() {
+				<-t.limiter
+			}()
+			job()
+		case <-ctx.Done():
+			return
+		}
+	}()
+}
+
+func (t *ThrottledExecutor) Wait() {
+	t.wg.Wait()
+}
 
 type AndCombiner struct {
 	numTerms int
@@ -168,37 +203,28 @@ func (d *Datasource) query(_ context.Context, pCtx backend.PluginContext, query 
 
 		var resources models.ResourceResponse
 		backend.Logger.Debug("GetResources", "query", resourceQuery)
-		err = d.client.GetResources(&resourceQuery, &resources)
-		if err != nil {
-			return backend.ErrDataResponse(backend.StatusBadRequest, fmt.Sprintf("resource fetch: %v", err.Error()))
-		}
+		page := 0
+		for {
+			err = d.client.GetResources(&resourceQuery, page, ResourcePageSize, &resources)
+			if err != nil {
+				return backend.ErrDataResponse(backend.StatusBadRequest, fmt.Sprintf("resource fetch: %v", err.Error()))
+			}
 
-		for _, resource := range resources.ResourceList {
-			resourceAcc.AddTerm(resource.Identifier, resource.ResourceKey.Name)
+			for _, resource := range resources.ResourceList {
+				resourceAcc.AddTerm(resource.Identifier, resource.ResourceKey.Name)
+			}
+			page++
+			if page*ResourcePageSize >= resources.PageInfo.TotalCount {
+				break
+			}
 		}
 	}
 
-	// Get the metrics
-	frames, err := d.GetMetrics(query.RefID, resourceAcc.ToMap(), cq.Metrics, query.TimeRange, query.Interval, cq.Aggregation, cq.Smoother)
+	// Get the metrics in chunks of 1000 resources
+	response.Frames, err = d.GetMetrics(query.RefID, resourceAcc.ToMap(), cq.Metrics, query.TimeRange, query.Interval, cq.Aggregation, cq.Smoother)
 	if err != nil {
 		return backend.ErrDataResponse(backend.StatusBadRequest, fmt.Sprintf("querying metrics: %v", err.Error()))
 	}
-	response.Frames = frames
-
-	/*
-		// create data frame response.
-		// For an overview on data frames and how grafana handles them:
-		// https://grafana.com/developers/plugin-tools/introduction/data-frames
-		frame := data.NewFrame("response")
-
-		// add fields.
-		frame.Fields = append(frame.Fields,
-			data.NewField("time", nil, []time.Time{query.TimeRange.From, query.TimeRange.To}),
-			data.NewField("values", nil, []int64{10, 20}),
-		)
-
-		// add the frames to the response.
-		response.Frames = append(response.Frames, frame) */
 	return response
 }
 
@@ -259,44 +285,53 @@ func (d *Datasource) GetMetrics(
 	aggregation models.AggregationSpec,
 	smootherSpec models.SmootherSpec) (data.Frames, error) {
 	resourceIds := make([]string, 0)
+	var smootherMaker func() Smoother
 	for k := range resources {
 		resourceIds = append(resourceIds, k)
 	}
-	var smootherMaker func() Smoother
-
 	// Max resolution is 5 minutes. Adjust interval if needed
 	if interval < 5*time.Minute {
 		interval = 5 * time.Minute
 	}
 
-	var extendedEnd int64 = 0
-	if smootherSpec.Type != "" {
-		smootherMaker = func() Smoother {
-			return SmootherFactories[smootherSpec.Type](interval.Milliseconds(), timeRange.To.Sub(timeRange.From).Milliseconds(), smootherSpec.WindowSize, smootherSpec.Shift)
+	resourceResults := make([]models.ResourceStats, 0)
+	for i := 0; i < len(resourceIds); i += ResourcePageSize {
+		end := i + ResourcePageSize
+		if end > len(resourceIds) {
+			end = len(resourceIds)
 		}
-		if smootherSpec.Shift {
-			extendedEnd = smootherSpec.WindowSize
+		resourceSlice := resourceIds[i:end]
+		var extendedEnd int64 = 0
+		if smootherSpec.Type != "" {
+			smootherMaker = func() Smoother {
+				return SmootherFactories[smootherSpec.Type](interval.Milliseconds(), timeRange.To.Sub(timeRange.From).Milliseconds(), smootherSpec.WindowSize, smootherSpec.Shift)
+			}
+			if smootherSpec.Shift {
+				extendedEnd = smootherSpec.WindowSize
+			}
 		}
-	}
 
-	metricQuery := models.ResourceStatsRequest{
-		ResourceId:         resourceIds,
-		StatKey:            metrics,
-		Begin:              timeRange.From.UnixMilli(),
-		End:                timeRange.To.UnixMilli() + extendedEnd,
-		RollUpType:         "AVG",
-		IntervalType:       "MINUTES",
-		IntervalQuantifier: int64(math.Max(interval.Minutes(), 5)),
-	}
-	metricResponse := models.ResourceStatsResponse{}
-	err := d.client.GetMetrics(&metricQuery, &metricResponse)
-	backend.Logger.Debug("get metrics returned", "count", len(metricResponse.Values))
-	if err != nil {
-		return nil, err
+		metricQuery := models.ResourceStatsRequest{
+			ResourceId:         resourceSlice,
+			StatKey:            metrics,
+			Begin:              timeRange.From.UnixMilli(),
+			End:                timeRange.To.UnixMilli() + extendedEnd,
+			RollUpType:         "AVG",
+			IntervalType:       "MINUTES",
+			IntervalQuantifier: int64(math.Max(interval.Minutes(), 5)),
+		}
+		metricResponse := models.ResourceStatsResponse{}
+		err := d.client.GetMetrics(&metricQuery, &metricResponse)
+		backend.Logger.Debug("get metrics returned", "count", len(metricResponse.Values))
+		if err != nil {
+			return nil, err
+		}
+		resourceResults = append(resourceResults, metricResponse.Values...)
 	}
 	if aggregation.Type != "" {
-		propertyMap := make(map[string]map[string]string)
+		var propertyMap map[string]map[string]string
 		if aggregation.Properties != nil {
+			var err error
 			propertyMap, err = d.getPropertiesForResources(
 				resourceIds,
 				aggregation.Properties,
@@ -306,7 +341,7 @@ func (d *Datasource) GetMetrics(
 			}
 		}
 		stats := NewStats(aggregation)
-		for _, r := range metricResponse.Values {
+		for _, r := range resourceResults {
 			for _, envelope := range r.StatList.Stat {
 				pm := propertyMap[r.ResourceId]
 				if pm == nil {
@@ -318,7 +353,7 @@ func (d *Datasource) GetMetrics(
 		return stats.ToFrames(refID, aggregation, nil)
 	}
 	frames := make(data.Frames, 0)
-	for _, resourceMetrics := range metricResponse.Values {
+	for _, resourceMetrics := range resourceResults {
 		frames = append(frames, d.FramesFromResourceMetrics(refID, resources, &resourceMetrics, smootherMaker)...)
 	}
 	return frames, nil

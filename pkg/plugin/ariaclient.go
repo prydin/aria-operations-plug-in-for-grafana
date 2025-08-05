@@ -35,6 +35,7 @@ import (
 	"crypto/tls"
 	json "encoding/json"
 	"fmt"
+	"strconv"
 	"sync"
 	"time"
 
@@ -128,8 +129,8 @@ func (a *AriaClient) Authenticate(username, password, authSource string) error {
 	return nil
 }
 
-func (a *AriaClient) GetResources(query *models.ResourceRequest, response *models.ResourceResponse) error {
-	return a.post("/resources/query", query, response)
+func (a *AriaClient) GetResources(query *models.ResourceRequest, page, pageSize int, response *models.ResourceResponse) error {
+	return a.post("/resources/query?page="+strconv.Itoa(page)+"&pageSize="+strconv.Itoa(pageSize), query, response)
 }
 
 func (a *AriaClient) GetAdapterKinds(response *models.AdapterKindResponse) error {

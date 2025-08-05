@@ -92,10 +92,23 @@ func TestGetResources(t *testing.T) {
 		ResourceKind: []string{"VirtualMachine"},
 		Name:         []string{"VM_Workload_02"},
 	}
-	err = client.GetResources(&request, &response)
+	err = client.GetResources(&request, 0, 1000, &response)
 	require.NoError(t, err)
 	require.Equal(t, 1, len(response.ResourceList))
 	require.Equal(t, "VM_Workload_02", response.ResourceList[0].ResourceKey.Name)
+}
+
+// Test AriaClient.GetResources
+func TestPagedGetResources(t *testing.T) {
+	var response models.ResourceResponse
+	client, err := newAuthenticatedClient()
+	require.NoError(t, err)
+	request := models.ResourceRequest{
+		ResourceKind: []string{"VirtualMachine"},
+	}
+	err = client.GetResources(&request, 0, 100, &response)
+	require.NoError(t, err)
+	require.Equal(t, 100, len(response.ResourceList))
 }
 
 // Test AriaClient.GetAdapterKinds

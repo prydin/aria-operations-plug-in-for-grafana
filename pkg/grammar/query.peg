@@ -55,6 +55,7 @@ Filter <-
   / WHERE_STATE LP IdentifierList RP { p.Query.State = p.PopList() }
   / WHERE_METRICS LP Conditions RP { p.Query.MetricConditions = p.PopConditions() }
   / WHERE_PROPERTIES LP Conditions RP { p.Query.PropertyConditions = p.PopConditions() } 
+  / ALL LP RP // No filters to populate
 
 Conditions <- 
     Term { p.Push([]*Condition { p.PopCondition() })  }
@@ -177,6 +178,7 @@ WHERE_STATE             <- 'whereState'
 WHERE_STATUS            <- 'whereStatus'
 WHERE_METRICS           <- 'whereMetrics'
 WHERE_PROPERTIES        <- 'whereProperties'
+ALL                     <- 'all'
 
 # Expression language
 AND                     <- 'and'

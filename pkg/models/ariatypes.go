@@ -80,7 +80,14 @@ type Resource struct {
 	} `json:"resourceKey,omitempty"`
 }
 
+type PageInfo struct {
+	TotalCount int `json:"totalCount,omitempty"`
+	PageSize   int `json:"pageSize,omitempty"`
+	Page       int `json:"page,omitempty"`
+}
+
 type ResourceResponse struct {
+	PageInfo     PageInfo   `json:"pageInfo,omitempty"`
 	ResourceList []Resource `json:"resourceList,omitempty"`
 }
 
