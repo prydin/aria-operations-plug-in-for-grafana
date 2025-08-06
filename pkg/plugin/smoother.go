@@ -131,10 +131,14 @@ var SmootherFactories = map[string]SmootherFactory{
 
 func newSmootherBase(resolution int64, totalTime int64, duration int64, shift bool) *smootherBase {
 	backend.Logger.Info("Creating smoother", "resolution", resolution, "totalTime", totalTime, "duration", duration)
+	bufSize := int(totalTime / resolution)
+	if bufSize <= 0 {
+		bufSize = 1
+	}
 	return &smootherBase{
 		resolution: resolution,
 		totalTime:  totalTime,
-		buffer:     make([]*Sample, int(duration/resolution)),
+		buffer:     make([]*Sample, bufSize),
 		lag:        duration,
 		adjustLag:  shift,
 	}

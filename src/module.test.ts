@@ -35,7 +35,6 @@ import { fill } from 'lodash';
 import { compileQuery } from 'queryparser/compiler';
 import {
   ExponentialAverage,
-  GaussianEstimator,
   SlidingAverage,
   SlidingMax,
   SlidingMedian,

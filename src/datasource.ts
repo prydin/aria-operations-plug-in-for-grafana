@@ -37,11 +37,13 @@ import {
   DataFrame,
   MetricFindValue,
   FieldType,
+  DataQueryRequest,
+  DataQueryResponse,
+  ScopedVars,
 } from '@grafana/data';
 
-import { DataSourceWithBackend, FetchResponse, getBackendSrv } from '@grafana/runtime';
+import { DataSourceWithBackend, FetchResponse, getBackendSrv, getTemplateSrv } from '@grafana/runtime';
 import { catchError } from 'rxjs/operators';
-
 
 import {
   AriaOpsQuery,
@@ -65,7 +67,7 @@ import {
   AriaOpsVariableQuery,
   OrTerm,
 } from './types';
-import { lastValueFrom } from 'rxjs';
+import { lastValueFrom, Observable } from 'rxjs';
 import { Stats } from 'aggregator';
 import { Smoother, smootherFactories } from 'smoother';
 import { compileQuery } from 'queryparser/compiler';
@@ -266,7 +268,7 @@ export class AriaOpsDataSource extends DataSourceWithBackend<
 
       // Enumerate every combination of orKeys
       done = true; // Will be reset to false if we still have combinations left to try
-      for(;;) {
+      for (; ;) {
         // Increment the orIndices
         for (let i = 0; i < orIndices.length; i++) {
           orIndices[i]++;
@@ -545,6 +547,39 @@ export class AriaOpsDataSource extends DataSourceWithBackend<
       response.push({ text: name, value: name });
     });
     return response;
+  }
+
+  query(
+    options: DataQueryRequest<AriaOpsQuery>
+  ): Observable<DataQueryResponse> {
+    const tmplSrv = getTemplateSrv();
+    if (tmplSrv) {
+      for (const target of options.targets) {
+        if (target.hide) {
+          continue;
+        }
+        console.log('Query before replacement', target.queryText);
+        target.queryText = tmplSrv.replace(target.queryText || '', options.scopedVars);
+        console.log('Query after replacement', target.queryText);
+      }
+    }
+    return super.query(options)
+  }
+
+  applyTemplateVariables(query: AriaOpsQuery, scopedVars: ScopedVars): Record<string, any> {
+    const tmplSrv = getTemplateSrv();
+    if (!tmplSrv || !query.advancedMode) {
+      console.log('applyTemplateVariables called without templateSrv or in non-advanced mode');
+      return query;
+    }
+    console.log('Query before replacement', query.queryText);
+    const newQuery: AriaOpsQuery = {
+      ...query,
+      queryText: tmplSrv.replace(query.queryText || '', scopedVars),
+
+    };
+    console.log('Query after replacement', newQuery.queryText);
+    return newQuery
   }
 
   /*
